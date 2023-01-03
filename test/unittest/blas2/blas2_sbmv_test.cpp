@@ -89,7 +89,7 @@ const auto combi =
                        ::testing::Values(3, 4, 9),                  // k
                        ::testing::Values<scalar_t>(0.0, 1.0, 1.5),  // alpha
                        ::testing::Values<scalar_t>(0.0, 1.0, 1.5),  // beta
-                       ::testing::Values(true/*, false*/),              // upper 
+                       ::testing::Values(true, false),              // upper 
                        ::testing::Values(1, 2),                     // incX
                        ::testing::Values(1, 3),                     // incY
                        ::testing::Values(1, 2)                      // lda_mul

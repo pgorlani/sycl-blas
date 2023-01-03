@@ -271,7 +271,7 @@ Gbmv<lhs_t, matrix_t, vector_t, local_range, is_transposed> make_gbmv(
  * @brief Tree node representing a symmetric band matrix_ vector_ multiplication.
  */
 template <typename lhs_t, typename matrix_t, typename vector_t,
-          uint32_t local_range, bool is_transposed>
+          uint32_t local_range, bool uplo>
 struct Sbmv {
   using value_t = typename vector_t::value_t;
   using index_t = typename vector_t::index_t;
@@ -295,12 +295,12 @@ struct Sbmv {
 /*!
  @brief Generator/factory for SBMV trees.
  */
-template <uint32_t local_range, bool is_transposed, typename lhs_t,
+template <uint32_t local_range, bool uplo, typename lhs_t,
           typename matrix_t, typename vector_t>
-Sbmv<lhs_t, matrix_t, vector_t, local_range, is_transposed> make_sbmv(
+Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo> make_sbmv(
     lhs_t &lhs_, matrix_t &matrix_,
     typename vector_t::index_t k_, vector_t &vector_) {
-  return Sbmv<lhs_t, matrix_t, vector_t, local_range, is_transposed>(
+  return Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>(
       lhs_, matrix_, k_, vector_);
 }
 

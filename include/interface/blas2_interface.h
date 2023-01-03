@@ -278,11 +278,9 @@ typename sb_handle_t::event_t _gbmv(sb_handle_t& sb_handle, char _trans,
  *            Matrix format
  * @param _lda Leading dimension _mA at least (_K + 1)
  * @param _vx Buffer containing x of at least (1+(_N-1)*abs(_incx)) elements
- *            when trans = 'n' and (1+(_M-1)*abs(_incx) otherwise
  * @param _incx Increment for _vx (nonzero)
  * @param _beta Scalar parameter beta
  * @param _vy Buffer containing y of at least (1+(_M-1)*abs(_incy)) elements
- *            when trans = 'n' and (1+(_N-1)*abs(_incy) otherwise
  * @param _incy Increment for _vy
  */
 template <typename sb_handle_t, typename index_t, typename element_t,
@@ -557,11 +555,9 @@ typename sb_handle_t::event_t inline _gbmv(sb_handle_t& sb_handle, char _trans,
  *            Matrix format
  * @param _lda Leading dimension _mA at least (_K + 1)
  * @param _vx Buffer containing x of at least (1+(_N-1)*abs(_incx)) elements
- *            when trans = 'n' and (1+(_M-1)*abs(_incx) otherwise
  * @param _incx Increment for _vx (nonzero)
  * @param _beta Scalar parameter beta
  * @param _vy Buffer containing y of at least (1+(_M-1)*abs(_incy)) elements
- *            when trans = 'n' and (1+(_N-1)*abs(_incy) otherwise
  * @param _incy Increment for _vy
  */
 template <typename sb_handle_t, typename index_t, typename element_t,
