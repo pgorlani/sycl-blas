@@ -523,8 +523,8 @@ typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, char _Uplo,
       make_matrix_view<col_major>(dot_products_buffer, _N, one, _N);
 
   const index_t global_size = roundUp<index_t>(y_vector_size, local_range);
-  auto gbmv = make_gbmv<local_range, is_transposed>(dot_products_matrix, mA,
-                                                    _K, _K, vx);
+  auto gbmv = make_sbmv<local_range, is_transposed>(dot_products_matrix, mA,
+                                                    _K, vx);
 
   // Execute the GBMV kernel that calculate the partial dot products of rows
   auto gbmvEvent =
