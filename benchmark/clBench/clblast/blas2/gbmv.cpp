@@ -26,10 +26,10 @@
 #include "../utils.hpp"
 
 template <typename scalar_t>
-std::string get_name(std::string t, int m, int n) {
+std::string get_name(std::string t, int m, int n, int kl, int ku) {
   std::ostringstream str{};
   str << "BM_Gbmv<" << blas_benchmark::utils::get_type_name<scalar_t>() << ">/"
-      << t << "/" << m << "/" << n;
+      << t << "/" << m << "/" << n << "/" << kl << "/" << ku;
   return str.str();
 }
 
@@ -176,7 +176,7 @@ void register_benchmark(blas_benchmark::Args& args, ExecutorType* exPtr,
                          scalar_t alpha, scalar_t beta, bool* success) {
       run<scalar_t>(st, exPtr, t, m, n, kl, ku, alpha, beta, success);
     };
-    benchmark::RegisterBenchmark(get_name<scalar_t>(ts, m, n).c_str(),
+    benchmark::RegisterBenchmark(get_name<scalar_t>(ts, m, n, kl, ku).c_str(),
                                  BM_lambda, exPtr, t, m, n, kl, ku, alpha, beta,
                                  success);
   }
