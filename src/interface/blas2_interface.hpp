@@ -423,13 +423,12 @@ typename sb_handle_t::event_t _symv_impl(
 template <uint32_t local_range, transpose_type trn, typename sb_handle_t,
           typename index_t, typename element_t, typename container_t0,
           typename container_t1, typename increment_t, typename container_t2>
-typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle,
-                                         index_t _M, index_t _N, index_t _KL,
-                                         index_t _KU, element_t _alpha,
-                                         container_t0 _mA, index_t _lda,
-                                         container_t1 _vx, increment_t _incx,
-                                         element_t _beta, container_t2 _vy,
-                                         increment_t _incy) {
+typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle, index_t _M,
+                                         index_t _N, index_t _KL, index_t _KU,
+                                         element_t _alpha, container_t0 _mA,
+                                         index_t _lda, container_t1 _vx,
+                                         increment_t _incx, element_t _beta,
+                                         container_t2 _vy, increment_t _incy) {
   constexpr bool is_transposed = (trn != transpose_type::Normal);
 
   if ((_KL >= _M) || (_KU >= _N)) {
@@ -439,7 +438,8 @@ typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle,
   auto x_vector_size = is_transposed ? _M : _N;
   auto y_vector_size = is_transposed ? _N : _M;
 
-  auto mA = make_matrix_view<col_major>(_mA, _KL + _KU + 1, x_vector_size, _lda);
+  auto mA =
+      make_matrix_view<col_major>(_mA, _KL + _KU + 1, x_vector_size, _lda);
   auto vx = make_vector_view(_vx, _incx, x_vector_size);
   auto vy = make_vector_view(_vy, _incy, y_vector_size);
 
@@ -494,12 +494,12 @@ typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle,
 template <uint32_t local_range, uplo_type uplo, typename sb_handle_t,
           typename index_t, typename element_t, typename container_t0,
           typename container_t1, typename increment_t, typename container_t2>
-typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle,
-                                         index_t _N, index_t _K,
-                                         element_t _alpha, container_t0 _mA,
-                                         index_t _lda, container_t1 _vx,
-                                         increment_t _incx, element_t _beta,
-                                         container_t2 _vy, increment_t _incy) {
+typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, index_t _N,
+                                         index_t _K, element_t _alpha,
+                                         container_t0 _mA, index_t _lda,
+                                         container_t1 _vx, increment_t _incx,
+                                         element_t _beta, container_t2 _vy,
+                                         increment_t _incy) {
   if (_K >= _N) {
     throw std::invalid_argument("Erroneous parameter");
   }
@@ -777,11 +777,11 @@ typename sb_handle_t::event_t inline _gbmv(sb_handle_t& sb_handle, char _trans,
                                            increment_t _incy) {
   return tolower(_trans) == 'n'
              ? blas::gemv::backend::_gbmv<transpose_type::Normal>(
-                   sb_handle, _M, _N, _KL, _KU, _alpha, _mA, _lda, _vx,
-                   _incx, _beta, _vy, _incy)
+                   sb_handle, _M, _N, _KL, _KU, _alpha, _mA, _lda, _vx, _incx,
+                   _beta, _vy, _incy)
              : blas::gemv::backend::_gbmv<transpose_type::Transposed>(
-                   sb_handle, _M, _N, _KL, _KU, _alpha, _mA, _lda, _vx,
-                   _incx, _beta, _vy, _incy);
+                   sb_handle, _M, _N, _KL, _KU, _alpha, _mA, _lda, _vx, _incx,
+                   _beta, _vy, _incy);
 }
 
 template <typename sb_handle_t, typename index_t, typename element_t,
@@ -805,13 +805,12 @@ typename sb_handle_t::event_t inline _sbmv(
     sb_handle_t& sb_handle, char _Uplo, index_t _N, index_t _K,
     element_t _alpha, container_t0 _mA, index_t _lda, container_t1 _vx,
     increment_t _incx, element_t _beta, container_t2 _vy, increment_t _incy) {
-  return tolower(_Uplo) == 'u'
-             ? blas::gemv::backend::_sbmv<uplo_type::Upper>(sb_handle, _N, _K,
-                                                _alpha, _mA, _lda, _vx, _incx,
-                                                _beta, _vy, _incy)
-             : blas::gemv::backend::_sbmv<uplo_type::Lower>(sb_handle, _N, _K,
-                                                _alpha, _mA, _lda, _vx, _incx,
-                                                _beta, _vy, _incy);
+  return tolower(_Uplo) == 'u' ? blas::gemv::backend::_sbmv<uplo_type::Upper>(
+                                     sb_handle, _N, _K, _alpha, _mA, _lda, _vx,
+                                     _incx, _beta, _vy, _incy)
+                               : blas::gemv::backend::_sbmv<uplo_type::Lower>(
+                                     sb_handle, _N, _K, _alpha, _mA, _lda, _vx,
+                                     _incx, _beta, _vy, _incy);
 }
 
 template <typename sb_handle_t, typename index_t, typename element_t,

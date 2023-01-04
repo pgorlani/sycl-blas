@@ -261,13 +261,12 @@ typename sb_handle_t::event_t _gbmv(sb_handle_t& sb_handle, char _trans,
 template <uint32_t local_range, transpose_type trn, typename sb_handle_t,
           typename index_t, typename element_t, typename container_t0,
           typename container_t1, typename increment_t, typename container_t2>
-typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle,
-                                         index_t _M, index_t _N, index_t _KL,
-                                         index_t _KU, element_t _alpha,
-                                         container_t0 _mA, index_t _lda,
-                                         container_t1 _vx, increment_t _incx,
-                                         element_t _beta, container_t2 _vy,
-                                         increment_t _incy);
+typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle, index_t _M,
+                                         index_t _N, index_t _KL, index_t _KU,
+                                         element_t _alpha, container_t0 _mA,
+                                         index_t _lda, container_t1 _vx,
+                                         increment_t _incx, element_t _beta,
+                                         container_t2 _vy, increment_t _incy);
 
 /**
  * @brief Matrix vector product with symmetric band matrices.
@@ -307,12 +306,12 @@ typename sb_handle_t::event_t _sbmv(sb_handle_t& sb_handle, char _Uplo,
 template <uint32_t local_range, uplo_type uplo, typename sb_handle_t,
           typename index_t, typename element_t, typename container_t0,
           typename container_t1, typename increment_t, typename container_t2>
-typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle,
-                                         index_t _N, index_t _K,
-                                         element_t _alpha, container_t0 _mA,
-                                         index_t _lda, container_t1 _vx,
-                                         increment_t _incx, element_t _beta,
-                                         container_t2 _vy, increment_t _incy);
+typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, index_t _N,
+                                         index_t _K, element_t _alpha,
+                                         container_t0 _mA, index_t _lda,
+                                         container_t1 _vx, increment_t _incx,
+                                         element_t _beta, container_t2 _vy,
+                                         increment_t _incy);
 
 }  // namespace internal
 
