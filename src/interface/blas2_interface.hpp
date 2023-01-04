@@ -439,7 +439,7 @@ typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle, char _trans,
   auto x_vector_size = is_transposed ? _M : _N;
   auto y_vector_size = is_transposed ? _N : _M;
 
-  auto mA = make_matrix_view<col_major>(_mA, _M, _N, _lda);
+  auto mA = make_matrix_view<col_major>(_mA, _KL + _KU + 1, x_vector_size, _lda);
   auto vx = make_vector_view(_vx, _incx, x_vector_size);
   auto vy = make_vector_view(_vy, _incy, y_vector_size);
 
@@ -507,11 +507,10 @@ typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, char _Uplo,
   auto x_vector_size = _N;
   auto y_vector_size = _N;
 
-  auto mA = make_matrix_view<col_major>(_mA, _N, _N, _lda);
+  auto mA = make_matrix_view<col_major>(_mA, _K + 1, _N, _lda);
   auto vx = make_vector_view(_vx, _incx, x_vector_size);
   auto vy = make_vector_view(_vy, _incy, y_vector_size);
 
-  // Leading dimension for dot products matrix
   constexpr index_t one = 1;
 
   auto dot_products_buffer = blas::make_sycl_iterator_buffer<element_t>(_N);
