@@ -70,13 +70,10 @@ enum class transpose_type : char {
 };
 
 /**
- * @enum Uplo 
- * @brief 
+ * @enum Uplo
+ * @brief
  */
-enum class uplo_type : char {
-  Upper = 'u',
-  Lower = 'l'
-};
+enum class uplo_type : char { Upper = 'u', Lower = 'l' };
 
 // choosing value at compile-time
 template <bool Conds, typename val_t, val_t value_one_t, val_t value_two_t>
