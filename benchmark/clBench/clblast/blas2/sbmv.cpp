@@ -35,8 +35,7 @@ std::string get_name(std::string uplo, int n, int k) {
 
 template <typename scalar_t>
 void run(benchmark::State& state, ExecutorType* executorPtr, std::string uplo,
-         index_t n, index_t k, scalar_t alpha,
-         scalar_t beta, bool* success) {
+         index_t n, index_t k, scalar_t alpha, scalar_t beta, bool* success) {
   // Standard test setup.
   const char* uplo_str = uplo.c_str();
 
@@ -85,8 +84,7 @@ void run(benchmark::State& state, ExecutorType* executorPtr, std::string uplo,
       blas_benchmark::utils::random_data<scalar_t>(ylen);
 
   // Specify the triangle.
-  clblast::Triangle a_tr =
-      blas_benchmark::utils::translate_triangle(uplo_str);
+  clblast::Triangle a_tr = blas_benchmark::utils::translate_triangle(uplo_str);
 
   // Specify the layout.
   auto layout = clblast::Layout::kColMajor;
@@ -101,17 +99,16 @@ void run(benchmark::State& state, ExecutorType* executorPtr, std::string uplo,
 #ifdef BLAS_VERIFY_BENCHMARK
   // Run a first time with a verification of the results
   std::vector<scalar_t> v_y_ref = v_y;
-  reference_blas::sbmv(uplo_str, n, k, alpha, m_a.data(), lda, v_x.data(),
-                       incX, beta, v_y_ref.data(), incY);
+  reference_blas::sbmv(uplo_str, n, k, alpha, m_a.data(), lda, v_x.data(), incX,
+                       beta, v_y_ref.data(), incY);
   std::vector<scalar_t> v_y_temp = v_y;
   {
     MemBuffer<scalar_t> v_y_temp_gpu(executorPtr, v_y_temp.data(),
                                      static_cast<size_t>(ylen));
     cl_event event;
-    clblast::Sbmv<scalar_t>(layout, a_tr, n, k, alpha, m_a_gpu.dev(), 0,
-                            lda, v_x_gpu.dev(), 0, incX, beta,
-                            v_y_temp_gpu.dev(), 0, incY, executorPtr->_queue(),
-                            &event);
+    clblast::Sbmv<scalar_t>(layout, a_tr, n, k, alpha, m_a_gpu.dev(), 0, lda,
+                            v_x_gpu.dev(), 0, incX, beta, v_y_temp_gpu.dev(), 0,
+                            incY, executorPtr->_queue(), &event);
     CLEventHandler::wait(event);
   }
 
@@ -125,10 +122,9 @@ void run(benchmark::State& state, ExecutorType* executorPtr, std::string uplo,
 
   auto blas_method_def = [&]() -> std::vector<cl_event> {
     cl_event event;
-    clblast::Sbmv<scalar_t>(layout, a_tr, n, k, alpha, m_a_gpu.dev(), 0,
-                            lda, v_x_gpu.dev(), 0, incX, beta,
-                            v_y_gpu.dev(), 0, incY, executorPtr->_queue(),
-                            &event);
+    clblast::Sbmv<scalar_t>(layout, a_tr, n, k, alpha, m_a_gpu.dev(), 0, lda,
+                            v_x_gpu.dev(), 0, incX, beta, v_y_gpu.dev(), 0,
+                            incY, executorPtr->_queue(), &event);
     CLEventHandler::wait(event);
     return {event};
   };
@@ -152,8 +148,8 @@ void run(benchmark::State& state, ExecutorType* executorPtr, std::string uplo,
 }
 
 template <typename scalar_t>
-void register_benchmark(blas_benchmark::Args& args,
-                        ExecutorType* exPtr, bool* success) {
+void register_benchmark(blas_benchmark::Args& args, ExecutorType* exPtr,
+                        bool* success) {
   auto sbmv_params = blas_benchmark::utils::get_sbmv_params<scalar_t>(args);
 
   for (auto p : sbmv_params) {
@@ -164,19 +160,19 @@ void register_benchmark(blas_benchmark::Args& args,
     std::tie(uplos, n, k, alpha, beta) = p;
 
     auto BM_lambda = [&](benchmark::State& st, ExecutorType* exPtr,
-                         std::string uplos, index_t n, index_t k, 
+                         std::string uplos, index_t n, index_t k,
                          scalar_t alpha, scalar_t beta, bool* success) {
       run<scalar_t>(st, exPtr, uplos, n, k, alpha, beta, success);
     };
     benchmark::RegisterBenchmark(get_name<scalar_t>(uplos, n, k).c_str(),
-                                 BM_lambda, exPtr, uplos, n, k,
-                                 alpha, beta, success);
+                                 BM_lambda, exPtr, uplos, n, k, alpha, beta,
+                                 success);
   }
 }
 
 namespace blas_benchmark {
-void create_benchmark(blas_benchmark::Args& args,
-                      ExecutorType* exPtr, bool* success) {
+void create_benchmark(blas_benchmark::Args& args, ExecutorType* exPtr,
+                      bool* success) {
   BLAS_REGISTER_BENCHMARK(args, exPtr, success);
 }
 }  // namespace blas_benchmark

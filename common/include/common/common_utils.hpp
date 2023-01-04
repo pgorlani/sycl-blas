@@ -49,7 +49,8 @@ using gbmv_param_t = std::tuple<std::string, index_t, index_t, index_t, index_t,
                                 scalar_t, scalar_t>;
 
 template <typename scalar_t>
-using sbmv_param_t = std::tuple<std::string, index_t, index_t, scalar_t, scalar_t>;
+using sbmv_param_t =
+    std::tuple<std::string, index_t, index_t, scalar_t, scalar_t>;
 
 namespace blas_benchmark {
 
@@ -491,12 +492,11 @@ static inline std::vector<sbmv_param_t<scalar_t>> get_sbmv_params(Args& args) {
     scalar_t alpha = 1;
     scalar_t beta = 0;
     for (std::string ul : {"u", "l"}) {
-        for (index_t n = dmin; n <= dmax; n *= 2) {
-            for (index_t k = kmin; k <= n / 4; k *= 2) {
-              sbmv_default.push_back(
-                  std::make_tuple(ul, n, k, alpha, beta));
-            }
-          }
+      for (index_t n = dmin; n <= dmax; n *= 2) {
+        for (index_t k = kmin; k <= n / 4; k *= 2) {
+          sbmv_default.push_back(std::make_tuple(ul, n, k, alpha, beta));
+        }
+      }
     }
     return sbmv_default;
   } else {
@@ -507,17 +507,16 @@ static inline std::vector<sbmv_param_t<scalar_t>> get_sbmv_params(Args& args) {
                 "invalid number of parameters (5 expected)");
           }
           try {
-            return std::make_tuple(
-                v[0].c_str(), str_to_int<index_t>(v[1]),
-                str_to_int<index_t>(v[2]), str_to_scalar<scalar_t>(v[3]),
-                str_to_scalar<scalar_t>(v[4]));
+            return std::make_tuple(v[0].c_str(), str_to_int<index_t>(v[1]),
+                                   str_to_int<index_t>(v[2]),
+                                   str_to_scalar<scalar_t>(v[3]),
+                                   str_to_scalar<scalar_t>(v[4]));
           } catch (...) {
             throw std::runtime_error("invalid parameter");
           }
         });
   }
 }
-
 
 /**
  * @fn get_type_name

@@ -34,23 +34,23 @@ namespace blas {
 
 /**
  * @struct Sbmv
- * @brief Tree node representing a symmetric band matrix_ vector_ multiplication.
+ * @brief Tree node representing a symmetric band matrix_ vector_
+ * multiplication.
  */
 template <typename lhs_t, typename matrix_t, typename vector_t,
           uint32_t local_range, bool is_upper>
-SYCL_BLAS_INLINE
-Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::Sbmv(
+SYCL_BLAS_INLINE Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::Sbmv(
     lhs_t &_l, matrix_t &_matrix,
-    typename Sbmv<lhs_t, matrix_t, vector_t, local_range,
-                  is_upper>::index_t &_k,
+    typename Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::index_t
+        &_k,
     vector_t &_vector)
     : lhs_(_l), matrix_(_matrix), vector_(_vector), k_(_k) {}
 
 template <typename lhs_t, typename matrix_t, typename vector_t,
           uint32_t local_range, bool is_upper>
-SYCL_BLAS_INLINE typename Sbmv<lhs_t, matrix_t, vector_t, local_range,
-                               is_upper>::index_t
-Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::get_size() const {
+SYCL_BLAS_INLINE
+    typename Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::index_t
+    Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::get_size() const {
   return matrix_.get_size();
 }
 template <typename lhs_t, typename matrix_t, typename vector_t,
@@ -64,24 +64,22 @@ Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::valid_thread(
 
 template <typename lhs_t, typename matrix_t, typename vector_t,
           uint32_t local_range, bool is_upper>
-SYCL_BLAS_INLINE typename Sbmv<lhs_t, matrix_t, vector_t, local_range,
-                               is_upper>::value_t
-Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::eval(
-    cl::sycl::nd_item<1> ndItem) {
+SYCL_BLAS_INLINE
+    typename Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::value_t
+    Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::eval(
+        cl::sycl::nd_item<1> ndItem) {
   const index_t lhs_idx =
       ndItem.get_group(0) * local_range + ndItem.get_local_id(0);
   value_t val = 0;
 
   if (lhs_idx < lhs_.get_size_row()) {
     const index_t k_beg = cl::sycl::max(index_t(0), lhs_idx - k_);
-    const index_t k_end =
-        cl::sycl::min(vector_.get_size(), lhs_idx + k_ + 1);
+    const index_t k_end = cl::sycl::min(vector_.get_size(), lhs_idx + k_ + 1);
 
     for (index_t s_idx = k_beg; s_idx < k_end; ++s_idx) {
-
       index_t K, J;
 
-      if(is_upper){
+      if (is_upper) {
         K = k_ + ((s_idx < lhs_idx) ? (s_idx - lhs_idx) : (lhs_idx - s_idx));
         J = (s_idx < lhs_idx) ? lhs_idx : s_idx;
       } else {

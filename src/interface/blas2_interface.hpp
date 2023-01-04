@@ -496,11 +496,10 @@ template <uint32_t local_range, uplo_type uplo, typename sb_handle_t,
           typename container_t1, typename increment_t, typename container_t2>
 typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, char _Uplo,
                                          index_t _N, index_t _K,
-                                         element_t _alpha,
-                                         container_t0 _mA, index_t _lda,
-                                         container_t1 _vx, increment_t _incx,
-                                         element_t _beta, container_t2 _vy,
-                                         increment_t _incy) {
+                                         element_t _alpha, container_t0 _mA,
+                                         index_t _lda, container_t1 _vx,
+                                         increment_t _incx, element_t _beta,
+                                         container_t2 _vy, increment_t _incy) {
   if (_K >= _N) {
     throw std::invalid_argument("Erroneous parameter");
   }
@@ -521,8 +520,8 @@ typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, char _Uplo,
       make_matrix_view<col_major>(dot_products_buffer, _N, one, _N);
 
   const index_t global_size = roundUp<index_t>(y_vector_size, local_range);
-  auto gbmv = make_sbmv<local_range, uplo == uplo_type::Upper>(dot_products_matrix, mA,
-                                                    _K, vx);
+  auto gbmv = make_sbmv<local_range, uplo == uplo_type::Upper>(
+      dot_products_matrix, mA, _K, vx);
 
   // Execute the GBMV kernel that calculate the partial dot products of rows
   auto gbmvEvent =
@@ -554,7 +553,6 @@ typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, char _Uplo,
                                sb_handle.execute(assignOp, local_range));
   }
 }
-
 
 /**** RANK 1 MODIFICATION ****/
 
@@ -804,23 +802,18 @@ typename sb_handle_t::event_t inline _ger(sb_handle_t& sb_handle, index_t _M,
 template <typename sb_handle_t, typename index_t, typename element_t,
           typename container_t0, typename container_t1, typename increment_t,
           typename container_t2>
-typename sb_handle_t::event_t inline _sbmv(sb_handle_t& sb_handle, char _Uplo,
-                                           index_t _N, index_t _K,
-                                           element_t _alpha,
-                                           container_t0 _mA, index_t _lda,
-                                           container_t1 _vx, increment_t _incx,
-                                           element_t _beta, container_t2 _vy,
-                                           increment_t _incy) {
+typename sb_handle_t::event_t inline _sbmv(
+    sb_handle_t& sb_handle, char _Uplo, index_t _N, index_t _K,
+    element_t _alpha, container_t0 _mA, index_t _lda, container_t1 _vx,
+    increment_t _incx, element_t _beta, container_t2 _vy, increment_t _incy) {
   return tolower(_Uplo) == 'u'
-             ? _sbmv_impl<32, uplo_type::Upper>(
-                   sb_handle, _Uplo, _N, _K, _alpha, _mA, _lda, _vx,
-                   _incx, _beta, _vy, _incy)
-             : _sbmv_impl<32, uplo_type::Lower>(
-                   sb_handle, _Uplo, _N, _K, _alpha, _mA, _lda, _vx,
-                   _incx, _beta, _vy, _incy);
+             ? _sbmv_impl<32, uplo_type::Upper>(sb_handle, _Uplo, _N, _K,
+                                                _alpha, _mA, _lda, _vx, _incx,
+                                                _beta, _vy, _incy)
+             : _sbmv_impl<32, uplo_type::Lower>(sb_handle, _Uplo, _N, _K,
+                                                _alpha, _mA, _lda, _vx, _incx,
+                                                _beta, _vy, _incy);
 }
-
-
 
 template <typename sb_handle_t, typename index_t, typename element_t,
           typename container_t0, typename increment_t, typename container_t1>

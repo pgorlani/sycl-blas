@@ -59,9 +59,8 @@ void run_test(const combination_t<scalar_t> combi) {
   fill_random(x_v);
 
   // SYSTEM SBMV
-  reference_blas::sbmv(uplo_str, n, k, alpha, a_m.data(),
-                       (k + 1) * lda_mul, x_v.data(), incX, beta,
-                       y_v_cpu.data(), incY);
+  reference_blas::sbmv(uplo_str, n, k, alpha, a_m.data(), (k + 1) * lda_mul,
+                       x_v.data(), incX, beta, y_v_cpu.data(), incY);
 
   auto q = make_queue();
   blas::SB_Handle sb_handle(q);
@@ -71,8 +70,8 @@ void run_test(const combination_t<scalar_t> combi) {
       blas::make_sycl_iterator_buffer<scalar_t>(y_v_gpu_result, y_size);
 
   // SYCL SBMV
-  _sbmv(sb_handle, *uplo_str, n, k, alpha, m_a_gpu,
-        (k + 1) * lda_mul, v_x_gpu, incX, beta, v_y_gpu, incY);
+  _sbmv(sb_handle, *uplo_str, n, k, alpha, m_a_gpu, (k + 1) * lda_mul, v_x_gpu,
+        incX, beta, v_y_gpu, incY);
 
   auto event = blas::helper::copy_to_host(sb_handle.get_queue(), v_y_gpu,
                                           y_v_gpu_result.data(), y_size);
@@ -89,7 +88,7 @@ const auto combi =
                        ::testing::Values(3, 4, 9),                  // k
                        ::testing::Values<scalar_t>(0.0, 1.0, 1.5),  // alpha
                        ::testing::Values<scalar_t>(0.0, 1.0, 1.5),  // beta
-                       ::testing::Values(true, false),              // upper 
+                       ::testing::Values(true, false),              // upper
                        ::testing::Values(1, 2),                     // incX
                        ::testing::Values(1, 3),                     // incY
                        ::testing::Values(1, 2)                      // lda_mul
@@ -103,7 +102,7 @@ const auto combi =
                        ::testing::Values(3, 4),                // kl
                        ::testing::Values<scalar_t>(1.5),       // alpha
                        ::testing::Values<scalar_t>(0.0, 1.5),  // beta
-                       ::testing::Values(false, true),         // upper 
+                       ::testing::Values(false, true),         // upper
                        ::testing::Values(2),                   // incX
                        ::testing::Values(3),                   // incY
                        ::testing::Values(2)                    // lda_mul
@@ -116,8 +115,7 @@ static std::string generate_name(
   int n, k, incX, incY, ldaMul;
   T alpha, beta;
   bool upper;
-  BLAS_GENERATE_NAME(info.param, n, k, alpha, beta, upper, incX, incY,
-                     ldaMul);
+  BLAS_GENERATE_NAME(info.param, n, k, alpha, beta, upper, incX, incY, ldaMul);
 }
 
 BLAS_REGISTER_TEST_ALL(Sbmv, combination_t, combi, generate_name);

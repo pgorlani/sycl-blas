@@ -267,7 +267,7 @@ typename sb_handle_t::event_t _gbmv(sb_handle_t& sb_handle, char _trans,
  * y = alpha*A*x + beta*y
  *
  * See the netlib blas interface documentation for more details of the
- * interface: https://netlib.org/lapack/explore-html/d3/da1/ssbmv_8f.html 
+ * interface: https://netlib.org/lapack/explore-html/d3/da1/ssbmv_8f.html
  *
  * @param sb_handle SB_handle
  * @param _Uplo Specifies if A is upper or lower triangular
@@ -287,8 +287,7 @@ template <typename sb_handle_t, typename index_t, typename element_t,
           typename container_0_t, typename container_1_t, typename increment_t,
           typename container_2_t>
 typename sb_handle_t::event_t _sbmv(sb_handle_t& sb_handle, char _Uplo,
-                                    index_t _N, index_t _K,
-                                    element_t _alpha,
+                                    index_t _N, index_t _K, element_t _alpha,
                                     container_0_t _mA, index_t _lda,
                                     container_1_t _vx, increment_t _incx,
                                     element_t _beta, container_2_t _vy,
@@ -544,7 +543,7 @@ typename sb_handle_t::event_t inline _gbmv(sb_handle_t& sb_handle, char _trans,
  * y = alpha*A*x + beta*y
  *
  * See the netlib blas interface documentation for more details of the
- * interface: https://netlib.org/lapack/explore-html/d3/da1/ssbmv_8f.html 
+ * interface: https://netlib.org/lapack/explore-html/d3/da1/ssbmv_8f.html
  *
  * @param sb_handle SB_handle
  * @param _Uplo Specifies if A is upper or lower triangular
@@ -564,14 +563,13 @@ template <typename sb_handle_t, typename index_t, typename element_t,
           typename container_0_t, typename container_1_t, typename increment_t,
           typename container_2_t>
 typename sb_handle_t::event_t _sbmv(sb_handle_t& sb_handle, char _Uplo,
-                                    index_t _N, index_t _K,
-                                    element_t _alpha,
+                                    index_t _N, index_t _K, element_t _alpha,
                                     container_0_t _mA, index_t _lda,
                                     container_1_t _vx, increment_t _incx,
                                     element_t _beta, container_2_t _vy,
-                                    increment_t _incy){
-  return internal::_sbmv(sb_handle, _Uplo, _N, _K, _alpha, _mA, _lda,
-                         _vx, _incx, _beta, _vy, _incy);
+                                    increment_t _incy) {
+  return internal::_sbmv(sb_handle, _Uplo, _N, _K, _alpha, _mA, _lda, _vx,
+                         _incx, _beta, _vy, _incy);
 }
 
 }  // namespace blas

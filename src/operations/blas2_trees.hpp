@@ -26,9 +26,9 @@
 #ifndef SYCL_BLAS_BLAS2_TREES_HPP
 #define SYCL_BLAS_BLAS2_TREES_HPP
 
-#include "blas2/sbmv.hpp"
 #include "blas2/gbmv.hpp"
 #include "blas2/gemv.hpp"
 #include "blas2/ger.hpp"
+#include "blas2/sbmv.hpp"
 
 #endif  // BLAS2_TREES_HPP

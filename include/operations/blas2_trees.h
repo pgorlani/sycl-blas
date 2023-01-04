@@ -268,7 +268,8 @@ Gbmv<lhs_t, matrix_t, vector_t, local_range, is_transposed> make_gbmv(
 
 /**
  * @struct Sbmv
- * @brief Tree node representing a symmetric band matrix_ vector_ multiplication.
+ * @brief Tree node representing a symmetric band matrix_ vector_
+ * multiplication.
  */
 template <typename lhs_t, typename matrix_t, typename vector_t,
           uint32_t local_range, bool uplo>
@@ -281,8 +282,7 @@ struct Sbmv {
   index_t k_;
   vector_t vector_;
 
-  Sbmv(lhs_t &_l, matrix_t &_matrix, index_t &_k, 
-       vector_t &_vector);
+  Sbmv(lhs_t &_l, matrix_t &_matrix, index_t &_k, vector_t &_vector);
   index_t get_size() const;
   bool valid_thread(cl::sycl::nd_item<1> ndItem) const;
   value_t eval(index_t i);
@@ -295,15 +295,14 @@ struct Sbmv {
 /*!
  @brief Generator/factory for SBMV trees.
  */
-template <uint32_t local_range, bool uplo, typename lhs_t,
-          typename matrix_t, typename vector_t>
+template <uint32_t local_range, bool uplo, typename lhs_t, typename matrix_t,
+          typename vector_t>
 Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo> make_sbmv(
-    lhs_t &lhs_, matrix_t &matrix_,
-    typename vector_t::index_t k_, vector_t &vector_) {
-  return Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>(
-      lhs_, matrix_, k_, vector_);
+    lhs_t &lhs_, matrix_t &matrix_, typename vector_t::index_t k_,
+    vector_t &vector_) {
+  return Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>(lhs_, matrix_, k_,
+                                                            vector_);
 }
-
 
 /**** GER BY ROWS M ROWS x N BLOCK USING PROPERLY THE SHARED MEMORY ****/
 // template <typename lhs_t,typename rhs_1_t,typename rhs_2_t>

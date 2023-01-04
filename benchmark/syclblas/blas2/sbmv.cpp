@@ -34,9 +34,9 @@ std::string get_name(std::string uplo, int n, int k) {
 }
 
 template <typename scalar_t>
-void run(benchmark::State& state, blas::SB_Handle* sb_handle_ptr, std::string uplo,
-         index_t n, index_t k, scalar_t alpha,
-         scalar_t beta, bool* success) {
+void run(benchmark::State& state, blas::SB_Handle* sb_handle_ptr,
+         std::string uplo, index_t n, index_t k, scalar_t alpha, scalar_t beta,
+         bool* success) {
   // Standard test setup.
   const char* uplo_str = uplo.c_str();
 
@@ -91,14 +91,14 @@ void run(benchmark::State& state, blas::SB_Handle* sb_handle_ptr, std::string up
 #ifdef BLAS_VERIFY_BENCHMARK
   // Run a first time with a verification of the results
   std::vector<scalar_t> v_y_ref = v_y;
-  reference_blas::sbmv(uplo_str, n, k, alpha, m_a.data(), lda, v_x.data(),
-                       incX, beta, v_y_ref.data(), incY);
+  reference_blas::sbmv(uplo_str, n, k, alpha, m_a.data(), lda, v_x.data(), incX,
+                       beta, v_y_ref.data(), incY);
   std::vector<scalar_t> v_y_temp = v_y;
   {
     auto v_y_temp_gpu =
         blas::make_sycl_iterator_buffer<scalar_t>(v_y_temp, ylen);
-    auto event = _sbmv(sb_handle, *uplo_str, n, k, alpha, m_a_gpu, lda,
-                       v_x_gpu, incX, beta, v_y_temp_gpu, incY);
+    auto event = _sbmv(sb_handle, *uplo_str, n, k, alpha, m_a_gpu, lda, v_x_gpu,
+                       incX, beta, v_y_temp_gpu, incY);
     sb_handle.wait();
   }
 
@@ -111,8 +111,8 @@ void run(benchmark::State& state, blas::SB_Handle* sb_handle_ptr, std::string up
 #endif
 
   auto blas_method_def = [&]() -> std::vector<cl::sycl::event> {
-    auto event = _sbmv(sb_handle, *uplo_str, n, k, alpha, m_a_gpu, lda,
-                       v_x_gpu, incX, beta, v_y_gpu, incY);
+    auto event = _sbmv(sb_handle, *uplo_str, n, k, alpha, m_a_gpu, lda, v_x_gpu,
+                       incX, beta, v_y_gpu, incY);
     sb_handle.wait(event);
     return event;
   };
@@ -149,13 +149,13 @@ void register_benchmark(blas_benchmark::Args& args,
     std::tie(uplos, n, k, alpha, beta) = p;
 
     auto BM_lambda = [&](benchmark::State& st, blas::SB_Handle* sb_handle_ptr,
-                         std::string uplos, index_t n, index_t k, 
+                         std::string uplos, index_t n, index_t k,
                          scalar_t alpha, scalar_t beta, bool* success) {
       run<scalar_t>(st, sb_handle_ptr, uplos, n, k, alpha, beta, success);
     };
     benchmark::RegisterBenchmark(get_name<scalar_t>(uplos, n, k).c_str(),
-                                 BM_lambda, sb_handle_ptr, uplos, n, k,
-                                 alpha, beta, success);
+                                 BM_lambda, sb_handle_ptr, uplos, n, k, alpha,
+                                 beta, success);
   }
 }
 
