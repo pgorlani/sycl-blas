@@ -423,7 +423,7 @@ typename sb_handle_t::event_t _symv_impl(
 template <uint32_t local_range, transpose_type trn, typename sb_handle_t,
           typename index_t, typename element_t, typename container_t0,
           typename container_t1, typename increment_t, typename container_t2>
-typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle, char _trans,
+typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle,
                                          index_t _M, index_t _N, index_t _KL,
                                          index_t _KU, element_t _alpha,
                                          container_t0 _mA, index_t _lda,
@@ -494,7 +494,7 @@ typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle, char _trans,
 template <uint32_t local_range, uplo_type uplo, typename sb_handle_t,
           typename index_t, typename element_t, typename container_t0,
           typename container_t1, typename increment_t, typename container_t2>
-typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, char _Uplo,
+typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle,
                                          index_t _N, index_t _K,
                                          element_t _alpha, container_t0 _mA,
                                          index_t _lda, container_t1 _vx,
@@ -776,11 +776,11 @@ typename sb_handle_t::event_t inline _gbmv(sb_handle_t& sb_handle, char _trans,
                                            element_t _beta, container_t2 _vy,
                                            increment_t _incy) {
   return tolower(_trans) == 'n'
-             ? _gbmv_impl<32, transpose_type::Normal>(
-                   sb_handle, _trans, _M, _N, _KL, _KU, _alpha, _mA, _lda, _vx,
+             ? blas::gemv::backend::_gbmv<transpose_type::Normal>(
+                   sb_handle, _M, _N, _KL, _KU, _alpha, _mA, _lda, _vx,
                    _incx, _beta, _vy, _incy)
-             : _gbmv_impl<32, transpose_type::Transposed>(
-                   sb_handle, _trans, _M, _N, _KL, _KU, _alpha, _mA, _lda, _vx,
+             : blas::gemv::backend::_gbmv<transpose_type::Transposed>(
+                   sb_handle, _M, _N, _KL, _KU, _alpha, _mA, _lda, _vx,
                    _incx, _beta, _vy, _incy);
 }
 
@@ -806,10 +806,10 @@ typename sb_handle_t::event_t inline _sbmv(
     element_t _alpha, container_t0 _mA, index_t _lda, container_t1 _vx,
     increment_t _incx, element_t _beta, container_t2 _vy, increment_t _incy) {
   return tolower(_Uplo) == 'u'
-             ? _sbmv_impl<32, uplo_type::Upper>(sb_handle, _Uplo, _N, _K,
+             ? blas::gemv::backend::_sbmv<uplo_type::Upper>(sb_handle, _N, _K,
                                                 _alpha, _mA, _lda, _vx, _incx,
                                                 _beta, _vy, _incy)
-             : _sbmv_impl<32, uplo_type::Lower>(sb_handle, _Uplo, _N, _K,
+             : blas::gemv::backend::_sbmv<uplo_type::Lower>(sb_handle, _N, _K,
                                                 _alpha, _mA, _lda, _vx, _incx,
                                                 _beta, _vy, _incy);
 }
