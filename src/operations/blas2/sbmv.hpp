@@ -37,36 +37,36 @@ namespace blas {
  * @brief Tree node representing a symmetric band matrix_ vector_ multiplication.
  */
 template <typename lhs_t, typename matrix_t, typename vector_t,
-          uint32_t local_range, bool uplo>
+          uint32_t local_range, bool is_upper>
 SYCL_BLAS_INLINE
-Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>::Sbmv(
+Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::Sbmv(
     lhs_t &_l, matrix_t &_matrix,
     typename Sbmv<lhs_t, matrix_t, vector_t, local_range,
-                  uplo>::index_t &_k,
+                  is_upper>::index_t &_k,
     vector_t &_vector)
     : lhs_(_l), matrix_(_matrix), vector_(_vector), k_(_k) {}
 
 template <typename lhs_t, typename matrix_t, typename vector_t,
-          uint32_t local_range, bool uplo>
+          uint32_t local_range, bool is_upper>
 SYCL_BLAS_INLINE typename Sbmv<lhs_t, matrix_t, vector_t, local_range,
-                               uplo>::index_t
-Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>::get_size() const {
+                               is_upper>::index_t
+Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::get_size() const {
   return matrix_.get_size();
 }
 template <typename lhs_t, typename matrix_t, typename vector_t,
-          uint32_t local_range, bool uplo>
+          uint32_t local_range, bool is_upper>
 SYCL_BLAS_INLINE bool
-Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>::valid_thread(
+Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::valid_thread(
     cl::sycl::nd_item<1> ndItem) const {
   // Valid threads are established by ::eval.
   return true;
 }
 
 template <typename lhs_t, typename matrix_t, typename vector_t,
-          uint32_t local_range, bool uplo>
+          uint32_t local_range, bool is_upper>
 SYCL_BLAS_INLINE typename Sbmv<lhs_t, matrix_t, vector_t, local_range,
-                               uplo>::value_t
-Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>::eval(
+                               is_upper>::value_t
+Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::eval(
     cl::sycl::nd_item<1> ndItem) {
   const index_t lhs_idx =
       ndItem.get_group(0) * local_range + ndItem.get_local_id(0);
@@ -81,26 +81,12 @@ Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>::eval(
 
       index_t K, J;
 
-      if(uplo){ // upper
-
-        if(s_idx < lhs_idx){
-          K = k_ - (lhs_idx - s_idx) ;
-          J = lhs_idx;
-        } else {
-          K = k_ + lhs_idx - s_idx;
-          J = s_idx;
-        }
-
-      } else { // lower
-
-        if(s_idx < lhs_idx){
-          K = lhs_idx - s_idx;
-          J = s_idx;
-        } else {
-          K = s_idx - lhs_idx;
-          J = lhs_idx;
-        }
-
+      if(is_upper){
+        K = k_ + ((s_idx < lhs_idx) ? (s_idx - lhs_idx) : (lhs_idx - s_idx));
+        J = (s_idx < lhs_idx) ? lhs_idx : s_idx;
+      } else {
+        K = (s_idx < lhs_idx) ? lhs_idx - s_idx : s_idx - lhs_idx;
+        J = (s_idx < lhs_idx) ? s_idx : lhs_idx;
       }
 
       val = AddOperator::eval(
@@ -113,17 +99,17 @@ Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>::eval(
 }
 
 template <typename lhs_t, typename matrix_t, typename vector_t,
-          uint32_t local_range, bool uplo>
+          uint32_t local_range, bool is_upper>
 SYCL_BLAS_INLINE void Sbmv<lhs_t, matrix_t, vector_t, local_range,
-                           uplo>::bind(cl::sycl::handler &h) {
+                           is_upper>::bind(cl::sycl::handler &h) {
   lhs_.bind(h);
   matrix_.bind(h);
   vector_.bind(h);
 }
 template <typename lhs_t, typename matrix_t, typename vector_t,
-          uint32_t local_range, bool uplo>
+          uint32_t local_range, bool is_upper>
 SYCL_BLAS_INLINE void Sbmv<lhs_t, matrix_t, vector_t, local_range,
-                           uplo>::adjust_access_displacement() {
+                           is_upper>::adjust_access_displacement() {
   lhs_.adjust_access_displacement();
   matrix_.adjust_access_displacement();
   vector_.adjust_access_displacement();
