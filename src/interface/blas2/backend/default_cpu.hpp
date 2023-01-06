@@ -83,6 +83,16 @@ typename SB_Handle::event_t inline _sbmv(SB_Handle& sb_handle, index_t _N,
         sb_handle, _N, _K, _alpha, _mA, _lda, _vx, _incx, _beta, _vy, _incy);
   }
 }
+
+template <uplo_type uplo, transpose_type trn, diag_type diag,
+          typename sb_handle_t, typename index_t, typename container_t0,
+          typename container_t1, typename increment_t>
+typename sb_handle_t::event_t _tbmv(sb_handle_t& sb_handle, index_t _N,
+                                    index_t _K, container_t0 _mA, index_t _lda,
+                                    container_t1 _vx, increment_t _incx) {
+  return blas::internal::_tbmv_impl<32, uplo, trn, diag>(sb_handle, _N, _K, _mA,
+                                                         _lda, _vx, _incx);
+}
 }  // namespace backend
 }  // namespace gemv
 }  // namespace blas
