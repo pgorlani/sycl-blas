@@ -151,9 +151,8 @@ void register_benchmark(blas_benchmark::Args& args,
 
   for (auto p : gbmv_params) {
     std::string ts;
-    index_t m, n;
+    index_t m, n, kl, ku;
     scalar_t alpha, beta;
-    scalar_t kl, ku;
     std::tie(ts, m, n, kl, ku, alpha, beta) = p;
     int t = static_cast<int>(blas_benchmark::utils::to_transpose_enum(ts));
 

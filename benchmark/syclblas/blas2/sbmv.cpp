@@ -143,8 +143,7 @@ void register_benchmark(blas_benchmark::Args& args,
 
   for (auto p : sbmv_params) {
     std::string uplos;
-    index_t n;
-    scalar_t k;
+    index_t n, k;
     scalar_t alpha, beta;
     std::tie(uplos, n, k, alpha, beta) = p;
 
