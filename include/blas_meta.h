@@ -77,9 +77,9 @@ enum class uplo_type : char { Upper = 'u', Lower = 'l' };
 
 /**
  * @enum Diag
- * @brief
+ * @brief Specifies the values on the diagonal of a triangular matrix.
  */
-enum class diag_type : char { Nonunit = 'N', Unit = 'U' };
+enum class diag_type : char { Nonunit = 'n', Unit = 'u' };
 
 // choosing value at compile-time
 template <bool Conds, typename val_t, val_t value_one_t, val_t value_two_t>

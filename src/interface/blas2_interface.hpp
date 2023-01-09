@@ -561,6 +561,7 @@ typename sb_handle_t::event_t _tbmv_impl(sb_handle_t& sb_handle, index_t _N,
                                          index_t _lda, container_t1 _vx,
                                          increment_t _incx) {
   constexpr bool is_transposed = (trn != transpose_type::Normal);
+  constexpr bool is_upper = (uplo == uplo_type::Upper);
 
   if (_K >= _N) {
     throw std::invalid_argument("Erroneous parameter");
@@ -573,14 +574,15 @@ typename sb_handle_t::event_t _tbmv_impl(sb_handle_t& sb_handle, index_t _N,
 
   constexpr index_t one = 1;
 
-  auto dot_products_buffer = blas::make_sycl_iterator_buffer<float>(_N);
+  auto dot_products_buffer =
+      blas::make_sycl_iterator_buffer<typename container_t0::scalar_t>(_N);
 
   auto dot_products_matrix =
       make_matrix_view<col_major>(dot_products_buffer, _N, one, _N);
 
   const index_t global_size = roundUp<index_t>(x_vector_size, local_range);
-  auto tbmv =
-      make_gbmv<local_range, is_transposed>(dot_products_matrix, mA, 0, _K, vx);
+  auto tbmv = make_gbmv<local_range, is_transposed>(
+      dot_products_matrix, mA, is_upper ? 0 : _K, is_upper ? _K : 0, vx);
 
   // Execute the TBMV kernel that calculate the partial dot products of rows
   auto tbmvEvent =
@@ -880,15 +882,51 @@ typename sb_handle_t::event_t _tbmv(sb_handle_t& sb_handle, char _Uplo,
                                     char _trans, char _Diag, index_t _N,
                                     index_t _K, container_t0 _mA, index_t _lda,
                                     container_t1 _vx, increment_t _incx) {
-  return tolower(_trans) == 'n'
-             ? blas::gemv::backend::_tbmv<uplo_type::Upper,
-                                          transpose_type::Normal,
-                                          diag_type::Nonunit>(
-                   sb_handle, _N, _K, _mA, _lda, _vx, _incx)
-             : blas::gemv::backend::_tbmv<uplo_type::Upper,
-                                          transpose_type::Transposed,
-                                          diag_type::Nonunit>(
-                   sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+  if (tolower(_Uplo) == 'u') {
+    if (tolower(_trans) == 'n') {
+      if (tolower(_Diag) == 'n') {
+        return blas::gemv::backend::_tbmv<
+            uplo_type::Upper, transpose_type::Normal, diag_type::Nonunit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      } else {
+        return blas::gemv::backend::_tbmv<
+            uplo_type::Upper, transpose_type::Normal, diag_type::Unit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      }
+    } else {
+      if (tolower(_Diag) == 'n') {
+        return blas::gemv::backend::_tbmv<
+            uplo_type::Upper, transpose_type::Transposed, diag_type::Nonunit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      } else {
+        return blas::gemv::backend::_tbmv<
+            uplo_type::Upper, transpose_type::Transposed, diag_type::Unit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      }
+    }
+  } else {
+    if (tolower(_trans) == 'n') {
+      if (tolower(_Diag) == 'n') {
+        return blas::gemv::backend::_tbmv<
+            uplo_type::Lower, transpose_type::Normal, diag_type::Nonunit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      } else {
+        return blas::gemv::backend::_tbmv<
+            uplo_type::Lower, transpose_type::Normal, diag_type::Unit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      }
+    } else {
+      if (tolower(_Diag) == 'n') {
+        return blas::gemv::backend::_tbmv<
+            uplo_type::Lower, transpose_type::Transposed, diag_type::Nonunit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      } else {
+        return blas::gemv::backend::_tbmv<
+            uplo_type::Lower, transpose_type::Transposed, diag_type::Unit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      }
+    }
+  }
 }
 
 }  // namespace internal

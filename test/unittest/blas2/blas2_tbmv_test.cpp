@@ -79,30 +79,29 @@ void run_test(const combination_t<scalar_t> combi) {
   ASSERT_TRUE(isAlmostEqual);
 }
 
-#ifdef STRESS_TESTING
+#ifndef STRESS_TESTING
 template <typename scalar_t>
 const auto combi =
-    ::testing::Combine(
-                       ::testing::Values(14, 63, 257, 1010),        // n
-                       ::testing::Values(3, 4, 9),                  // k
-                       ::testing::Values(true, false),              // is_upper 
-                       ::testing::Values(true, false),              // trans
-                       ::testing::Values(true, false),              // is_unit 
-                       ::testing::Values(1, 2),                     // incX
-                       ::testing::Values(1, 2)                      // lda_mul
+    ::testing::Combine(::testing::Values(14, 63, 257, 1010),  // n
+                       ::testing::Values(3, 4, 9),            // k
+                       ::testing::Values(true, false),        // is_upper
+                       ::testing::Values(true, false),        // trans
+                       ::testing::Values(/*true,*/ false),    // is_unit
+                       ::testing::Values(1, 2),               // incX
+                       ::testing::Values(1, 2)                // lda_mul
     );
 #else
 // For the purpose of travis and other slower platforms, we need a faster test
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
 const auto combi =
-    ::testing::Combine(::testing::Values(14, 1010),            // n
-                       ::testing::Values(3, 4),                // k
-                       ::testing::Values(true/*, false*/),         // is_upper 
-                       ::testing::Values(true, false),         // trans
-                       ::testing::Values(/*true,*/ false),         // is_unit 
-                       ::testing::Values(2),                   // incX
-                       ::testing::Values(2)                    // lda_mul
+    ::testing::Combine(::testing::Values(14, 1010),         // n
+                       ::testing::Values(3, 4),             // k
+                       ::testing::Values(true, false),      // is_upper
+                       ::testing::Values(true, false),      // trans
+                       ::testing::Values(/*true,*/ false),  // is_unit
+                       ::testing::Values(2),                // incX
+                       ::testing::Values(2)                 // lda_mul
     );
 #endif
 
@@ -113,8 +112,7 @@ static std::string generate_name(
   bool is_upper;
   bool trans;
   bool is_unit;
-  BLAS_GENERATE_NAME(info.param, n, k, is_upper, trans, is_unit, incX,
-                     ldaMul);
+  BLAS_GENERATE_NAME(info.param, n, k, is_upper, trans, is_unit, incX, ldaMul);
 }
 
 BLAS_REGISTER_TEST_ALL(Tbmv, combination_t, combi, generate_name);
