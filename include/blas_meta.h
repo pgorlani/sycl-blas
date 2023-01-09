@@ -71,7 +71,7 @@ enum class transpose_type : char {
 
 /**
  * @enum Uplo
- * @brief
+ * @brief Specifies whether the lower or upper triangle needs to be accessed.
  */
 enum class uplo_type : char { Upper = 'u', Lower = 'l' };
 
