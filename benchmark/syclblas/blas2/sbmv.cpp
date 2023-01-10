@@ -56,7 +56,7 @@ void run(benchmark::State& state, blas::SB_Handle* sb_handle_ptr,
   state.counters["k"] = k_d;
 
   // Compute the number of A non-zero elements.
-  const double A_validVal = 1;
+  const double A_validVal = (n_d * (2.0 * k_d + 1.0)) - (k_d * (k_d + 1.0));
 
   {
     double nflops_AtimesX = 2.0 * A_validVal;
