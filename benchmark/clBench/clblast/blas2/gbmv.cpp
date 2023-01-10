@@ -62,9 +62,9 @@ void run(benchmark::State& state, ExecutorType* executorPtr, int ti, index_t m,
   state.counters["ku"] = ku_d;
 
   // Compute the number of A non-zero elements.
-  const double A_validVal = m_d * n_d -
-                            0.5 * ((m_d - kl_d) * (m_d - kl_d + 1.0)) -
-                            0.5 * ((n_d - ku_d) * (n_d - ku_d + 1.0));
+  const double A_validVal =
+      (t_str[0] == 'n' ? n_d : m_d) * (kl_d + ku_d + 1.0) -
+      0.5 * (kl_d * (kl_d + 1.0)) - 0.5 * (ku_d * (ku_d + 1.0));
 
   {
     double nflops_AtimesX = 2.0 * A_validVal;
