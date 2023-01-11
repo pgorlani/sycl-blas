@@ -504,53 +504,17 @@ typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, index_t _N,
     throw std::invalid_argument("Erroneous parameter");
   }
 
-  auto x_vector_size = _N;
-  auto y_vector_size = _N;
+  auto vector_size = _N;
 
   auto mA = make_matrix_view<col_major>(_mA, _K + 1, _N, _lda);
-  auto vx = make_vector_view(_vx, _incx, x_vector_size);
-  auto vy = make_vector_view(_vy, _incy, y_vector_size);
+  auto vx = make_vector_view(_vx, _incx, vector_size);
+  auto vy = make_vector_view(_vy, _incy, vector_size);
 
-  constexpr index_t one = 1;
+  const index_t global_size = roundUp<index_t>(vector_size, local_range);
+  auto sbmv = make_sbmv<local_range, uplo == uplo_type::Upper>(_K, _alpha , mA, vx, _beta, vy);
 
-  auto dot_products_buffer = blas::make_sycl_iterator_buffer<element_t>(_N);
+  return sb_handle.execute(sbmv, static_cast<index_t>(local_range), global_size);
 
-  auto dot_products_matrix =
-      make_matrix_view<col_major>(dot_products_buffer, _N, one, _N);
-
-  const index_t global_size = roundUp<index_t>(y_vector_size, local_range);
-  auto sbmv = make_sbmv<local_range, uplo == uplo_type::Upper>(
-      dot_products_matrix, mA, _K, vx);
-
-  // Execute the SBMV kernel that calculate the partial dot products of rows
-  auto sbmvEvent =
-      sb_handle.execute(sbmv, static_cast<index_t>(local_range), global_size);
-
-  // apply ALPHA and BETA
-  if (_beta != static_cast<element_t>(0)) {
-    // vec_y * b
-    auto betaMulYOp = make_op<ScalarOp, ProductOperator>(_beta, vy);
-
-    // alpha * vec_dot_products
-    auto alphaMulDotsOp =
-        make_op<ScalarOp, ProductOperator>(_alpha, dot_products_matrix);
-
-    // add up
-    auto addOp = make_op<BinaryOp, AddOperator>(betaMulYOp, alphaMulDotsOp);
-
-    // assign the result back to vec_y
-    auto assignOp = make_op<Assign>(vy, addOp);
-
-    // exectutes the above expression tree to yield the final GBMV result
-    return concatenate_vectors(sbmvEvent,
-                               sb_handle.execute(assignOp, local_range));
-  } else {
-    auto alphaMulDotsOp =
-        make_op<ScalarOp, ProductOperator>(_alpha, dot_products_matrix);
-    auto assignOp = make_op<Assign>(vy, alphaMulDotsOp);
-    return concatenate_vectors(sbmvEvent,
-                               sb_handle.execute(assignOp, local_range));
-  }
 }
 
 /**** RANK 1 MODIFICATION ****/
