@@ -19,11 +19,11 @@
  *
  *  SYCL-BLAS: BLAS implementation using SYCL
  *
- *  @filename default_cpu.hpp
+ *  @filename nvidia_gpu.hpp
  *
  **************************************************************************/
-#ifndef SYCL_BLAS_GEMV_DEFAULT_CPU_BACKEND_HPP
-#define SYCL_BLAS_GEMV_DEFAULT_CPU_BACKEND_HPP
+#ifndef SYCL_BLAS_GEMV_NVIDIA_GPU_BACKEND_HPP
+#define SYCL_BLAS_GEMV_NVIDIA_GPU_BACKEND_HPP
 #include "interface/blas2_interface.h"
 
 namespace blas {
@@ -56,11 +56,11 @@ typename SB_Handle::event_t inline _gbmv(SB_Handle& sb_handle, index_t _M,
                                          increment_t _incx, element_t _beta,
                                          container_t2 _vy, increment_t _incy) {
   if (trn == transpose_type::Normal) {
-    return blas::internal::_gbmv_impl<32, trn>(sb_handle, _M, _N, _KL, _KU,
+    return blas::internal::_gbmv_impl<64, trn>(sb_handle, _M, _N, _KL, _KU,
                                                _alpha, _mA, _lda, _vx, _incx,
                                                _beta, _vy, _incy);
   } else {
-    return blas::internal::_gbmv_impl<32, trn>(sb_handle, _M, _N, _KL, _KU,
+    return blas::internal::_gbmv_impl<64, trn>(sb_handle, _M, _N, _KL, _KU,
                                                _alpha, _mA, _lda, _vx, _incx,
                                                _beta, _vy, _incy);
   }
@@ -76,10 +76,10 @@ typename SB_Handle::event_t inline _sbmv(SB_Handle& sb_handle, index_t _N,
                                          element_t _beta, container_t2 _vy,
                                          increment_t _incy) {
   if (uplo == uplo_type::Upper) {
-    return blas::internal::_sbmv_impl<32, uplo>(
+    return blas::internal::_sbmv_impl<64, uplo>(
         sb_handle, _N, _K, _alpha, _mA, _lda, _vx, _incx, _beta, _vy, _incy);
   } else {
-    return blas::internal::_sbmv_impl<32, uplo>(
+    return blas::internal::_sbmv_impl<64, uplo>(
         sb_handle, _N, _K, _alpha, _mA, _lda, _vx, _incx, _beta, _vy, _incy);
   }
 }
