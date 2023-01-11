@@ -56,13 +56,13 @@ typename SB_Handle::event_t inline _gbmv(SB_Handle& sb_handle, index_t _M,
                                          increment_t _incx, element_t _beta,
                                          container_t2 _vy, increment_t _incy) {
   if (trn == transpose_type::Normal) {
-    return blas::internal::_gbmv_impl<32, trn>(sb_handle, _M, _N, _KL, _KU,
-                                               _alpha, _mA, _lda, _vx, _incx,
-                                               _beta, _vy, _incy);
+    return blas::internal::_gbmv_impl<128, trn>(sb_handle, _M, _N, _KL, _KU,
+                                                _alpha, _mA, _lda, _vx, _incx,
+                                                _beta, _vy, _incy);
   } else {
-    return blas::internal::_gbmv_impl<32, trn>(sb_handle, _M, _N, _KL, _KU,
-                                               _alpha, _mA, _lda, _vx, _incx,
-                                               _beta, _vy, _incy);
+    return blas::internal::_gbmv_impl<128, trn>(sb_handle, _M, _N, _KL, _KU,
+                                                _alpha, _mA, _lda, _vx, _incx,
+                                                _beta, _vy, _incy);
   }
 }
 
@@ -76,10 +76,10 @@ typename SB_Handle::event_t inline _sbmv(SB_Handle& sb_handle, index_t _N,
                                          element_t _beta, container_t2 _vy,
                                          increment_t _incy) {
   if (uplo == uplo_type::Upper) {
-    return blas::internal::_sbmv_impl<32, uplo>(
+    return blas::internal::_sbmv_impl<128, uplo>(
         sb_handle, _N, _K, _alpha, _mA, _lda, _vx, _incx, _beta, _vy, _incy);
   } else {
-    return blas::internal::_sbmv_impl<32, uplo>(
+    return blas::internal::_sbmv_impl<128, uplo>(
         sb_handle, _N, _K, _alpha, _mA, _lda, _vx, _incx, _beta, _vy, _incy);
   }
 }
