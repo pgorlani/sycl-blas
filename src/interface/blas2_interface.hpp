@@ -519,12 +519,12 @@ typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, index_t _N,
       make_matrix_view<col_major>(dot_products_buffer, _N, one, _N);
 
   const index_t global_size = roundUp<index_t>(y_vector_size, local_range);
-  auto gbmv = make_sbmv<local_range, uplo == uplo_type::Upper>(
+  auto sbmv = make_sbmv<local_range, uplo == uplo_type::Upper>(
       dot_products_matrix, mA, _K, vx);
 
   // Execute the SBMV kernel that calculate the partial dot products of rows
-  auto gbmvEvent =
-      sb_handle.execute(gbmv, static_cast<index_t>(local_range), global_size);
+  auto sbmvEvent =
+      sb_handle.execute(sbmv, static_cast<index_t>(local_range), global_size);
 
   // apply ALPHA and BETA
   if (_beta != static_cast<element_t>(0)) {
@@ -542,13 +542,13 @@ typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, index_t _N,
     auto assignOp = make_op<Assign>(vy, addOp);
 
     // exectutes the above expression tree to yield the final GBMV result
-    return concatenate_vectors(gbmvEvent,
+    return concatenate_vectors(sbmvEvent,
                                sb_handle.execute(assignOp, local_range));
   } else {
     auto alphaMulDotsOp =
         make_op<ScalarOp, ProductOperator>(_alpha, dot_products_matrix);
     auto assignOp = make_op<Assign>(vy, alphaMulDotsOp);
-    return concatenate_vectors(gbmvEvent,
+    return concatenate_vectors(sbmvEvent,
                                sb_handle.execute(assignOp, local_range));
   }
 }
