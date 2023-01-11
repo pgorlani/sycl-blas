@@ -511,10 +511,11 @@ typename sb_handle_t::event_t _sbmv_impl(sb_handle_t& sb_handle, index_t _N,
   auto vy = make_vector_view(_vy, _incy, vector_size);
 
   const index_t global_size = roundUp<index_t>(vector_size, local_range);
-  auto sbmv = make_sbmv<local_range, uplo == uplo_type::Upper>(_K, _alpha , mA, vx, _beta, vy);
+  auto sbmv = make_sbmv<local_range, uplo == uplo_type::Upper>(_K, _alpha, mA,
+                                                               vx, _beta, vy);
 
-  return sb_handle.execute(sbmv, static_cast<index_t>(local_range), global_size);
-
+  return sb_handle.execute(sbmv, static_cast<index_t>(local_range),
+                           global_size);
 }
 
 /**** RANK 1 MODIFICATION ****/

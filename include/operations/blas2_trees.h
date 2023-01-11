@@ -283,7 +283,8 @@ struct Sbmv {
   vector_t vector_;
   value_t alpha_, beta_;
 
-  Sbmv(lhs_t &_l, matrix_t &_matrix, index_t &_k, vector_t &_vector, value_t _alpha, value_t _beta);
+  Sbmv(lhs_t &_l, matrix_t &_matrix, index_t &_k, vector_t &_vector,
+       value_t _alpha, value_t _beta);
   index_t get_size() const;
   bool valid_thread(cl::sycl::nd_item<1> ndItem) const;
   value_t eval(index_t i);
@@ -299,10 +300,11 @@ struct Sbmv {
 template <uint32_t local_range, bool uplo, typename lhs_t, typename matrix_t,
           typename vector_t>
 Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo> make_sbmv(
-    typename vector_t::index_t k_, typename vector_t::value_t alpha_, matrix_t &matrix_, 
-    vector_t &vector_, typename vector_t::value_t beta_, lhs_t &lhs_) {
-  return Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>(lhs_, matrix_, k_,
-                                                            vector_, alpha_, beta_);
+    typename vector_t::index_t k_, typename vector_t::value_t alpha_,
+    matrix_t &matrix_, vector_t &vector_, typename vector_t::value_t beta_,
+    lhs_t &lhs_) {
+  return Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo>(
+      lhs_, matrix_, k_, vector_, alpha_, beta_);
 }
 
 /**** GER BY ROWS M ROWS x N BLOCK USING PROPERLY THE SHARED MEMORY ****/

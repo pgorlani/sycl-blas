@@ -43,8 +43,17 @@ SYCL_BLAS_INLINE Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::Sbmv(
     lhs_t &_l, matrix_t &_matrix,
     typename Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::index_t
         &_k,
-    vector_t &_vector, typename Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::value_t _alpha, typename Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::value_t _beta)
-    : lhs_(_l), matrix_(_matrix), vector_(_vector), k_(_k), alpha_(_alpha), beta_(_beta) {}
+    vector_t &_vector,
+    typename Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::value_t
+        _alpha,
+    typename Sbmv<lhs_t, matrix_t, vector_t, local_range, is_upper>::value_t
+        _beta)
+    : lhs_(_l),
+      matrix_(_matrix),
+      vector_(_vector),
+      k_(_k),
+      alpha_(_alpha),
+      beta_(_beta) {}
 
 template <typename lhs_t, typename matrix_t, typename vector_t,
           uint32_t local_range, bool is_upper>
@@ -91,7 +100,9 @@ SYCL_BLAS_INLINE
           val, ProductOperator::eval(matrix_.eval(K, J), vector_.eval(s_idx)));
     }
 
-    lhs_.eval(lhs_idx) = AddOperator::eval(ProductOperator::eval(alpha_, val), ProductOperator::eval(beta_, lhs_.eval(lhs_idx)));
+    lhs_.eval(lhs_idx) =
+        AddOperator::eval(ProductOperator::eval(alpha_, val),
+                          ProductOperator::eval(beta_, lhs_.eval(lhs_idx)));
   }
   return val;
 }
