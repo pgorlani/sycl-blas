@@ -45,8 +45,18 @@ Gbmv<lhs_t, matrix_t, vector_t, local_range, is_transposed>::Gbmv(
                   is_transposed>::index_t &_kl,
     typename Gbmv<lhs_t, matrix_t, vector_t, local_range,
                   is_transposed>::index_t &_ku,
-    vector_t &_vector)
-    : lhs_(_l), matrix_(_matrix), vector_(_vector), kl_(_kl), ku_(_ku) {}
+    vector_t &_vector,
+    typename Gbmv<lhs_t, matrix_t, vector_t, local_range,
+                  is_transposed>::value_t _alpha,
+    typename Gbmv<lhs_t, matrix_t, vector_t, local_range,
+                  is_transposed>::value_t _beta)
+    : lhs_(_l),
+      matrix_(_matrix),
+      vector_(_vector),
+      kl_(_kl),
+      ku_(_ku),
+      alpha_(_alpha),
+      beta_(_beta) {}
 
 template <typename lhs_t, typename matrix_t, typename vector_t,
           uint32_t local_range, bool is_transposed>
@@ -74,7 +84,7 @@ Gbmv<lhs_t, matrix_t, vector_t, local_range, is_transposed>::eval(
       ndItem.get_group(0) * local_range + ndItem.get_local_id(0);
   value_t val = 0;
 
-  if (lhs_idx < lhs_.get_size_row()) {
+  if (lhs_idx < lhs_.get_size()) {
     const index_t k_lower = is_transposed ? ku_ : kl_;
     const index_t k_upper = is_transposed ? kl_ : ku_;
 
@@ -90,7 +100,9 @@ Gbmv<lhs_t, matrix_t, vector_t, local_range, is_transposed>::eval(
           val, ProductOperator::eval(matrix_.eval(K, J), vector_.eval(s_idx)));
     }
 
-    lhs_.eval(lhs_idx, index_t(0)) = val;
+    lhs_.eval(lhs_idx) =
+        AddOperator::eval(ProductOperator::eval(alpha_, val),
+                          ProductOperator::eval(beta_, lhs_.eval(lhs_idx)));
   }
   return val;
 }

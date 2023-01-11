@@ -242,9 +242,10 @@ struct Gbmv {
   index_t kl_;
   index_t ku_;
   vector_t vector_;
+  value_t alpha_, beta_;
 
   Gbmv(lhs_t &_l, matrix_t &_matrix, index_t &_kl, index_t &_ku,
-       vector_t &_vector);
+       vector_t &_vector, value_t _alpha, value_t _beta);
   index_t get_size() const;
   bool valid_thread(cl::sycl::nd_item<1> ndItem) const;
   value_t eval(index_t i);
@@ -260,10 +261,11 @@ struct Gbmv {
 template <uint32_t local_range, bool is_transposed, typename lhs_t,
           typename matrix_t, typename vector_t>
 Gbmv<lhs_t, matrix_t, vector_t, local_range, is_transposed> make_gbmv(
-    lhs_t &lhs_, matrix_t &matrix_, typename vector_t::index_t kl_,
-    typename vector_t::index_t ku_, vector_t &vector_) {
+    typename vector_t::index_t kl_, typename vector_t::index_t ku_,
+    typename vector_t::value_t alpha_, matrix_t &matrix_, vector_t &vector_,
+    typename vector_t::value_t beta_, lhs_t &lhs_) {
   return Gbmv<lhs_t, matrix_t, vector_t, local_range, is_transposed>(
-      lhs_, matrix_, kl_, ku_, vector_);
+      lhs_, matrix_, kl_, ku_, vector_, alpha_, beta_);
 }
 
 /**
