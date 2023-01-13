@@ -417,7 +417,7 @@ typename sb_handle_t::event_t _symv_impl(
 }
 
 /*! _gbmv_impl.
- * @brief Implementation of the Band Matrix Vector product.
+ * @brief Implementation of the Generic Band Matrix Vector product.
  *
  */
 template <uint32_t local_range, transpose_type trn, typename sb_handle_t,
@@ -451,7 +451,7 @@ typename sb_handle_t::event_t _gbmv_impl(sb_handle_t& sb_handle, index_t _M,
 }
 
 /*! _sbmv_impl.
- * @brief Implementation of the Band Matrix Vector product.
+ * @brief Implementation of the Symmetric Band Matrix Vector product.
  *
  */
 template <uint32_t local_range, uplo_type uplo, typename sb_handle_t,
