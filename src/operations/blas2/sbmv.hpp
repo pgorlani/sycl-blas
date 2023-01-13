@@ -19,7 +19,7 @@
  *
  *  SYCL-BLAS: BLAS implementation using SYCL
  *
- *  @filename gbmv.hpp
+ *  @filename sbmv.hpp
  *
  **************************************************************************/
 

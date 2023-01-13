@@ -45,6 +45,44 @@ typename SB_Handle::event_t _gemv(SB_Handle& sb_handle, index_t _M, index_t _N,
         sb_handle, _M, _N, _alpha, _mA, _lda, _vx, _incx, _beta, _vy, _incy);
   }
 }
+
+template <transpose_type trn, typename SB_Handle, typename index_t,
+          typename element_t, typename container_t0, typename container_t1,
+          typename increment_t, typename container_t2>
+typename SB_Handle::event_t inline _gbmv(SB_Handle& sb_handle, index_t _M,
+                                         index_t _N, index_t _KL, index_t _KU,
+                                         element_t _alpha, container_t0 _mA,
+                                         index_t _lda, container_t1 _vx,
+                                         increment_t _incx, element_t _beta,
+                                         container_t2 _vy, increment_t _incy) {
+  if (trn == transpose_type::Normal) {
+    return blas::internal::_gbmv_impl<64, trn>(sb_handle, _M, _N, _KL, _KU,
+                                               _alpha, _mA, _lda, _vx, _incx,
+                                               _beta, _vy, _incy);
+  } else {
+    return blas::internal::_gbmv_impl<64, trn>(sb_handle, _M, _N, _KL, _KU,
+                                               _alpha, _mA, _lda, _vx, _incx,
+                                               _beta, _vy, _incy);
+  }
+}
+
+template <uplo_type uplo, typename SB_Handle, typename index_t,
+          typename element_t, typename container_t0, typename container_t1,
+          typename increment_t, typename container_t2>
+typename SB_Handle::event_t inline _sbmv(SB_Handle& sb_handle, index_t _N,
+                                         index_t _K, element_t _alpha,
+                                         container_t0 _mA, index_t _lda,
+                                         container_t1 _vx, increment_t _incx,
+                                         element_t _beta, container_t2 _vy,
+                                         increment_t _incy) {
+  if (uplo == uplo_type::Upper) {
+    return blas::internal::_sbmv_impl<64, uplo>(
+        sb_handle, _N, _K, _alpha, _mA, _lda, _vx, _incx, _beta, _vy, _incy);
+  } else {
+    return blas::internal::_sbmv_impl<64, uplo>(
+        sb_handle, _N, _K, _alpha, _mA, _lda, _vx, _incx, _beta, _vy, _incy);
+  }
+}
 }  // namespace backend
 }  // namespace gemv
 }  // namespace blas
