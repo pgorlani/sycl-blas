@@ -55,7 +55,7 @@ typename SB_Handle::event_t inline _gbmv(SB_Handle& sb_handle, index_t _M,
                                          index_t _lda, container_t1 _vx,
                                          increment_t _incx, element_t _beta,
                                          container_t2 _vy, increment_t _incy) {
-  return blas::internal::_gbmv_impl<128, trn>(sb_handle, _M, _N, _KL, _KU,
+  return blas::internal::_gbmv_impl<256, trn>(sb_handle, _M, _N, _KL, _KU,
                                               _alpha, _mA, _lda, _vx, _incx,
                                               _beta, _vy, _incy);
 }
@@ -69,7 +69,7 @@ typename SB_Handle::event_t inline _sbmv(SB_Handle& sb_handle, index_t _N,
                                          container_t1 _vx, increment_t _incx,
                                          element_t _beta, container_t2 _vy,
                                          increment_t _incy) {
-  return blas::internal::_sbmv_impl<128, uplo>(
+  return blas::internal::_sbmv_impl<256, uplo>(
       sb_handle, _N, _K, _alpha, _mA, _lda, _vx, _incx, _beta, _vy, _incy);
 }
 }  // namespace backend
