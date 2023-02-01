@@ -65,6 +65,7 @@ if(is_computecpp)
     # Blas 2 tests
     ${SYCLBLAS_UNITTEST}/blas2/blas2_trmv_test.cpp
     ${SYCLBLAS_UNITTEST}/blas2/blas2_tbmv_test.cpp
+    ${SYCLBLAS_UNITTEST}/blas2/blas2_tbsv_test.cpp
     # Blas buffer tests
     ${SYCLBLAS_UNITTEST}/buffers/sycl_buffer_test.cpp
   )
