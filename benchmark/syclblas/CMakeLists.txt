@@ -20,6 +20,7 @@ set(sources
   blas2/gemv.cpp
   blas2/sbmv.cpp
   blas2/tbmv.cpp
+  blas2/tbsv.cpp
   # Level 3 blas
   blas3/gemm.cpp
   blas3/gemm_batched.cpp
