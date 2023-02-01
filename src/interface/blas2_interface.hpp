@@ -543,14 +543,14 @@ typename sb_handle_t::event_t _tbsv_impl(sb_handle_t& sb_handle, index_t _N,
   auto vres = make_vector_view(res_buffer, one::value(), x_vector_size);
 
   const index_t global_size = roundUp<index_t>(x_vector_size, local_range);
-  auto tbmv = make_tbmv<local_range, is_upper, is_transposed, is_unit>(vres, mA,
+  auto tbsv = make_tbsv<local_range, is_upper, is_transposed, is_unit>(vres, mA,
                                                                        _K, vx);
 
-  auto tbmvEvent =
-      sb_handle.execute(tbmv, static_cast<index_t>(local_range), global_size);
+  auto tbsvEvent =
+      sb_handle.execute(tbsv, static_cast<index_t>(local_range), global_size);
 
   auto assignOp = make_op<Assign>(vx, vres);
-  return concatenate_vectors(tbmvEvent,
+  return concatenate_vectors(tbsvEvent,
                              sb_handle.execute(assignOp, local_range));
 }
 
