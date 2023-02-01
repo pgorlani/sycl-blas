@@ -517,6 +517,43 @@ typename sb_handle_t::event_t _tbmv_impl(sb_handle_t& sb_handle, index_t _N,
                              sb_handle.execute(assignOp, local_range));
 }
 
+template <uint32_t local_range, uplo_type uplo, transpose_type trn,
+          diag_type diag, typename sb_handle_t, typename index_t,
+          typename container_t0, typename container_t1, typename increment_t>
+typename sb_handle_t::event_t _tbsv_impl(sb_handle_t& sb_handle, index_t _N,
+                                         index_t _K, container_t0 _mA,
+                                         index_t _lda, container_t1 _vx,
+                                         increment_t _incx) {
+  constexpr bool is_upper = (uplo == uplo_type::Upper);
+  constexpr bool is_transposed = (trn != transpose_type::Normal);
+  constexpr bool is_unit = (diag == diag_type::Unit);
+
+  if (_K >= _N) {
+    throw std::invalid_argument("Erroneous parameter: _K >= _N");
+  }
+
+  using one = constant<index_t, const_val::one>;
+  auto x_vector_size = _N;
+  auto res_buffer =
+      blas::make_sycl_iterator_buffer<typename container_t0::scalar_t>(
+          x_vector_size);
+
+  auto mA = make_matrix_view<col_major>(_mA, _K + 1, _N, _lda);
+  auto vx = make_vector_view(_vx, _incx, x_vector_size);
+  auto vres = make_vector_view(res_buffer, one::value(), x_vector_size);
+
+  const index_t global_size = roundUp<index_t>(x_vector_size, local_range);
+  auto tbmv = make_tbmv<local_range, is_upper, is_transposed, is_unit>(vres, mA,
+                                                                       _K, vx);
+
+  auto tbmvEvent =
+      sb_handle.execute(tbmv, static_cast<index_t>(local_range), global_size);
+
+  auto assignOp = make_op<Assign>(vx, vres);
+  return concatenate_vectors(tbmvEvent,
+                             sb_handle.execute(assignOp, local_range));
+}
+
 /**** RANK 1 MODIFICATION ****/
 
 template <typename sb_handle_t, typename index_t, typename element_t,
@@ -852,7 +889,58 @@ typename sb_handle_t::event_t _tbmv(sb_handle_t& sb_handle, char _Uplo,
     }
   }
 }
-
+template <typename sb_handle_t, typename index_t, typename container_t0,
+          typename container_t1, typename increment_t>
+typename sb_handle_t::event_t _tbsv(sb_handle_t& sb_handle, char _Uplo,
+                                    char _trans, char _Diag, index_t _N,
+                                    index_t _K, container_t0 _mA, index_t _lda,
+                                    container_t1 _vx, increment_t _incx) {
+  if (tolower(_Uplo) == 'u') {
+    if (tolower(_trans) == 'n') {
+      if (tolower(_Diag) == 'n') {
+        return blas::tbsv::backend::_tbsv<
+            uplo_type::Upper, transpose_type::Normal, diag_type::Nonunit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      } else {
+        return blas::tbsv::backend::_tbsv<
+            uplo_type::Upper, transpose_type::Normal, diag_type::Unit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      }
+    } else {
+      if (tolower(_Diag) == 'n') {
+        return blas::tbsv::backend::_tbsv<
+            uplo_type::Upper, transpose_type::Transposed, diag_type::Nonunit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      } else {
+        return blas::tbsv::backend::_tbsv<
+            uplo_type::Upper, transpose_type::Transposed, diag_type::Unit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      }
+    }
+  } else {
+    if (tolower(_trans) == 'n') {
+      if (tolower(_Diag) == 'n') {
+        return blas::tbsv::backend::_tbsv<
+            uplo_type::Lower, transpose_type::Normal, diag_type::Nonunit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      } else {
+        return blas::tbsv::backend::_tbsv<
+            uplo_type::Lower, transpose_type::Normal, diag_type::Unit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      }
+    } else {
+      if (tolower(_Diag) == 'n') {
+        return blas::tbsv::backend::_tbsv<
+            uplo_type::Lower, transpose_type::Transposed, diag_type::Nonunit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      } else {
+        return blas::tbsv::backend::_tbsv<
+            uplo_type::Lower, transpose_type::Transposed, diag_type::Unit>(
+            sb_handle, _N, _K, _mA, _lda, _vx, _incx);
+      }
+    }
+  }
+}
 }  // namespace internal
 }  // namespace blas
 
