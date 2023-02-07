@@ -75,36 +75,25 @@ SYCL_BLAS_INLINE typename Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper,
                                is_transposed, is_unitdiag>::value_t
 Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
      is_unitdiag>::eval(cl::sycl::nd_item<1> ndItem) {
-  const index_t lhs_idx = ndItem.get_global_id(0);
 
-  value_t val = 0;
+  // j -> lhs_idx 
+  for (index_t lhs_idx = 0; lhs_idx < k_; ++lhs_idx) {
+    const index_t k_end = cl::sycl::min(k_, lhs_idx + k_ + 1);
 
-  if (lhs_idx < lhs_.get_size()) {
-    const index_t kl_ = is_upper ? 0 : k_;
-    const index_t ku_ = is_upper ? k_ : 0;
+    // i -> s_idx
+    for (index_t s_idx = lhs_idx+1; s_idx < k_end; ++s_idx) {
+      const index_t K = s_idx-lhs_idx;
+      const index_t J = lhs_idx;
 
-    const index_t k_lower = is_transposed ? ku_ : kl_;
-    const index_t k_upper = is_transposed ? kl_ : ku_;
+      const value_t A = (is_unitdiag && (K == 0)) ? value_t(1) : matrix_.eval(K, J);
 
-    const index_t k_beg = cl::sycl::max(index_t(0), lhs_idx - k_lower);
-    const index_t k_end =
-        cl::sycl::min(vector_.get_size(), lhs_idx + k_upper + 1);
-    const index_t k_off = ku_ + (is_transposed ? -lhs_idx : lhs_idx);
-
-    for (index_t s_idx = k_beg; s_idx < k_end; ++s_idx) {
-      const index_t K = k_off + (is_transposed ? s_idx : -s_idx);
-      const index_t J = is_transposed ? lhs_idx : s_idx;
-      val = AddOperator::eval(
-          val, ProductOperator::eval(is_unitdiag && ((is_upper && (K == k_)) ||
-                                                     (!is_upper && (K == 0)))
-                                         ? value_t(1)
-                                         : matrix_.eval(K, J),
-                                     vector_.eval(s_idx)));
+      // x solution
+      lhs_.eval(s_idx) = lhs_.eval(s_idx) - ProductOperator::eval(A, lhs_.eval(lhs_idx)); 
+ 
     }
 
-    lhs_.eval(lhs_idx) = val;
-  }
-  return val;
+ }
+  return 0;
 }
 
 template <typename lhs_t, typename matrix_t, typename vector_t,
