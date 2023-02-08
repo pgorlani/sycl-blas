@@ -82,18 +82,18 @@ Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
   auto lhs_l = local_mem.localAcc;
   lhs_l[global_idx] = lhs_.eval(global_idx);
 
-  ndItem.barrier(cl::sycl::access::fence_space::local_space);
-
   // ----
 
   // j -> lhs_idx
   for (index_t lhs_idx = 0; lhs_idx < lhs_.get_size(); ++lhs_idx) {
+    const index_t s_idx = ndItem.get_local_id(0);
     const index_t k_end = cl::sycl::min(k_, lhs_idx + k_ + 1);
 
-    if (!is_unitdiag) lhs_l[lhs_idx] /= matrix_.eval(0, lhs_idx);
+    if (!is_unitdiag && !s_idx) lhs_l[lhs_idx] /= matrix_.eval(0, lhs_idx);
+    // sync the WI
+    ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-    // i -> s_idx --> this can be done in parallel among the WI
-    for (index_t s_idx = lhs_idx + 1; s_idx < k_end; ++s_idx) {
+    if ((s_idx > lhs_idx) && (s_idx < k_end)) {
       const index_t K = s_idx - lhs_idx;
       const index_t J = lhs_idx;
 
@@ -103,7 +103,6 @@ Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
       // x solution
       lhs_l[s_idx] = lhs_l[s_idx] - ProductOperator::eval(A, lhs_l[lhs_idx]);
     }
-
     // sync the WI
     ndItem.barrier(cl::sycl::access::fence_space::local_space);
   }
