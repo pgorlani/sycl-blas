@@ -71,17 +71,26 @@ Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
 template <typename lhs_t, typename matrix_t, typename vector_t,
           uint32_t local_range, bool is_upper, bool is_transposed,
           bool is_unitdiag>
+template <typename local_memory_t>
 SYCL_BLAS_INLINE typename Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper,
                                is_transposed, is_unitdiag>::value_t
 Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
-     is_unitdiag>::eval(cl::sycl::nd_item<1> ndItem) {
+     is_unitdiag>::eval(local_memory_t local_mem, cl::sycl::nd_item<1> ndItem) {
+  // copy lhs_ local memory + sync thread
+  auto lhs_l = local_mem.localAcc;
+  for (index_t i = 0; i < lhs_.get_size(); ++i) lhs_l[i] = lhs_.eval(i);
+
+  ndItem.barrier(cl::sycl::access::fence_space::local_space);
+
+  // ----
+
   // j -> lhs_idx
   for (index_t lhs_idx = 0; lhs_idx < lhs_.get_size(); ++lhs_idx) {
     const index_t k_end = cl::sycl::min(k_, lhs_idx + k_ + 1);
 
-    if (!is_unitdiag) lhs_.eval(lhs_idx) /= matrix_.eval(0, lhs_idx);
+    if (!is_unitdiag) lhs_l[lhs_idx] /= matrix_.eval(0, lhs_idx);
 
-    // i -> s_idx
+    // i -> s_idx --> this can be done in parallel among the WI
     for (index_t s_idx = lhs_idx + 1; s_idx < k_end; ++s_idx) {
       const index_t K = s_idx - lhs_idx;
       const index_t J = lhs_idx;
@@ -90,10 +99,18 @@ Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
           (is_unitdiag && (K == 0)) ? value_t(1) : matrix_.eval(K, J);
 
       // x solution
-      lhs_.eval(s_idx) =
-          lhs_.eval(s_idx) - ProductOperator::eval(A, lhs_.eval(lhs_idx));
+      lhs_l[s_idx] = lhs_l[s_idx] - ProductOperator::eval(A, lhs_l[lhs_idx]);
     }
+
+    // sync the WI
+    ndItem.barrier(cl::sycl::access::fence_space::local_space);
   }
+
+  // ----
+
+  // copy back to local memory lhs_ --> WI sync in above loop
+  for (index_t i = 0; i < lhs_.get_size(); ++i) lhs_.eval(i) = lhs_l[i];
+
   return 0;
 }
 

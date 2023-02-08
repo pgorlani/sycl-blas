@@ -549,7 +549,7 @@ typename sb_handle_t::event_t _tbsv_impl(sb_handle_t& sb_handle, index_t _N,
 
   //  auto tbsvEvent =
   return sb_handle.execute(tbsv, static_cast<index_t>(/*local_range*/ 1),
-                           global_size);
+                           global_size, _N);
 
   //  auto assignOp = make_op<Assign>(vx, vres);
   //  return concatenate_vectors(tbsvEvent,
