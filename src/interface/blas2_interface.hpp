@@ -542,16 +542,18 @@ typename sb_handle_t::event_t _tbsv_impl(sb_handle_t& sb_handle, index_t _N,
   auto vx = make_vector_view(_vx, _incx, x_vector_size);
   auto vres = make_vector_view(res_buffer, one::value(), x_vector_size);
 
-  const index_t global_size = 1;/*roundUp<index_t>(x_vector_size, local_range);*/
-  auto tbsv = make_tbsv<1/*local_range*/, is_upper, is_transposed, is_unit>(vx, mA,
-                                                                       _K, vx);
+  const index_t global_size =
+      1; /*roundUp<index_t>(x_vector_size, local_range);*/
+  auto tbsv = make_tbsv<1 /*local_range*/, is_upper, is_transposed, is_unit>(
+      vx, mA, _K, vx);
 
-//  auto tbsvEvent =
-  return sb_handle.execute(tbsv, static_cast<index_t>(/*local_range*/1), global_size);
+  //  auto tbsvEvent =
+  return sb_handle.execute(tbsv, static_cast<index_t>(/*local_range*/ 1),
+                           global_size);
 
-//  auto assignOp = make_op<Assign>(vx, vres);
-//  return concatenate_vectors(tbsvEvent,
-//                             sb_handle.execute(assignOp, /*local_range*/1));
+  //  auto assignOp = make_op<Assign>(vx, vres);
+  //  return concatenate_vectors(tbsvEvent,
+  //                             sb_handle.execute(assignOp, /*local_range*/1));
 }
 
 /**** RANK 1 MODIFICATION ****/

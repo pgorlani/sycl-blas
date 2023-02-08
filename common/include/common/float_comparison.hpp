@@ -205,7 +205,7 @@ inline bool compare_vectors(std::vector<scalar_t> const& vec,
   for (int i = 0; i < vec.size(); ++i) {
     if (!almost_equal<scalar_t, epsilon_t>(vec[i], ref[i])) {
       err_stream << "Value mismatch at index " << i << ": " << vec[i]
-                 << "; expected " << ref[i] << " " << vec[i] -ref[i]<< end_line;
+                 << "; expected " << ref[i] << end_line;
       return false;
     }
   }

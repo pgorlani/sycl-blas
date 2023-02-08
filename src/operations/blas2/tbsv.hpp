@@ -75,24 +75,25 @@ SYCL_BLAS_INLINE typename Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper,
                                is_transposed, is_unitdiag>::value_t
 Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
      is_unitdiag>::eval(cl::sycl::nd_item<1> ndItem) {
-
-  // j -> lhs_idx 
-  for (index_t lhs_idx = 0; lhs_idx < k_; ++lhs_idx) {
+  // j -> lhs_idx
+  for (index_t lhs_idx = 0; lhs_idx < lhs_.get_size(); ++lhs_idx) {
     const index_t k_end = cl::sycl::min(k_, lhs_idx + k_ + 1);
 
+    if (!is_unitdiag) lhs_.eval(lhs_idx) /= matrix_.eval(0, lhs_idx);
+
     // i -> s_idx
-    for (index_t s_idx = lhs_idx+1; s_idx < k_end; ++s_idx) {
-      const index_t K = s_idx-lhs_idx;
+    for (index_t s_idx = lhs_idx + 1; s_idx < k_end; ++s_idx) {
+      const index_t K = s_idx - lhs_idx;
       const index_t J = lhs_idx;
 
-      const value_t A = (is_unitdiag && (K == 0)) ? value_t(1) : matrix_.eval(K, J);
+      const value_t A =
+          (is_unitdiag && (K == 0)) ? value_t(1) : matrix_.eval(K, J);
 
       // x solution
-      lhs_.eval(s_idx) = lhs_.eval(s_idx) - ProductOperator::eval(A, lhs_.eval(lhs_idx)); 
- 
+      lhs_.eval(s_idx) =
+          lhs_.eval(s_idx) - ProductOperator::eval(A, lhs_.eval(lhs_idx));
     }
-
- }
+  }
   return 0;
 }
 

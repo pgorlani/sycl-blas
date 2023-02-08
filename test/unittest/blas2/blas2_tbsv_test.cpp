@@ -47,19 +47,21 @@ void run_test(const combination_t<scalar_t> combi) {
   int x_size = 1 + (n - 1) * incX;
 
   // Input matrix
-  std::vector<scalar_t> a_m(a_size, 0.001);
+  std::vector<scalar_t> a_m(a_size);
   // Input/output vector
-  std::vector<scalar_t> x_v(x_size, .05);
+  std::vector<scalar_t> x_v(x_size);
   // Input/output system vector
-  std::vector<scalar_t> x_v_cpu(x_size, scalar_t(1.0));
+  std::vector<scalar_t> x_v_cpu(x_size);
 
-  fill_random(a_m);
+  // Control the magnitude of extra-diagonal elements
+  fill_random_with_range(a_m, scalar_t(-0.00005), scalar_t(0.00005));
+  if (!is_unit) {
+    // Populate main diagonal with dominant elements
+    for (int i = 0; i < a_size; i += ((k + 1) * lda_mul))
+      a_m[i] = random_scalar(scalar_t(9), scalar_t(11));
+  }
+
   fill_random(x_v);
-
-  for(int ii =0; ii<a_size; ++ii) a_m[ii] *= 0.0001;
-//  for(int ii =0; ii<x_size; ++ii) x_v[ii] *= 0.5;
-
-
   x_v_cpu = x_v;
 
   // SYSTEM TBSV
@@ -99,13 +101,13 @@ const auto combi =
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
 const auto combi =
-    ::testing::Combine(::testing::Values(14/*, 1010*/),     // n
-                       ::testing::Values(3, 4, 9),         // k
+    ::testing::Combine(::testing::Values(14, 1010),         // n
+                       ::testing::Values(3, 4, 9),          // k
                        ::testing::Values(/*true,*/ false),  // is_upper
                        ::testing::Values(/*true,*/ false),  // trans
-                       ::testing::Values(true/*, false*/),  // is_unit
-                       ::testing::Values(1, 2),            // incX
-                       ::testing::Values(1, 2)             // lda_mul
+                       ::testing::Values(true, false),      // is_unit
+                       ::testing::Values(1, 2),             // incX
+                       ::testing::Values(1, 2)              // lda_mul
     );
 #endif
 
