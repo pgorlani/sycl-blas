@@ -76,9 +76,11 @@ SYCL_BLAS_INLINE typename Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper,
                                is_transposed, is_unitdiag>::value_t
 Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
      is_unitdiag>::eval(local_memory_t local_mem, cl::sycl::nd_item<1> ndItem) {
+  const index_t global_idx = ndItem.get_global_id(0);
+
   // copy lhs_ local memory + sync thread
   auto lhs_l = local_mem.localAcc;
-  for (index_t i = 0; i < lhs_.get_size(); ++i) lhs_l[i] = lhs_.eval(i);
+  lhs_l[global_idx] = lhs_.eval(global_idx);
 
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
@@ -109,7 +111,7 @@ Tbsv<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
   // ----
 
   // copy back to local memory lhs_ --> WI sync in above loop
-  for (index_t i = 0; i < lhs_.get_size(); ++i) lhs_.eval(i) = lhs_l[i];
+  lhs_.eval(global_idx) = lhs_l[global_idx];
 
   return 0;
 }

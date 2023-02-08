@@ -544,12 +544,12 @@ typename sb_handle_t::event_t _tbsv_impl(sb_handle_t& sb_handle, index_t _N,
 
   const index_t global_size =
       1; /*roundUp<index_t>(x_vector_size, local_range);*/
-  auto tbsv = make_tbsv<1 /*local_range*/, is_upper, is_transposed, is_unit>(
+  auto tbsv = make_tbsv<512 /*local_range*/, is_upper, is_transposed, is_unit>(
       vx, mA, _K, vx);
 
   //  auto tbsvEvent =
-  return sb_handle.execute(tbsv, static_cast<index_t>(/*local_range*/ 1),
-                           global_size, _N);
+  return sb_handle.execute(tbsv, static_cast<index_t>(/*local_range*/ 512),
+                           /*global_size*/ 512, _N);
 
   //  auto assignOp = make_op<Assign>(vx, vres);
   //  return concatenate_vectors(tbsvEvent,

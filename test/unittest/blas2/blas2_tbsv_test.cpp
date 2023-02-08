@@ -101,13 +101,13 @@ const auto combi =
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
 const auto combi =
-    ::testing::Combine(::testing::Values(14, 1010),         // n
-                       ::testing::Values(3, 4, 9),          // k
-                       ::testing::Values(/*true,*/ false),  // is_upper
-                       ::testing::Values(/*true,*/ false),  // trans
-                       ::testing::Values(true, false),      // is_unit
-                       ::testing::Values(1, 2),             // incX
-                       ::testing::Values(1, 2)              // lda_mul
+    ::testing::Combine(::testing::Values(14, 64, 127, 504),  // n
+                       ::testing::Values(3, 4, 9),           // k
+                       ::testing::Values(/*true,*/ false),   // is_upper
+                       ::testing::Values(/*true,*/ false),   // trans
+                       ::testing::Values(true, false),       // is_unit
+                       ::testing::Values(1, 2),              // incX
+                       ::testing::Values(1, 2)               // lda_mul
     );
 #endif
 
