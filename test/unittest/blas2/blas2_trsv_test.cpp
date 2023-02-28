@@ -94,10 +94,10 @@ void run_test(const combination_t<scalar_t> combi) {
   ASSERT_TRUE(isAlmostEqual);
 }
 
-#ifdef STRESS_TESTING
+#ifndef STRESS_TESTING
 template <typename scalar_t>
 const auto combi =
-    ::testing::Combine(::testing::Values(14, 127, 504, 780, 1010, 1140),  // n
+    ::testing::Combine(::testing::Values(14, 127, 504, 780, 1010, 1140, 2300),  // n
                        ::testing::Values(true, false),  // is_upper
                        ::testing::Values(true, false),  // trans
                        ::testing::Values(true, false),  // is_unit
