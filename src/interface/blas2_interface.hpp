@@ -334,6 +334,14 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
   auto mA = make_matrix_view<col_major>(_mA, _N, _N, _lda);
   auto vx = make_vector_view(_vx, _incx, _N);
 
+#if 1
+
+  auto trsv = make_trsv_2<1, is_upper, is_transposed, is_unit>(vx, mA, 0, vx);
+  return sb_handle.execute(trsv, static_cast<index_t>(1),
+                           static_cast<index_t>(1),
+                           static_cast<index_t>(local_range));
+
+#else
   auto blk_trsv = [&](index_t blk_id) {
     auto trsv = make_trsv<local_range, is_upper, is_transposed, is_unit>(
         vx, mA, blk_id, vx);
@@ -376,6 +384,7 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
     }
 
   return ret;
+#endif
 }
 
 /*! _SYMV.

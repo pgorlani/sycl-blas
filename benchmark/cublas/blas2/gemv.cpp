@@ -101,9 +101,12 @@ void run(benchmark::State& state, cublasHandle_t* cuda_handle_ptr, int ti,
   cudaMalloc(&v_x_gpu, xlen * sizeof(scalar_t));
   cudaMalloc(&v_y_gpu, ylen * sizeof(scalar_t));
 
-  cudaMemcpyAsync(m_a_gpu, m_a.data(), m * n * sizeof(scalar_t), cudaMemcpyHostToDevice);
-  cudaMemcpyAsync(v_x_gpu, v_x.data(), xlen * sizeof(scalar_t), cudaMemcpyHostToDevice);
-  cudaMemcpyAsync(v_y_gpu, v_y.data(), ylen * sizeof(scalar_t), cudaMemcpyHostToDevice);
+  cudaMemcpyAsync(m_a_gpu, m_a.data(), m * n * sizeof(scalar_t),
+                  cudaMemcpyHostToDevice);
+  cudaMemcpyAsync(v_x_gpu, v_x.data(), xlen * sizeof(scalar_t),
+                  cudaMemcpyHostToDevice);
+  cudaMemcpyAsync(v_y_gpu, v_y.data(), ylen * sizeof(scalar_t),
+                  cudaMemcpyHostToDevice);
 
   cublasOperation_t cuda_trans = (*t_str == 'n') ? CUBLAS_OP_N : CUBLAS_OP_T;
 
@@ -116,9 +119,12 @@ void run(benchmark::State& state, cublasHandle_t* cuda_handle_ptr, int ti,
   {
     scalar_t* v_y_temp_gpu = nullptr;
     cudaMalloc(&v_y_temp_gpu, ylen * sizeof(scalar_t));
-    cudaMemcpy(v_y_temp_gpu, v_y_temp.data(), ylen * sizeof(scalar_t), cudaMemcpyHostToDevice);
-    cublas_routine<scalar_t>(cuda_handle, cuda_trans, m, n, &alpha, m_a_gpu, m, v_x_gpu, incX, &beta, v_y_temp_gpu, incY);
-    cudaMemcpy(v_y_temp.data(), v_y_temp_gpu, ylen * sizeof(scalar_t), cudaMemcpyDeviceToHost);
+    cudaMemcpy(v_y_temp_gpu, v_y_temp.data(), ylen * sizeof(scalar_t),
+               cudaMemcpyHostToDevice);
+    cublas_routine<scalar_t>(cuda_handle, cuda_trans, m, n, &alpha, m_a_gpu, m,
+                             v_x_gpu, incX, &beta, v_y_temp_gpu, incY);
+    cudaMemcpy(v_y_temp.data(), v_y_temp_gpu, ylen * sizeof(scalar_t),
+               cudaMemcpyDeviceToHost);
     cudaFree(v_y_temp_gpu);
   }
 
@@ -136,7 +142,8 @@ void run(benchmark::State& state, cublasHandle_t* cuda_handle_ptr, int ti,
     cudaEventCreate(&start);
     cudaEventCreate(&stop);
     cudaEventRecord(start);
-    cublas_routine<scalar_t>(cuda_handle, cuda_trans, m, n, &alpha, m_a_gpu, m, v_x_gpu, incX, &beta, v_y_gpu, incY);
+    cublas_routine<scalar_t>(cuda_handle, cuda_trans, m, n, &alpha, m_a_gpu, m,
+                             v_x_gpu, incX, &beta, v_y_gpu, incY);
     cudaEventRecord(stop);
     cudaEventSynchronize(stop);
     return std::vector{start, stop};
@@ -163,8 +170,8 @@ void run(benchmark::State& state, cublasHandle_t* cuda_handle_ptr, int ti,
 }
 
 template <typename scalar_t>
-void register_benchmark(blas_benchmark::Args& args, cublasHandle_t* cuda_handle_ptr,
-                        bool* success) {
+void register_benchmark(blas_benchmark::Args& args,
+                        cublasHandle_t* cuda_handle_ptr, bool* success) {
   auto gemm_params = blas_benchmark::utils::get_blas2_params<scalar_t>(args);
 
   for (auto p : gemm_params) {
@@ -174,20 +181,20 @@ void register_benchmark(blas_benchmark::Args& args, cublasHandle_t* cuda_handle_
     std::tie(ts, m, n, alpha, beta) = p;
     int t = static_cast<int>(blas_benchmark::utils::to_transpose_enum(ts));
 
-    auto BM_lambda = [&](benchmark::State& st, cublasHandle_t* cuda_handle_ptr, int t,
-                         index_t m, index_t n, scalar_t alpha, scalar_t beta,
-                         bool* success) {
+    auto BM_lambda = [&](benchmark::State& st, cublasHandle_t* cuda_handle_ptr,
+                         int t, index_t m, index_t n, scalar_t alpha,
+                         scalar_t beta, bool* success) {
       run<scalar_t>(st, cuda_handle_ptr, t, m, n, alpha, beta, success);
     };
     benchmark::RegisterBenchmark(get_name<scalar_t>(ts, m, n).c_str(),
-                                 BM_lambda, cuda_handle_ptr, t, m, n, alpha, beta,
-                                 success);
+                                 BM_lambda, cuda_handle_ptr, t, m, n, alpha,
+                                 beta, success);
   }
 }
 
 namespace blas_benchmark {
-void create_benchmark(blas_benchmark::Args& args, cublasHandle_t* cuda_handle_ptr,
-                      bool* success) {
+void create_benchmark(blas_benchmark::Args& args,
+                      cublasHandle_t* cuda_handle_ptr, bool* success) {
   BLAS_REGISTER_BENCHMARK(args, cuda_handle_ptr, success);
 }
 }  // namespace blas_benchmark

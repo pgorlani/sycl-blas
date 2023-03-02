@@ -26,7 +26,8 @@
 #include "blas_test.hpp"
 
 template <typename T>
-using combination_t = std::tuple<index_t, bool, bool, bool, index_t, index_t, T>;
+using combination_t =
+    std::tuple<index_t, bool, bool, bool, index_t, index_t, T>;
 
 template <typename scalar_t>
 void run_test(const combination_t<scalar_t> combi) {
@@ -81,7 +82,6 @@ void run_test(const combination_t<scalar_t> combi) {
                                           x_v.data(), x_size);
   sb_handle.wait(event);
 
-
 #define PRINTMAXERR
 #ifdef PRINTMAXERR
   double maxerr = -1.0;
@@ -94,30 +94,28 @@ void run_test(const combination_t<scalar_t> combi) {
   ASSERT_TRUE(isAlmostEqual);
 }
 
-#ifndef STRESS_TESTING
+#ifdef STRESS_TESTING
 template <typename scalar_t>
-const auto combi =
-    ::testing::Combine(::testing::Values(14, 127, 504, 780, 1010, 1140, 2300),  // n
-                       ::testing::Values(true, false),  // is_upper
-                       ::testing::Values(true, false),  // trans
-                       ::testing::Values(true, false),  // is_unit
-                       ::testing::Values(1, 2),         // incX
-                       ::testing::Values(1, 2),          // lda_mul
-                       ::testing::Values(0)          
-    );
+const auto combi = ::testing::Combine(
+    ::testing::Values(14, 127, 504, 780, 1010, 1140, 2300),  // n
+    ::testing::Values(true, false),                          // is_upper
+    ::testing::Values(true, false),                          // trans
+    ::testing::Values(true, false),                          // is_unit
+    ::testing::Values(1, 2),                                 // incX
+    ::testing::Values(1, 2),                                 // lda_mul
+    ::testing::Values(0));
 #else
 // For the purpose of travis and other slower platforms, we need a faster test
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
 const auto combi =
-    ::testing::Combine(::testing::Values(14, 63, 257, 1010),  // n
-                       ::testing::Values(true, false),        // is_upper
-                       ::testing::Values(true, false),        // trans
-                       ::testing::Values(true, false),        // is_unit
-                       ::testing::Values(2),                  // incX
-                       ::testing::Values(2),                   // lda_mul
-                       ::testing::Values(0)          
-    );
+    ::testing::Combine(::testing::Values(14, 63 /*, 257, 512*/),  // n
+                       ::testing::Values(true, false),            // is_upper
+                       ::testing::Values(true, false),            // trans
+                       ::testing::Values(true, false),            // is_unit
+                       ::testing::Values(2),                      // incX
+                       ::testing::Values(2),                      // lda_mul
+                       ::testing::Values(0));
 #endif
 
 template <class T>

@@ -32,5 +32,6 @@
 #include "blas2/sbmv.hpp"
 #include "blas2/tbmv.hpp"
 #include "blas2/trsv.hpp"
+#include "blas2/trsv_2.hpp"
 
 #endif  // BLAS2_TREES_HPP

@@ -104,7 +104,8 @@ void run(benchmark::State& state, cublasHandle_t* cuda_handle_ptr,
     cudaMemcpy(d_d2_verify, &d2, sizeof(scalar_t), cudaMemcpyHostToDevice);
     cudaMemcpy(d_x1_verify, &x1, sizeof(scalar_t), cudaMemcpyHostToDevice);
     cudaMemcpy(d_y1_verify, &y1, sizeof(scalar_t), cudaMemcpyHostToDevice);
-    cudaMemcpy(d_param_verify, param.data(), param_size*sizeof(scalar_t), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_param_verify, param.data(), param_size * sizeof(scalar_t),
+               cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
     cublasSetPointerMode_v2(cuda_handle, CUBLAS_POINTER_MODE_DEVICE);
     cublas_routine<scalar_t>(cuda_handle, d_d1_verify, d_d2_verify, d_x1_verify,

@@ -22,8 +22,8 @@
 #include <common/system_reference_blas.hpp>
 
 #ifdef BUILD_CUBLAS_BENCHMARKS
-#include <cuda_runtime.h>
 #include <cuda.h>
+#include <cuda_runtime.h>
 #endif
 
 using index_t = BLAS_INDEX_T;
