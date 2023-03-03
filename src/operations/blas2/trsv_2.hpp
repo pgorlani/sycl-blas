@@ -33,107 +33,138 @@ namespace blas {
  * @brief Tree node representing a triangular band matrix_ vector_
  * multiplication.
  */
-template <typename lhs_t, typename matrix_t, typename vector_t,
+template <typename lhs_t, typename matrix_t, typename vector_t, typename sync_t,
           uint32_t local_range, bool is_upper, bool is_transposed,
           bool is_unitdiag>
-SYCL_BLAS_INLINE Trsv_2<lhs_t, matrix_t, vector_t, local_range, is_upper,
-                        is_transposed, is_unitdiag>::
-    Trsv_2(lhs_t &_l, matrix_t &_matrix,
-           typename Trsv_2<lhs_t, matrix_t, vector_t, local_range, is_upper,
-                           is_transposed, is_unitdiag>::index_t &_blk_id,
-           vector_t &_vector)
-    : lhs_(_l), matrix_(_matrix), vector_(_vector), blk_id_(_blk_id) {}
+SYCL_BLAS_INLINE Trsv_2<
+    lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
+    is_unitdiag>::Trsv_2(lhs_t &_l, matrix_t &_matrix,
+                         typename Trsv_2<lhs_t, matrix_t, vector_t, sync_t,
+                                         local_range, is_upper, is_transposed,
+                                         is_unitdiag>::index_t &_blk_id,
+                         vector_t &_vector, sync_t &_sync)
+    : lhs_(_l),
+      matrix_(_matrix),
+      vector_(_vector),
+      blk_id_(_blk_id),
+      sync_(_sync) {}
 
-template <typename lhs_t, typename matrix_t, typename vector_t,
+template <typename lhs_t, typename matrix_t, typename vector_t, typename sync_t,
           uint32_t local_range, bool is_upper, bool is_transposed,
           bool is_unitdiag>
-SYCL_BLAS_INLINE typename Trsv_2<lhs_t, matrix_t, vector_t, local_range,
+SYCL_BLAS_INLINE typename Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range,
                                  is_upper, is_transposed, is_unitdiag>::index_t
-Trsv_2<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
+Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
        is_unitdiag>::get_size() const {
   return matrix_.get_size();
 }
-template <typename lhs_t, typename matrix_t, typename vector_t,
+template <typename lhs_t, typename matrix_t, typename vector_t, typename sync_t,
           uint32_t local_range, bool is_upper, bool is_transposed,
           bool is_unitdiag>
 SYCL_BLAS_INLINE bool
-Trsv_2<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
+Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
        is_unitdiag>::valid_thread(cl::sycl::nd_item<1> ndItem) const {
   // Valid threads are established by ::eval.
   return true;
 }
 
-template <typename lhs_t, typename matrix_t, typename vector_t,
+template <typename lhs_t, typename matrix_t, typename vector_t, typename sync_t,
           uint32_t local_range, bool is_upper, bool is_transposed,
           bool is_unitdiag>
 template <typename local_memory_t>
-SYCL_BLAS_INLINE typename Trsv_2<lhs_t, matrix_t, vector_t, local_range,
+SYCL_BLAS_INLINE typename Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range,
                                  is_upper, is_transposed, is_unitdiag>::value_t
-Trsv_2<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
+Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
        is_unitdiag>::eval(local_memory_t local_mem,
                           cl::sycl::nd_item<1> ndItem) {
-  const index_t _offset = blk_id_ * local_range;
-
-  const index_t _N = lhs_.get_size();
-
   constexpr bool is_forward =
       (is_upper && is_transposed) || (!is_upper && !is_transposed);
 
-  for (index_t _it0 = 0; _it0 < _N; ++_it0) {
-    const index_t g_idx = (is_forward) ? _it0 : _N - 1 - _it0;
+  const index_t _N = lhs_.get_size();
+  const index_t l_idx = ndItem.get_local_id(0);
 
-    // const index_t g_idx = _offset + ndItem.get_local_id(0);
-    const index_t l_idx = g_idx;  // ndItem.get_local_id(0);
+  auto l_x = local_mem.localAcc;
+  auto a = sycl::atomic_ref<int, sycl::memory_order::relaxed,
+                            sycl::memory_scope::work_group>(sync_.eval(0));
+  auto b = sycl::atomic_ref<int, sycl::memory_order::relaxed,
+                            sycl::memory_scope::work_group>(sync_.eval(1));
 
-    auto l_x = local_mem.localAcc;
+  if (!l_idx) l_x[0] = a++;  // this need to be fixed to be turn in an int,
+  // it would be better a index_t but we can end up in a situation of 64bit
+  // atomics
 
-    // copy lhs_ local memory + sync thread
-    if (g_idx < _N) l_x[l_idx] = lhs_.eval(g_idx);
+  ndItem.barrier(cl::sycl::access::fence_space::local_space);
+  const index_t _offset = l_x[0] * local_range;
 
-    const index_t n_it =
-        (_offset + local_range < _N) ? local_range : _N - _offset;
-    for (index_t _it = 0; _it < /*n_it*/ _N; ++_it) {
-      const index_t l_diag = (is_forward) ? _it : /*n_it*/ _N - 1 - _it;
-      const index_t g_diag = _offset + l_diag;
-      // nested loop missing
-      if (!is_unitdiag && (l_idx == l_diag))
-        l_x[l_diag] /= matrix_.eval(g_diag, g_diag);
-
-      //     ndItem.barrier(cl::sycl::access::fence_space::local_space);
-
-      if (((g_idx > g_diag) && (g_idx < _N) && is_forward) ||
-          ((g_idx < g_diag) && !is_forward)) {
-        const value_t val = (is_transposed) ? matrix_.eval(g_diag, g_idx)
-                                            : matrix_.eval(g_idx, g_diag);
-        l_x[l_idx] -= val * l_x[l_diag];
-      }
+  // while it not ready before your turn
+  if (!l_idx)
+    while (_offset != b) {
     }
+  ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-    if (g_idx < _N) lhs_.eval(g_idx) = l_x[l_idx];
+  const index_t g_idx = _offset + l_idx;
+  if (g_idx < _N) l_x[l_idx] = lhs_.eval(g_idx);
+
+  // BEGIN - solve extra-diagonal block
+  for (index_t _off = 0; _off < _offset; _off += local_range)
+    for (index_t i = 0; i < local_range; ++i) {
+      const value_t val = (is_transposed) ? matrix_.eval(_off + i, g_idx)
+                                          : matrix_.eval(g_idx, _off + i);
+
+      // read data that should be ready
+      if (_off + l_idx < _N) l_x[l_idx] -= lhs_.eval(_off + i) * val;
+    }
+  // END - solve extra-diagonal block
+
+  // BEGIN - solve diagonal block
+  const index_t n_it =
+      (_offset + local_range < _N) ? local_range : _N - _offset;
+  for (index_t _it = 0; _it < n_it; ++_it) {
+    const index_t l_diag = (is_forward) ? _it : n_it - 1 - _it;
+    const index_t g_diag = _offset + l_diag;
+
+    if (!is_unitdiag && (l_idx == l_diag))
+      l_x[l_diag] /= matrix_.eval(g_diag, g_diag);
+
+    ndItem.barrier(cl::sycl::access::fence_space::local_space);
+
+    if (((g_idx > g_diag) && (g_idx < _N) && is_forward) ||
+        ((g_idx < g_diag) && !is_forward)) {
+      const value_t val = (is_transposed) ? matrix_.eval(g_diag, g_idx)
+                                          : matrix_.eval(g_idx, g_diag);
+      l_x[l_idx] -= val * l_x[l_diag];
+    }
   }
+  // END - solve diagonal block
+
+  // Copy to memory the final result, this will be last in any case.
+  if (g_idx < _N) lhs_.eval(g_idx) = l_x[l_idx];
+  if (!l_idx) b.fetch_add(local_range);
 
   return 0;
 }
 
-template <typename lhs_t, typename matrix_t, typename vector_t,
+template <typename lhs_t, typename matrix_t, typename vector_t, typename sync_t,
           uint32_t local_range, bool is_upper, bool is_transposed,
           bool is_unitdiag>
 SYCL_BLAS_INLINE void
-Trsv_2<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
+Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
        is_unitdiag>::bind(cl::sycl::handler &h) {
   lhs_.bind(h);
   matrix_.bind(h);
   vector_.bind(h);
+  sync_.bind(h);
 }
-template <typename lhs_t, typename matrix_t, typename vector_t,
+template <typename lhs_t, typename matrix_t, typename vector_t, typename sync_t,
           uint32_t local_range, bool is_upper, bool is_transposed,
           bool is_unitdiag>
 SYCL_BLAS_INLINE void
-Trsv_2<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
+Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
        is_unitdiag>::adjust_access_displacement() {
   lhs_.adjust_access_displacement();
   matrix_.adjust_access_displacement();
   vector_.adjust_access_displacement();
+  sync_.adjust_access_displacement();
 }
 
 }  // namespace blas

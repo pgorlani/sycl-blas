@@ -388,7 +388,7 @@ make_trsv(lhs_t &lhs_, matrix_t &matrix_, typename vector_t::index_t blk_id_,
  * @brief Tree node representing a triangular matrix_ vector_
  * multiplication.
  */
-template <typename lhs_t, typename matrix_t, typename vector_t,
+template <typename lhs_t, typename matrix_t, typename vector_t, typename sync_t,
           uint32_t local_range, bool is_upper, bool is_transposed, bool is_unit>
 struct Trsv_2 {
   using value_t = typename vector_t::value_t;
@@ -398,8 +398,10 @@ struct Trsv_2 {
   matrix_t matrix_;
   index_t blk_id_;
   vector_t vector_;
+  sync_t sync_;
 
-  Trsv_2(lhs_t &_l, matrix_t &_matrix, index_t &_k, vector_t &_vector);
+  Trsv_2(lhs_t &_l, matrix_t &_matrix, index_t &_k, vector_t &_vector,
+         sync_t &_sync);
   index_t get_size() const;
   bool valid_thread(cl::sycl::nd_item<1> ndItem) const;
   template <typename local_memory_t>
@@ -411,12 +413,13 @@ struct Trsv_2 {
  @brief Generator/factory for TRSV trees.
  */
 template <uint32_t local_range, bool is_upper, bool is_transposed, bool is_unit,
-          typename lhs_t, typename matrix_t, typename vector_t>
-Trsv_2<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed, is_unit>
+          typename lhs_t, typename matrix_t, typename vector_t, typename sync_t>
+Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
+       is_unit>
 make_trsv_2(lhs_t &lhs_, matrix_t &matrix_, typename vector_t::index_t blk_id_,
-            vector_t &vector_) {
-  return Trsv_2<lhs_t, matrix_t, vector_t, local_range, is_upper, is_transposed,
-                is_unit>(lhs_, matrix_, blk_id_, vector_);
+            vector_t &vector_, sync_t &sync_) {
+  return Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper,
+                is_transposed, is_unit>(lhs_, matrix_, blk_id_, vector_, sync_);
 }
 
 /**** GER BY ROWS M ROWS x N BLOCK USING PROPERLY THE SHARED MEMORY ****/

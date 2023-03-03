@@ -336,9 +336,15 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
 
 #if 1
 
-  auto trsv = make_trsv_2<1, is_upper, is_transposed, is_unit>(vx, mA, 0, vx);
-  return sb_handle.execute(trsv, static_cast<index_t>(1),
-                           static_cast<index_t>(1),
+  std::vector<int> sync_vector(2, 0);
+  auto sync_buffer =
+      blas::make_sycl_iterator_buffer<int>(sync_vector, sync_vector.size());
+  auto sync = make_vector_view(sync_buffer, 1, sync_vector.size());
+
+  auto trsv = make_trsv_2<local_range, is_upper, is_transposed, is_unit>(
+      vx, mA, 0, vx, sync);
+  return sb_handle.execute(trsv, static_cast<index_t>(local_range),
+                           roundUp<index_t>(_N, local_range),
                            static_cast<index_t>(local_range));
 
 #else
