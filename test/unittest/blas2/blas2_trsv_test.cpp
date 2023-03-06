@@ -48,7 +48,7 @@ void run_test(const combination_t<scalar_t> combi) {
   index_t x_size = 1 + (n - 1) * incX;
 
   // Input matrix
-  std::vector<scalar_t> a_m(a_size, 0);
+  std::vector<scalar_t> a_m(a_size);
   // Input/output vector
   std::vector<scalar_t> x_v(x_size);
   // Input/output system vector
@@ -108,14 +108,14 @@ const auto combi = ::testing::Combine(
 // For the purpose of travis and other slower platforms, we need a faster test
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
-const auto combi =
-    ::testing::Combine(::testing::Values(8, 9, 14, 63, 257, 512, 8192),  // n
-                       ::testing::Values(/*true,*/ false),  // is_upper
-                       ::testing::Values(/*true,*/ false),  // trans
-                       ::testing::Values(true, false),      // is_unit
-                       ::testing::Values(2),                // incX
-                       ::testing::Values(2),                // lda_mul
-                       ::testing::Values(0));
+const auto combi = ::testing::Combine(
+    ::testing::Values(14, 32, 33, 63, 64, 127, 128, 256, 270, 512, 8193),  // n
+    ::testing::Values(true, false),  // is_upper
+    ::testing::Values(true, false),  // trans
+    ::testing::Values(true, false),  // is_unit
+    ::testing::Values(2),            // incX
+    ::testing::Values(2),            // lda_mul
+    ::testing::Values(0));
 #endif
 
 template <class T>
