@@ -89,16 +89,16 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   auto b = sycl::atomic_ref<int, sycl::memory_order::relaxed,
                             sycl::memory_scope::work_group>(sync_.eval(1));
 
-  if (!l_idx) l_x[0] = a++;  // this need to be fixed to be turn in an int,
-  // it would be better a index_t but we can end up in a situation of 64bit
-  // atomics
+  if (!l_idx) l_x[0] = (is_forward) ?  a++ : a--;  // this need to be fixed to
+  // be turn in an int, it would be better a index_t but we can end up in a
+  // situation of 64bit atomics
 
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
   const index_t _offset = l_x[0] * local_range;
 
   // while it not ready before your turn
   if (!l_idx)
-    while (_offset != b) {
+    while ( l_x[0] != b) {
     }
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
@@ -108,11 +108,12 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   // BEGIN - solve extra-diagonal block
   for (index_t _off = 0; _off < _offset; _off += local_range)
     for (index_t i = 0; i < local_range; ++i) {
-      const value_t val = (is_transposed) ? matrix_.eval(_off + i, g_idx)
-                                          : matrix_.eval(g_idx, _off + i);
+      const index_t ii = (is_forward) ? _off + i : _N - local_range - _off + i;
+      const value_t val =  (is_transposed) ? matrix_.eval(ii, g_idx)
+                                         : matrix_.eval(g_idx, ii);
 
       // read data that should be ready
-      if (_off + l_idx < _N) l_x[l_idx] -= lhs_.eval(_off + i) * val;
+      if (_off + l_idx < _N) l_x[l_idx] -= lhs_.eval(ii) * val;
     }
   // END - solve extra-diagonal block
 
@@ -139,8 +140,13 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   // Copy to memory the final result, this will be last in any case.
   if (g_idx < _N) lhs_.eval(g_idx) = l_x[l_idx];
-  if (!l_idx) b.fetch_add(local_range);
 
+  if (!l_idx){
+    if(is_forward)
+      b.fetch_add(1);
+    else 
+      b.fetch_sub(1);
+  }
   return 0;
 }
 
