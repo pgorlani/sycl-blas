@@ -85,17 +85,22 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   auto l_x = local_mem.localAcc;
   auto a = sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                            sycl::memory_scope::work_group, sycl::access::address_space::global_space>(sync_.eval(0));
+                            sycl::memory_scope::work_group,
+                            sycl::access::address_space::global_space>(
+      sync_.eval(0));
   auto ready_block =
       sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                       sycl::memory_scope::work_group, sycl::access::address_space::global_space>(sync_.eval(1));
+                       sycl::memory_scope::work_group,
+                       sycl::access::address_space::global_space>(
+          sync_.eval(1));
 
-  if (!l_idx) l_x[0] = (is_forward) ? a++ : a--;  // this need to be fixed to
+  index_t bb;
+  if (!l_idx) bb = (is_forward) ? a++ : a--;  // this need to be fixed to
   // be turn in an int, it would be better a index_t but we can end up in a
   // situation of 64bit atomics
 
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
-  const index_t block_id = l_x[0];
+  const index_t block_id = group_broadcast(ndItem.get_group(), bb);
 
   const index_t _offset = block_id * local_range;
   const index_t g_idx = _offset + l_idx;
