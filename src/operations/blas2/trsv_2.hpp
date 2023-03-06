@@ -166,6 +166,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   // Copy to memory the final result, this will be last in any case.
   if (g_idx < _N) lhs_.eval(g_idx) = l_x[l_idx];
 
+  ndItem.barrier();
+
   if (!l_idx) {
     if (is_forward)
       ready_block.fetch_add(1);
