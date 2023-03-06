@@ -113,8 +113,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       is_forward ? 0 : ((_N + local_range - 1) / local_range) - 1;
 
   while (current_block != block_id) {
-    while ((is_forward && (current_block < ready_block)) ||
-           (!is_forward && (current_block > ready_block))) {
+    while ((is_forward && (current_block < ready_block.load())) ||
+           (!is_forward && (current_block > ready_block.load()))) {
       const index_t _off = current_block * local_range;
 
       const index_t n_it = (_off + local_range < _N) ? local_range : _N - _off;
