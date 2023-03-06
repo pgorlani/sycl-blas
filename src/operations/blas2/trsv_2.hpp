@@ -85,12 +85,12 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   auto l_x = local_mem.localAcc;
   auto a = sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                            sycl::memory_scope::work_group,
+                            sycl::memory_scope::device,
                             sycl::access::address_space::global_space>(
       sync_.eval(0));
   auto ready_block =
       sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                       sycl::memory_scope::work_group,
+                       sycl::memory_scope::device,
                        sycl::access::address_space::global_space>(
           sync_.eval(1));
 
@@ -113,18 +113,24 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       is_forward ? 0 : ((_N + local_range - 1) / local_range) - 1;
 
   while (current_block != block_id) {
-    while ((is_forward && (current_block < ready_block.load())) ||
-           (!is_forward && (current_block > ready_block.load()))) {
+    index_t bb;
+    if (!l_idx) bb = ready_block.load();
+    ndItem.barrier(cl::sycl::access::fence_space::local_space);
+    const index_t rbb = group_broadcast(ndItem.get_group(), bb);
+
+    while ((is_forward && (current_block < rbb)) ||
+           (!is_forward && (current_block > rbb))) {
       const index_t _off = current_block * local_range;
 
       const index_t n_it = (_off + local_range < _N) ? local_range : _N - _off;
 
-      for (index_t i = 0; i < n_it; ++i) {
-        const index_t ii = _off + i;
-        const value_t val =
-            (is_transposed) ? matrix_.eval(ii, g_idx) : matrix_.eval(g_idx, ii);
-        l_x[l_idx] -= lhs_.eval(ii) * val;
-      }
+      for (index_t i = 0; i < n_it; ++i)
+        if (g_idx < _N) {
+          const index_t ii = _off + i;
+          const value_t val = (is_transposed) ? matrix_.eval(ii, g_idx)
+                                              : matrix_.eval(g_idx, ii);
+          l_x[l_idx] -= lhs_.eval(ii) * val;
+        }
 
       if (is_forward)
         ++current_block;
