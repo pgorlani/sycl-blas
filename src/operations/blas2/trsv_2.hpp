@@ -89,11 +89,6 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
                             sycl::memory_scope::device,
                             sycl::access::address_space::global_space>(
       sync_.eval(0));
-  auto ready_block =
-      sycl::atomic_ref<int, sycl::memory_order::relaxed,
-                       sycl::memory_scope::device,
-                       sycl::access::address_space::global_space>(
-          sync_.eval(1));
 
   auto l_x = local_mem.localAcc;
 
@@ -112,7 +107,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   while (current_block != block_id) {
     index_t bb;
-    if (!l_idx) bb = ready_block.load();
+    if (!l_idx) bb = sync_.eval(1);
     ndItem.barrier();
     const index_t rbb = group_broadcast(ndItem.get_group(), bb);
 
@@ -166,9 +161,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   if (!l_idx) {
     if (is_forward)
-      ready_block.fetch_add(1);
+      ++sync_.eval(1);
     else
-      ready_block.fetch_sub(1);
+      --sync_.eval(1);
   }
   return 0;
 }
