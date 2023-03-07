@@ -83,7 +83,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   const index_t _N = lhs_.get_size();
   const index_t l_idx = ndItem.get_local_id(0);
 
-  auto l_x = local_mem.localAcc;
+  // it would be better a index_t but we can end up in a situation of 64bit
+  // atomics
   auto a = sycl::atomic_ref<int, sycl::memory_order::relaxed,
                             sycl::memory_scope::device,
                             sycl::access::address_space::global_space>(
@@ -94,19 +95,16 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
                        sycl::access::address_space::global_space>(
           sync_.eval(1));
 
-  index_t bb;
-  if (!l_idx) bb = (is_forward) ? a++ : a--;  // this need to be fixed to
-  // be turn in an int, it would be better a index_t but we can end up in a
-  // situation of 64bit atomics
+  auto l_x = local_mem.localAcc;
 
-  ndItem.barrier(cl::sycl::access::fence_space::local_space);
+  index_t bb;
+  if (!l_idx) bb = (is_forward) ? a++ : a--;
+  ndItem.barrier();
   const index_t block_id = group_broadcast(ndItem.get_group(), bb);
 
   const index_t _offset = block_id * local_range;
   const index_t g_idx = _offset + l_idx;
   if (g_idx < _N) l_x[l_idx] = lhs_.eval(g_idx);
-
-  ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
   // BEGIN - solve extra-diagonal block
   index_t current_block =
@@ -115,7 +113,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   while (current_block != block_id) {
     index_t bb;
     if (!l_idx) bb = ready_block.load();
-    ndItem.barrier(cl::sycl::access::fence_space::local_space);
+    ndItem.barrier();
     const index_t rbb = group_broadcast(ndItem.get_group(), bb);
 
     while ((is_forward && (current_block < rbb)) ||
@@ -139,8 +137,6 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
     }
   }
   // END - solve extra-diagonal block
-
-  ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
   // BEGIN - solve diagonal block
   const index_t n_it =
