@@ -1,0 +1,9 @@
+------------------------------------------------------------------------------------
+Benchmark                          Time             CPU   Iterations UserCounters...
+------------------------------------------------------------------------------------
+BM_Trsv<float>/l/n/u/32        73445 ns        73674 ns         9479 avg_event_time=6.86392k avg_overall_time=70.723k best_event_time=6.103k best_overall_time=69k bytes_processed=6.336k n=32 n_fl_ops=1024 total_event_time=65.0631M total_overall_time=670.384M
+BM_Trsv<float>/l/n/u/64        82896 ns        83108 ns         8407 avg_event_time=13.0713k avg_overall_time=80.1646k best_event_time=12.207k best_overall_time=73.999k bytes_processed=24.96k n=64 n_fl_ops=4.096k total_event_time=109.891M total_overall_time=673.943M
+BM_Trsv<float>/l/n/u/128       90666 ns        90876 ns         7690 avg_event_time=24.6799k avg_overall_time=87.9184k best_event_time=23.437k best_overall_time=84.889k bytes_processed=99.072k n=128 n_fl_ops=16.384k total_event_time=189.788M total_overall_time=676.093M
+BM_Trsv<float>/l/n/u/256      115216 ns       115402 ns         6030 avg_event_time=47.745k avg_overall_time=112.379k best_event_time=45.898k best_overall_time=109.455k bytes_processed=394.752k n=256 n_fl_ops=65.536k total_event_time=287.903M total_overall_time=677.644M
+BM_Trsv<float>/l/n/u/3456     870666 ns       870870 ns          802 avg_event_time=799.598k avg_overall_time=867.772k best_event_time=790.527k best_overall_time=857.518k bytes_processed=71.6844M n=3.456k n_fl_ops=11.9439M total_event_time=641.278M total_overall_time=695.954M
+BM_Trsv<float>/l/n/u/4096    1561758 ns      1561838 ns          482 avg_event_time=1.49104M avg_overall_time=1.55886M best_event_time=1.43066M best_overall_time=1.50012M bytes_processed=100.688M n=4.096k n_fl_ops=16.7772M total_event_time=718.681M total_overall_time=751.37M
