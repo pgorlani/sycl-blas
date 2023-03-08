@@ -146,12 +146,12 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
     /*ndItem.barrier(cl::sycl::access::fence_space::local_space); +5ms*/
 
-//    if (((g_idx > g_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
-//        ((g_idx < g_diag) && !is_forward)) {
-//      const value_t val = (is_transposed) ? matrix_.eval(g_diag, g_idx)
-//                                          : matrix_.eval(g_idx, g_diag);
-      l_x[l_idx] -= (g_idx > g_diag) ? ((is_transposed) ? matrix_.eval(g_diag, g_idx) : matrix_.eval(g_idx, g_diag)) * l_x[l_diag] : 0;
-//    }
+    if (((g_idx > g_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
+        ((g_idx < g_diag) && !is_forward)) {
+      const value_t val = (is_transposed) ? matrix_.eval(g_diag, g_idx)
+                                          : matrix_.eval(g_idx, g_diag);
+      l_x[l_idx] -= val * l_x[l_diag];
+    }
   }
   // END - solve diagonal block
 
