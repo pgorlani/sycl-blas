@@ -144,7 +144,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
     if (!is_unitdiag && (l_idx == l_diag))
       l_x[l_diag] /= matrix_.eval(g_diag, g_diag);
 
-    /*ndItem.barrier(cl::sycl::access::fence_space::local_space); +5ms*/
+    if (!is_unitdiag) ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
     if (((g_idx > g_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
         ((g_idx < g_diag) && !is_forward)) {
