@@ -116,13 +116,17 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
       const index_t n_it = (_off + local_range < _N) ? local_range : _N - _off;
 
+      l_x[local_range + l_idx] = lhs_.eval(_off + l_idx);
+
+      ndItem.barrier(cl::sycl::access::fence_space::local_space);
+
       #pragma unroll 32 
       for (index_t i = 0; i < /*n_it*/local_range; ++i)
         /*if (g_idx < _N)*/ {
           const index_t ii = _off + i;
           const value_t val = (is_transposed) ? matrix_.eval(ii, g_idx)
                                               : matrix_.eval(g_idx, ii);
-          l_x[l_idx] -= lhs_.eval(ii) * val;
+          l_x[l_idx] -= /*lhs_.eval(ii)*/ l_x[local_range + i] * val;
         }
 
       if (is_forward)
