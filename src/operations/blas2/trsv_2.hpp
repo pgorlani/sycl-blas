@@ -120,14 +120,17 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
+      value_t v = 0;
       #pragma unroll 32 
       for (index_t i = 0; i < /*n_it*/local_range; ++i)
         /*if (g_idx < _N)*/ {
           const index_t ii = _off + i;
-          const value_t val = (is_transposed) ? matrix_.eval(ii, g_idx)
-                                              : matrix_.eval(g_idx, ii);
-          l_x[l_idx] -= /*lhs_.eval(ii)*/ l_x[local_range + i] * val;
+          const value_t val = (is_transposed) ? matrix_.eval(_off + i, g_idx)
+                                              : matrix_.eval(g_idx, _off + i);
+          v =+ l_x[local_range + i] * val;
         }
+
+      l_x[l_idx] -= v; 
 
       if (is_forward)
         ++current_block;
