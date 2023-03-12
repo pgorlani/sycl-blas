@@ -98,12 +98,12 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   const index_t _offset = block_id * local_range;
   const index_t g_idx = _offset + l_idx;
-  if (g_idx < _N) l_x[l_idx] = lhs_.eval(g_idx);
 
   // BEGIN - solve extra-diagonal block
   index_t current_block =
       is_forward ? 0 : ((_N + local_range - 1) / local_range) - 1;
 
+  value_t v = 0;
   volatile int *p = &sync_.eval(1);
   while (current_block != block_id) {
     const index_t rbb = group_broadcast(ndItem.get_group(),*p);
@@ -116,21 +116,19 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
       const index_t n_it = (_off + local_range < _N) ? local_range : _N - _off;
 
-      l_x[local_range + l_idx] = lhs_.eval(_off + l_idx);
+      l_x[l_idx] = lhs_.eval(_off + l_idx);
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-      value_t v = 0;
-      #pragma unroll 32 
+      #pragma unroll 8 
       for (index_t i = 0; i < /*n_it*/local_range; ++i)
         /*if (g_idx < _N)*/ {
-          const index_t ii = _off + i;
           const value_t val = (is_transposed) ? matrix_.eval(_off + i, g_idx)
                                               : matrix_.eval(g_idx, _off + i);
-          v =+ l_x[local_range + i] * val;
+          v += l_x[i] * val;
         }
 
-      l_x[l_idx] -= v; 
+      //l_x[l_idx] = -v; 
 
       if (is_forward)
         ++current_block;
@@ -140,6 +138,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   }
   // END - solve extra-diagonal block
 
+  if (g_idx < _N) l_x[l_idx] = lhs_.eval(g_idx) - v;
   // BEGIN - solve diagonal block
   const index_t n_it =
       (_offset + local_range < _N) ? local_range : _N - _offset;
