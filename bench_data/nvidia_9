@@ -1,0 +1,10 @@
+------------------------------------------------------------------------------------
+Benchmark                          Time             CPU   Iterations UserCounters...
+------------------------------------------------------------------------------------
+BM_Trsv<float>/l/n/u/32        73694 ns        73881 ns         9426 avg_event_time=7.46305k avg_overall_time=70.8948k best_event_time=7.141k best_overall_time=69.14k bytes_processed=6.336k n=32 n_fl_ops=1024 total_event_time=70.3467M total_overall_time=668.255M
+BM_Trsv<float>/l/n/u/64        79209 ns        79409 ns         8660 avg_event_time=11.0114k avg_overall_time=76.4264k best_event_time=9.155k best_overall_time=70.202k bytes_processed=24.96k n=64 n_fl_ops=4.096k total_event_time=95.3584M total_overall_time=661.852M
+BM_Trsv<float>/l/n/u/128       83310 ns        83516 ns         8331 avg_event_time=14.5889k avg_overall_time=80.5397k best_event_time=13.183k best_overall_time=75.993k bytes_processed=99.072k n=128 n_fl_ops=16.384k total_event_time=121.54M total_overall_time=670.976M
+BM_Trsv<float>/l/n/u/256       92150 ns        92345 ns         7597 avg_event_time=23.3008k avg_overall_time=89.2685k best_event_time=21.484k best_overall_time=85.34k bytes_processed=394.752k n=256 n_fl_ops=65.536k total_event_time=177.016M total_overall_time=678.173M
+BM_Trsv<float>/l/n/u/3456     363830 ns       363972 ns         1974 avg_event_time=294.769k avg_overall_time=360.992k best_event_time=277.344k best_overall_time=340.859k bytes_processed=71.6844M n=3.456k n_fl_ops=11.9439M total_event_time=581.873M total_overall_time=712.597M
+BM_Trsv<float>/l/n/u/4096     458712 ns       458856 ns         1619 avg_event_time=388.212k avg_overall_time=455.852k best_event_time=382.812k best_overall_time=443.692k bytes_processed=100.688M n=4.096k n_fl_ops=16.7772M total_event_time=628.516M total_overall_time=738.025M
+BM_Trsv<float>/l/n/u/8192     961088 ns       961100 ns          737 avg_event_time=890.81k avg_overall_time=958.226k best_event_time=878.906k best_overall_time=945.533k bytes_processed=402.702M n=8.192k n_fl_ops=67.1089M total_event_time=656.527M total_overall_time=706.213M
