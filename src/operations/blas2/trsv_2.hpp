@@ -111,7 +111,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   #pragma unroll 8 
   for (index_t i = 0; i < /*n_it*/local_range/4; ++i)
     /*if (g_idx < _N)*/ {
-      tmpA[i] = (is_transposed) ? matrix_.eval(current_block * local_range + 8*l_idy + i, g_idx)
+      l_x[local_range*(1 + 8*l_idy + i) + _idx]  = (is_transposed) ? matrix_.eval(current_block * local_range + 8*l_idy + i, g_idx)
                                           : matrix_.eval(g_idx, current_block * local_range + 8*l_idy + i);
     }
 
@@ -136,7 +136,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
         /*if (g_idx < _N)*/ {
 //          const value_t val = (is_transposed) ? matrix_.eval(_off + i, g_idx)
 //                                              : matrix_.eval(g_idx, _off + i);
-          v += l_x[8*l_idy + i] * tmpA[i]; //val;
+          v += l_x[8*l_idy + i] * l_x[local_range*(1 + 8*l_idy + i) + _idx]; //tmpA[i]; //val;
         }
 
       //l_x[l_idx] = -v; 
@@ -149,7 +149,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       #pragma unroll 8 
       for (index_t i = 0; i < /*n_it*/local_range/4; ++i)
         /*if (g_idx < _N)*/ {
-          tmpA[i] = (is_transposed) ? matrix_.eval(current_block * local_range + 8*l_idy + i, g_idx)
+          l_x[local_range*(1 + 8*l_idy + i) + _idx] = (is_transposed) ? matrix_.eval(current_block * local_range + 8*l_idy + i, g_idx)
                                               : matrix_.eval(g_idx, current_block * local_range + 8*l_idy + i);
         }
 
@@ -185,9 +185,9 @@ if (l_idy == 0) {
 
     if (((g_idx > g_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
         ((g_idx < g_diag) && !is_forward)) {
-      const value_t val = (is_transposed) ? matrix_.eval(g_diag, g_idx)
-                                          : matrix_.eval(g_idx, g_diag);
-      l_x[l_idx] -= val * l_x[l_diag];
+//      const value_t val = (is_transposed) ? matrix_.eval(g_diag, g_idx)
+//                                          : matrix_.eval(g_idx, g_diag);
+      l_x[l_idx] -= /*val*/ l_x[local_range*(1 + l_diag) + _idx] * l_x[l_diag];
     }
   }
   // END - solve diagonal block

@@ -350,7 +350,7 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
       vx, mA, 0, vx, sync);
   return sb_handle.execute(trsv, static_cast<index_t>(4*local_range),
                            roundUp<index_t>(4*_N, 4*local_range),
-                           static_cast<index_t>(local_range*2));
+                           static_cast<index_t>(local_range*(local_range+1)));
 
 #else
   auto blk_trsv = [&](index_t blk_id) {
