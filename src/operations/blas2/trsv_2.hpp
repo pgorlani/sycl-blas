@@ -106,7 +106,6 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       is_forward ? 0 : ((_N + local_range - 1) / local_range) - 1;
 
   value_t v = 0;
-  value_t tmpA[local_range/4];
 
   const index_t _OFF0 = local_range*(1 + 8*l_idy) + _idx;
 
@@ -121,8 +120,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
         _off0 += local_range;
       }
   } 
-      const index_t i1 = 8*l_idy;
-      const index_t i2 = local_range*(1 + i1) + _idx; 
+
+  const index_t i1 = 8*l_idy;
+  const index_t i2 = local_range*(1 + i1) + _idx; 
  
   volatile int *p = &sync_.eval(1);
   while (current_block != block_id) {
@@ -140,13 +140,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-     #pragma unroll 8 
+      #pragma unroll 8
       for (index_t i = 0; i < local_range/4; ++i)
-      {
         v += l_x[i1 + i] * l_x[i2 + local_range*i];
-      }
-
-      //l_x[l_idx] = -v; 
 
       if (is_forward)
         ++current_block;
@@ -156,7 +152,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       {  
         index_t _off0 = _OFF0; 
         const index_t _off1 = current_block * local_range + 8 * l_idy;
-        #pragma unroll 8 
+        #pragma unroll 8
         for (index_t i = 0; i < local_range/4; ++i)
         {
             l_x[_off0]  = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
