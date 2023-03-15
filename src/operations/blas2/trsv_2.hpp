@@ -159,15 +159,13 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   // END - solve extra-diagonal block
 
   
-  ndItem.barrier(cl::sycl::access::fence_space::local_space);
-  if(l_idy == 3) l_x[_idx] = -v;
-  ndItem.barrier(cl::sycl::access::fence_space::local_space);
-  if(l_idy == 2) l_x[_idx] -= v;
-  ndItem.barrier(cl::sycl::access::fence_space::local_space);
-  if(l_idy == 1) l_x[_idx] -= v;
+  l_x[local_range*(1 + local_range + l_idy) + _idx] = v; 
+
+  
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-  if (l_idy == 0 && g_idx < _N) l_x[_idx] += lhs_.eval(g_idx) - v;
+  if (l_idy == 0 && g_idx < _N) l_x[_idx] = lhs_.eval(g_idx) - l_x[local_range*(1 + local_range + 0) + _idx] - l_x[local_range*(1 + local_range + 1) + _idx] - l_x[local_range*(1 + local_range + 2) + _idx] - l_x[local_range*(1 + local_range + 3) + _idx];
+
 
   // BEGIN - solve diagonal block
 if (l_idy == 0) {
