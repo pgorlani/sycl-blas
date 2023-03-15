@@ -108,12 +108,19 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   value_t v = 0;
   value_t tmpA[local_range/4];
 
-  #pragma unroll 8 
-  for (index_t i = 0; i < /*n_it*/local_range/4; ++i)
-    /*if (g_idx < _N)*/ {
-      l_x[local_range*(1 + 8*l_idy + i) + _idx]  = (is_transposed) ? matrix_.eval(current_block * local_range + 8*l_idy + i, g_idx)
-                                          : matrix_.eval(g_idx, current_block * local_range + 8*l_idy + i);
-    }
+  const index_t _OFF0 = local_range*(1 + 8*l_idy) + _idx;
+
+  {  
+    index_t _off0 = _OFF0;
+    const index_t _off1 = current_block * local_range + 8 * l_idy;
+    #pragma unroll 8 
+    for (index_t i = 0; i < /*n_it*/local_range/4; ++i)
+      /*if (g_idx < _N)*/ {
+        l_x[_off0]  = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
+                                            : matrix_.eval(g_idx, _off1 + i);
+        _off0 += local_range;
+      }
+  } 
 
   volatile int *p = &sync_.eval(1);
   while (current_block != block_id) {
@@ -131,13 +138,17 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-      #pragma unroll 8 
-      for (index_t i = 0; i < /*n_it*/local_range/4; ++i)
-        /*if (g_idx < _N)*/ {
-//          const value_t val = (is_transposed) ? matrix_.eval(_off + i, g_idx)
-//                                              : matrix_.eval(g_idx, _off + i);
-          v += l_x[8*l_idy + i] * l_x[local_range*(1 + 8*l_idy + i) + _idx]; //tmpA[i]; //val;
+      { 
+        const index_t _off0 = 8*l_idy;
+        index_t _off1 = local_range*(1 + 8*l_idy) + _idx;
+        #pragma unroll 8 
+        for (index_t i = 0; i < local_range/4; ++i)
+        {
+          v += l_x[ _off0 + i] * l_x[_off1];
+          _off1 += local_range;
         }
+
+      }
 
       //l_x[l_idx] = -v; 
 
@@ -146,12 +157,17 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       else
         --current_block;
 
-      #pragma unroll 8 
-      for (index_t i = 0; i < /*n_it*/local_range/4; ++i)
-        /*if (g_idx < _N)*/ {
-          l_x[local_range*(1 + 8*l_idy + i) + _idx] = (is_transposed) ? matrix_.eval(current_block * local_range + 8*l_idy + i, g_idx)
-                                              : matrix_.eval(g_idx, current_block * local_range + 8*l_idy + i);
+      {  
+        index_t _off0 = _OFF0; 
+        const index_t _off1 = current_block * local_range + 8 * l_idy;
+        #pragma unroll 8 
+        for (index_t i = 0; i < local_range/4; ++i)
+        {
+            l_x[_off0]  = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
+                                                : matrix_.eval(g_idx, _off1 + i);
+            _off0 += local_range;
         }
+      } 
 
     }
    
