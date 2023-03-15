@@ -169,29 +169,27 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   // BEGIN - solve diagonal block
 if (l_idy == 0) {
+  value_t r_x = l_x[_idx];
   const index_t n_it =
       (_offset + local_range < _N) ? local_range : _N - _offset;
   #pragma unroll 32 
   for (index_t _it = 0; _it < local_range/*n_it*/; ++_it) {
     const index_t l_diag = (is_forward) ? _it : n_it - 1 - _it;
     const index_t g_diag = _offset + l_diag;
+    
+    if (l_idx == l_diag) l_x[l_diag] = (is_unitdiag) ? r_x : r_x/l_x[local_range*(1 + l_diag) + l_diag];
 
-    if (!is_unitdiag && (l_idx == l_diag))
-      l_x[l_diag] /= matrix_.eval(g_diag, g_diag);
-
-    if (!is_unitdiag) ndItem.barrier(cl::sycl::access::fence_space::local_space);
+ // ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
     if (((g_idx > g_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
         ((g_idx < g_diag) && !is_forward)) {
-//      const value_t val = (is_transposed) ? matrix_.eval(g_diag, g_idx)
-//                                          : matrix_.eval(g_idx, g_diag);
-      l_x[l_idx] -= /*val*/ l_x[local_range*(1 + l_diag) + _idx] * l_x[l_diag];
+      r_x -= /*val*/ l_x[local_range*(1 + l_diag) + _idx] * l_x[l_diag];
     }
   }
   // END - solve diagonal block
 
   // Copy to memory the final result, this will be last in any case.
-  if (g_idx < _N) lhs_.eval(g_idx) = l_x[l_idx];
+  if (g_idx < _N) lhs_.eval(g_idx) = r_x;
 
 }
 
