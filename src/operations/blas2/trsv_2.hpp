@@ -121,7 +121,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
         _off0 += local_range;
       }
   } 
-
+      const index_t i1 = 8*l_idy;
+      const index_t i2 = local_range*(1 + i1) + _idx; 
+ 
   volatile int *p = &sync_.eval(1);
   while (current_block != block_id) {
     //const index_t rbb = group_broadcast(ndItem.get_group(),*p);
@@ -138,16 +140,10 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-      { 
-        const index_t _off0 = 8*l_idy;
-        index_t _off1 = local_range*(1 + 8*l_idy) + _idx;
-        #pragma unroll 8 
-        for (index_t i = 0; i < local_range/4; ++i)
-        {
-          v += l_x[ _off0 + i] * l_x[_off1];
-          _off1 += local_range;
-        }
-
+     #pragma unroll 8 
+      for (index_t i = 0; i < local_range/4; ++i)
+      {
+        v += l_x[i1 + i] * l_x[i2 + local_range*i];
       }
 
       //l_x[l_idx] = -v; 
@@ -174,17 +170,22 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   }
   // END - solve extra-diagonal block
 
-  
-  l_x[local_range*(1 + local_range + l_idy) + _idx] = v; 
-
+  const index_t i3 = local_range*(1 + local_range) + _idx;
+ 
+  l_x[i3 + local_range*l_idy] = v; 
   
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-  if (l_idy == 0 && g_idx < _N) l_x[_idx] = lhs_.eval(g_idx) - l_x[local_range*(1 + local_range + 0) + _idx] - l_x[local_range*(1 + local_range + 1) + _idx] - l_x[local_range*(1 + local_range + 2) + _idx] - l_x[local_range*(1 + local_range + 3) + _idx];
+  if (l_idy == 0) {
+
+  if (g_idx < _N) l_x[_idx] = lhs_.eval(g_idx)
+     - v //l_x[i3]
+     - l_x[i3 + local_range*1]
+     - l_x[i3 + local_range*2]
+     - l_x[i3 + local_range*3];
 
 
   // BEGIN - solve diagonal block
-if (l_idy == 0) {
   value_t r_x = l_x[_idx];
   const index_t n_it =
       (_offset + local_range < _N) ? local_range : _N - _offset;
@@ -193,13 +194,13 @@ if (l_idy == 0) {
     const index_t l_diag = (is_forward) ? _it : n_it - 1 - _it;
     const index_t g_diag = _offset + l_diag;
     
-    if (l_idx == l_diag) l_x[l_diag] = (is_unitdiag) ? r_x : r_x/l_x[local_range*(1 + l_diag) + l_diag];
+    if (l_idx == l_diag) l_x[l_diag] = (is_unitdiag) ? r_x : r_x/l_x[local_range + local_range*l_diag + l_diag];
 
  // ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
     if (((g_idx > g_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
         ((g_idx < g_diag) && !is_forward)) {
-      r_x -= /*val*/ l_x[local_range*(1 + l_diag) + _idx] * l_x[l_diag];
+      r_x -= /*val*/ l_x[local_range + local_range*l_diag + _idx] * l_x[l_diag];
     }
   }
   // END - solve diagonal block
