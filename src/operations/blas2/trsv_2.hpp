@@ -127,8 +127,10 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   volatile int *p = &sync_.eval(1);
   while (current_block != block_id) {
     //const index_t rbb = group_broadcast(ndItem.get_group(),*p);
-    const index_t rbb = *p; // little bit faster but unsafer
-
+    //const index_t rbb = *p; // little bit faster but unsafer
+    if (!l_idx) l_x[0] = *p; 
+    ndItem.barrier();
+    const index_t rbb = l_x[0];
 
     while ((is_forward && (current_block < rbb)) ||
            (!is_forward && (current_block > rbb))) {
