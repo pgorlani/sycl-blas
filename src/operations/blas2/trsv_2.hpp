@@ -94,9 +94,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       sync_.eval(0));
 
   index_t bb;
-  if (!l_idx) bb = (is_forward) ? a++ : a--;
+  if (!l_idx) l_x[0] = (is_forward) ? a++ : a--;
   ndItem.barrier();
-  const index_t block_id = group_broadcast(ndItem.get_group(), bb);
+  const index_t block_id = l_x[0]; //group_broadcast(ndItem.get_group(), bb);
 
   const index_t _offset = block_id * local_range;
   const index_t g_idx = _offset + _idx;
