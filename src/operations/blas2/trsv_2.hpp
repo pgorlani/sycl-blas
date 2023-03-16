@@ -194,14 +194,13 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   #pragma unroll 32 
   for (index_t _it = 0; _it < local_range/*n_it*/; ++_it) {
     const index_t l_diag = (is_forward) ? _it : n_it - 1 - _it;
-    const index_t g_diag = _offset + l_diag;
     
     if (l_idx == l_diag) l_x[l_diag] = (is_unitdiag) ? r_x : r_x/l_x[local_range + local_range*l_diag + l_diag];
 
  // ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-    if (((g_idx > g_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
-        ((g_idx < g_diag) && !is_forward)) {
+    if (((l_idx > l_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
+        ((l_idx < l_diag) && !is_forward)) {
       r_x -= /*val*/ l_x[local_range + local_range*l_diag + _idx] * l_x[l_diag];
     }
   }
