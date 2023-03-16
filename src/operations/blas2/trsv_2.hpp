@@ -112,12 +112,14 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   {  
     index_t _off0 = _OFF0;
     const index_t _off1 = current_block * local_range + 8 * l_idy;
+    auto A = matrix_.get_pointer() + matrix_.getSizeL()*(current_block * local_range + 8 * l_idy);
     #pragma unroll 8 
     for (index_t i = 0; i < /*n_it*/local_range/4; ++i)
       /*if (g_idx < _N)*/ {
         l_x[_off0]  = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
-                                            : matrix_.eval(g_idx, _off1 + i);
+                                                : A[g_idx];
         _off0 += local_range;
+        A += matrix_.getSizeL(); 
       }
   } 
 
@@ -153,13 +155,15 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
       {  
         index_t _off0 = _OFF0; 
-        const index_t _off1 = current_block * local_range + 8 * l_idy;
+        const index_t _off1 = (current_block * local_range + 8 * l_idy);
+        auto A = matrix_.get_pointer() + matrix_.getSizeL()*(current_block * local_range + 8 * l_idy);
         #pragma unroll 8
         for (index_t i = 0; i < local_range/4; ++i)
         {
             l_x[_off0]  = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
-                                                : matrix_.eval(g_idx, _off1 + i);
+                                                : A[g_idx];
             _off0 += local_range;
+            A += matrix_.getSizeL(); 
         }
       } 
 
