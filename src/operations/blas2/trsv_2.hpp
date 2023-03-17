@@ -96,10 +96,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
                             sycl::access::address_space::global_space>(
       sync_.eval(0));
 
-  index_t bb;
-  if (!l_idx) l_x[0] = (is_forward) ? a++ : a--;
-  ndItem.barrier();
-  const index_t block_id = l_x[0]; //group_broadcast(ndItem.get_group(), bb);
+  const index_t block_id = group_broadcast(ndItem.get_group(), l_idx ? 0 : (is_forward) ? a++ : a--);
 
   const index_t _offset = block_id * local_range;
   const index_t g_idx = _offset + _idx;
@@ -133,12 +130,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
  
   volatile int *p = &sync_.eval(1);
   while (current_block != block_id) {
-    //const index_t rbb = group_broadcast(ndItem.get_group(),*p);
-    //const index_t rbb = *p; // little bit faster but unsafer
-    if (!l_idx) l_x[0] = *p; 
-    ndItem.barrier();
-    const index_t rbb = l_x[0];
-
+    const index_t rbb = group_broadcast(ndItem.get_group(), l_idx ? 0 : *p);
     while ((is_forward && (current_block < rbb)) ||
            (!is_forward && (current_block > rbb))) {
       const index_t _off = current_block * local_range;
