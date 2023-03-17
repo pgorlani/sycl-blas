@@ -116,12 +116,14 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
     index_t _off0 = _OFF0;
     const index_t _off1 = current_block * local_range + warpchunck * l_idy;
     auto A = matrix_.get_pointer() + matrix_.getSizeL()*(current_block * local_range + warpchunck * l_idy);
-    #pragma unroll 
+    auto x = local_mem.localAcc.get_pointer() + _OFF0;
+     #pragma unroll 
     for (index_t i = 0; i < warpchunck; ++i)
       /*if (g_idx < _N)*/ {
-        l_x[_off0]  = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
+        *x  = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
                                                 : A[g_idx];
-        _off0 += local_range;
+//        _off0 += local_range;
+        x += local_range;
         A += matrix_.getSizeL(); 
       }
   } 
@@ -146,10 +148,15 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       if(l_idy == 0) l_x[_idx] = lhs_.eval(_off + _idx);
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
-
+      
+      auto l_x1 = local_mem.localAcc.get_pointer() + i1;
+      auto l_x2 = local_mem.localAcc.get_pointer() + i2;
       #pragma unroll
-      for (index_t i = 0; i < warpchunck; ++i)
-        v += l_x[i1 + i] * l_x[i2 + local_range*i];
+      for (index_t i = 0; i < warpchunck; ++i){
+        v += *l_x1 * *l_x2;
+        l_x1++;
+        l_x2+=local_range; 
+      }
 
       if (is_forward)
         ++current_block;
@@ -157,15 +164,17 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
         --current_block;
 
       {  
-        index_t _off0 = _OFF0; 
+  //      index_t _off0 = _OFF0; 
         const index_t _off1 = (current_block * local_range + warpchunck * l_idy);
         auto A = matrix_.get_pointer() + matrix_.getSizeL()*(current_block * local_range + warpchunck * l_idy);
+        auto x = local_mem.localAcc.get_pointer() + _OFF0;
         #pragma unroll
         for (index_t i = 0; i < warpchunck; ++i)
         {
-            l_x[_off0]  = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
+            /*l_x[_off0]*/ *x = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
                                                 : A[g_idx];
-            _off0 += local_range;
+            x += local_range;
+  //          _off0 += local_range;
             A += matrix_.getSizeL(); 
         }
       } 
