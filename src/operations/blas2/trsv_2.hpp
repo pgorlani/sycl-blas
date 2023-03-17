@@ -188,7 +188,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
  
   l_x[i3 + local_range*l_idy] = v; 
   
-  ndItem.barrier(cl::sycl::access::fence_space::local_space);
+  sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::work_group);
 
   if (l_idy == 0) {
 
@@ -216,7 +216,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
     if (l_idx == l_diag) *x_diag = (is_unitdiag) ? r_x : r_x=sycl::native::divide(r_x, *A_diag_diag);
 
     // this was omitted in the original paper from 2013
-    // ndItem.barrier(cl::sycl::access::fence_space::local_space);
+    //ndItem.barrier(cl::sycl::access::fence_space::local_space);
+
+    sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::sub_group);
 
     r_x -= *A_diag_idx * *x_diag *
         ((((l_idx > l_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
@@ -233,18 +235,17 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
 }
 
-  ndItem.barrier();
-//  sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
+  sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
 
-//  volatile int * sync = sync_.get_pointer() + 1;
+  volatile int * sync = sync_.get_pointer() + 1;
 
   if (!l_idx) {
     if (is_forward)
-      ++sync_.eval(1);
+      ++(*sync);
     else
-      --sync_.eval(1);
+      --(*sync);
   }
-//  sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
+  sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
 
   return 0;
 }
