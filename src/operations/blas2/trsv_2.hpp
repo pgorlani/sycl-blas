@@ -234,6 +234,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 }
 
   ndItem.barrier();
+//  sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
+
+//  volatile int * sync = sync_.get_pointer() + 1;
 
   if (!l_idx) {
     if (is_forward)
@@ -241,6 +244,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
     else
       --sync_.eval(1);
   }
+//  sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
 
   return 0;
 }
