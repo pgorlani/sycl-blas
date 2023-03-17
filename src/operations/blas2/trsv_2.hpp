@@ -215,7 +215,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
     
     if (l_idx == l_diag) *x_diag = (is_unitdiag) ? r_x : r_x=sycl::native::divide(r_x, *A_diag_diag);
 
- // ndItem.barrier(cl::sycl::access::fence_space::local_space);
+    // this was omitted in the original paper from 2013
+    // ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
     r_x -= *A_diag_idx * *x_diag *
         ((((l_idx > l_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
