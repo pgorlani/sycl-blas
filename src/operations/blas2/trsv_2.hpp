@@ -236,15 +236,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 }
 
   sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
-
   volatile int * sync = sync_.get_pointer() + 1;
-
-  if (!l_idx) {
-    if (is_forward)
-      ++(*sync);
-    else
-      --(*sync);
-  }
+  if (!l_idx) *sync = block_id+1;
   sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
 
   return 0;
