@@ -336,11 +336,13 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
 
 #if 1
 
-  std::vector<int> sync_vector(2, 0);
+  std::vector<int> sync_vector(3, 0);
   if (!is_forward) {
     sync_vector[0] = (roundUp<index_t>(_N, local_range) / local_range) - 1;
     sync_vector[1] = sync_vector[0];
   }
+
+  const index_t warpnum = 4;
 
   auto sync_buffer =
       blas::make_sycl_iterator_buffer<int>(sync_vector, sync_vector.size());
@@ -348,9 +350,9 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
 
   auto trsv = make_trsv_2<local_range, is_upper, is_transposed, is_unit>(
       vx, mA, 0, vx, sync);
-  return sb_handle.execute(trsv, static_cast<index_t>(4*local_range),
-                           roundUp<index_t>(4*_N, 4*local_range),
-                           static_cast<index_t>(local_range*(local_range+1+4)));
+  return sb_handle.execute(trsv, static_cast<index_t>(warpnum*local_range),
+                           roundUp<index_t>(warpnum*_N, warpnum*local_range),
+                           static_cast<index_t>(local_range*(local_range+1+warpnum)));
 
 #else
   auto blk_trsv = [&](index_t blk_id) {

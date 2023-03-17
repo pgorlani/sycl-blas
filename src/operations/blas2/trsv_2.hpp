@@ -85,6 +85,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   const index_t _idx = ndItem.get_local_id(0)%local_range;
   const index_t l_idy = ndItem.get_local_id(0)/local_range;
 
+  const index_t warpnum = 4;
+  const index_t warpchunck = local_range/warpnum;
+
   auto l_x = local_mem.localAcc;
   // it would be better a index_t but we can end up in a situation of 64bit
   // atomics
@@ -107,14 +110,14 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   value_t v = 0;
 
-  const index_t _OFF0 = local_range*(1 + 8*l_idy) + _idx;
+  const index_t _OFF0 = local_range*(1 + warpchunck*l_idy) + _idx;
 
   {  
     index_t _off0 = _OFF0;
-    const index_t _off1 = current_block * local_range + 8 * l_idy;
-    auto A = matrix_.get_pointer() + matrix_.getSizeL()*(current_block * local_range + 8 * l_idy);
-    #pragma unroll 8 
-    for (index_t i = 0; i < /*n_it*/local_range/4; ++i)
+    const index_t _off1 = current_block * local_range + warpchunck * l_idy;
+    auto A = matrix_.get_pointer() + matrix_.getSizeL()*(current_block * local_range + warpchunck * l_idy);
+    #pragma unroll 
+    for (index_t i = 0; i < warpchunck; ++i)
       /*if (g_idx < _N)*/ {
         l_x[_off0]  = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
                                                 : A[g_idx];
@@ -123,7 +126,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       }
   } 
 
-  const index_t i1 = 8*l_idy;
+  const index_t i1 = warpchunck*l_idy;
   const index_t i2 = local_range*(1 + i1) + _idx; 
  
   volatile int *p = &sync_.eval(1);
@@ -144,8 +147,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-      #pragma unroll 8
-      for (index_t i = 0; i < local_range/4; ++i)
+      #pragma unroll
+      for (index_t i = 0; i < warpchunck; ++i)
         v += l_x[i1 + i] * l_x[i2 + local_range*i];
 
       if (is_forward)
@@ -155,10 +158,10 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
       {  
         index_t _off0 = _OFF0; 
-        const index_t _off1 = (current_block * local_range + 8 * l_idy);
-        auto A = matrix_.get_pointer() + matrix_.getSizeL()*(current_block * local_range + 8 * l_idy);
-        #pragma unroll 8
-        for (index_t i = 0; i < local_range/4; ++i)
+        const index_t _off1 = (current_block * local_range + warpchunck * l_idy);
+        auto A = matrix_.get_pointer() + matrix_.getSizeL()*(current_block * local_range + warpchunck * l_idy);
+        #pragma unroll
+        for (index_t i = 0; i < warpchunck; ++i)
         {
             l_x[_off0]  = (is_transposed) ? matrix_.eval(_off1 + i, g_idx)
                                                 : A[g_idx];
@@ -180,11 +183,12 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   if (l_idy == 0) {
 
-  if (g_idx < _N) l_x[_idx] = lhs_.eval(g_idx)
-     - v //l_x[i3]
-     - l_x[i3 + local_range*1]
-     - l_x[i3 + local_range*2]
-     - l_x[i3 + local_range*3];
+  #pragma unroll
+  for(index_t ii = 1; ii < warpnum; ++ii)
+     v += l_x[i3 + local_range*ii];
+
+
+  if (g_idx < _N) l_x[_idx] = lhs_.eval(g_idx) - v;
 
 
   // BEGIN - solve diagonal block
