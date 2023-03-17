@@ -205,7 +205,6 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   const index_t n_it =
       (_offset + local_range < _N) ? local_range : _N - _offset;
 
-  auto x_diag = local_mem.localAcc.get_pointer();
   auto A_diag_idx = local_mem.localAcc.get_pointer() + local_range + _idx;
   auto A_diag_diag = local_mem.localAcc.get_pointer() + local_range;
 
@@ -213,20 +212,17 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   for (index_t _it = 0; _it < local_range/*n_it*/; ++_it) {
     const index_t l_diag = (is_forward) ? _it : n_it - 1 - _it;
     
-    if (l_idx == l_diag) *x_diag = (is_unitdiag) ? r_x : r_x=sycl::native::divide(r_x, *A_diag_diag);
+    if (!is_unitdiag && (l_idx == l_diag))
+      r_x=sycl::native::divide(r_x, *A_diag_diag);
 
-    // this was omitted in the original paper from 2013
-    //ndItem.barrier(cl::sycl::access::fence_space::local_space);
+    value_t x_diag = sycl::group_broadcast(ndItem.get_sub_group(), r_x, l_diag);
 
-    sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::sub_group);
-
-    r_x -= *A_diag_idx * *x_diag *
+    r_x -= *A_diag_idx * x_diag *
         ((((l_idx > l_diag) && /*(g_idx < _N) && +3ms*/ is_forward) ||
         ((l_idx < l_diag) && !is_forward)) ? value_t(1) : value_t(0));
 
     A_diag_idx+=local_range;
     A_diag_diag+=(local_range+1);
-    x_diag++;
   }
   // END - solve diagonal block
 
