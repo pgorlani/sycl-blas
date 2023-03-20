@@ -191,38 +191,31 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   if (g_idx < _N) l_x[_idx] = lhs_.eval(g_idx) - v;
 
-  #pragma unroll 32 
-  for (index_t _it = 0; _it < local_range; ++_it) {
-    const index_t l_diag = _it;
-
-    if (((l_idx < l_diag) && is_forward) || ((l_idx > l_diag) && !is_forward))
-    l_x[local_range*(1 + l_diag) + _idx] = value_t(0);
-
-  }
- 
-  sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::work_group);
 
   // BEGIN - solve diagonal block
   value_t r_x = l_x[_idx];
   const index_t n_it =
       (_offset + local_range < _N) ? local_range : _N - _offset;
 
-  #pragma unroll 32 
-  for (index_t _it = 0; _it < local_range/*n_it*/; ++_it) {
+  value_t _A = l_x[local_range + _idx];
+
+  if (!is_unitdiag && (l_idx == 0))
+     l_x[_idx]=sycl::native::divide(r_x, _A);
+
+  #pragma unroll 31 
+  for (index_t _it = 0; _it < local_range-1; ++_it) {
     const index_t l_diag = (is_forward) ? _it : n_it - 1 - _it;
     
-    if (!is_unitdiag && (l_idx == l_diag))
-      r_x=sycl::native::divide(r_x, l_x[local_range*(1 + l_diag) + l_diag]);
-
-    value_t x_diag = sycl::group_broadcast(ndItem.get_sub_group(), r_x, l_diag);
-
-    r_x -= l_x[local_range*(1 + l_diag) + _idx] * x_diag * ( (l_idx - l_diag) ? value_t(1) : value_t(0));
+    r_x -= _A* l_x[l_diag];
+    _A = l_x[local_range*(1+l_diag +1) + _idx];
+    if ((l_idx == l_diag+1))
+      l_x[_idx] = (is_unitdiag) ? r_x : sycl::native::divide(r_x, _A);
 
   }
   // END - solve diagonal block
 
   // Copy to memory the final result, this will be last in any case.
-  if (g_idx < _N) lhs_.eval(g_idx) = r_x;
+  if (g_idx < _N) lhs_.eval(g_idx) = l_x[_idx];
 
 }
 
