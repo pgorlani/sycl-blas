@@ -197,18 +197,18 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   const index_t n_it =
       (_offset + local_range < _N) ? local_range : _N - _offset;
 
-  value_t _A = l_x[local_range + _idx];
+  value_t _A = l_x[((is_forward) ?0: local_range*(local_range-1) ) + local_range + _idx];
 
   if (!is_unitdiag && (l_idx == 0))
      l_x[_idx]=sycl::native::divide(r_x, _A);
 
   #pragma unroll 31 
   for (index_t _it = 0; _it < local_range-1; ++_it) {
-    const index_t l_diag = (is_forward) ? _it : n_it - 1 - _it;
+    const index_t l_diag = (is_forward) ? _it : local_range - 1 - _it;
     
     r_x -= _A* l_x[l_diag];
-    _A = l_x[local_range*(1+l_diag +1) + _idx];
-    if ((l_idx == l_diag+1))
+    _A = l_x[local_range*(1+l_diag +((is_forward) ?1:-1)) + _idx];
+    if ((l_idx == l_diag+((is_forward) ?1:-1)))
       l_x[_idx] = (is_unitdiag) ? r_x : sycl::native::divide(r_x, _A);
 
   }
@@ -221,7 +221,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
   volatile int * sync = sync_.get_pointer() + 1;
-  if (!l_idx) *sync = block_id+1;
+  if (!l_idx) *sync = block_id+ ((is_forward) ? 1 : - 1);
   sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
 
   return 0;

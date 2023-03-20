@@ -110,7 +110,7 @@ const auto combi = ::testing::Combine(
 template <typename scalar_t>
 const auto combi = ::testing::Combine(
     ::testing::Values(32, 64, 256, 288, 320, 512/*, 8192, 33, 63, 64, 127, 128, 256, 270, 512, 8193*/),  // n
-    ::testing::Values(/*true,*/ false),  // is_upper
+    ::testing::Values(true, false),  // is_upper
     ::testing::Values(/*true,*/ false),  // trans
     ::testing::Values(true, false),  // is_unit
     ::testing::Values(2),            // incX
