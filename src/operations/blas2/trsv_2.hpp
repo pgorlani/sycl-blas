@@ -94,10 +94,10 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   const index_t warpchunck = local_range/warpnum;
 
   // pointers to local memory
-  value_t * loc_A = local_mem.localAcc.get_pointer();
-  value_t * tmp_A = local_mem.localAcc.get_pointer() + (local_range*warpchunck*_idy);
-  value_t * loc_x = local_mem.localAcc.get_pointer() + (local_range*local_range); 
-  value_t * tmp_x = loc_x + local_range + (local_range*_idy); 
+  value_t * const loc_A = local_mem.localAcc.get_pointer();
+  value_t * const tmp_A = local_mem.localAcc.get_pointer() + (local_range*warpchunck*_idy);
+  value_t * const loc_x = local_mem.localAcc.get_pointer() + (local_range*local_range); 
+  value_t * const tmp_x = loc_x + local_range + (local_range*_idy); 
 
 
   auto a = sycl::atomic_ref<int, sycl::memory_order::relaxed,
@@ -149,7 +149,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
       value_t * lx = loc_x + _idy * warpchunck;
-      value_t * lA = loc_A + local_range*_idy * warpchunck;
+      value_t * lA = tmp_A;
       #pragma unroll
       for (index_t i = 0; i < warpchunck; ++i){
         v += lA[_idx] * *lx;
@@ -181,12 +181,10 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   if (_idy != 0) tmp_x[_idx] = v; 
   
+  //sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::work_group);
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
   if (_idy == 0) {
-
-  // compute recip (eventually move above)
-  const value_t A_diag_recip = sycl::native::recip(loc_A[local_range*_idx + _idx]);
 
   #pragma unroll
   for(index_t y = 1; y < warpnum; ++y)
@@ -195,6 +193,10 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   if (g_idx < _N) loc_x[_idx] = lhs_.eval(g_idx) - v;
 
   // BEGIN - solve diagonal block
+
+  // compute recip (eventually move above)
+  const value_t A_diag_recip = sycl::native::recip(loc_A[local_range*_idx + _idx]);
+
   value_t r_x = loc_x[_idx];
   value_t _A = loc_A[((is_forward) ? 0 : local_range*(local_range-1) ) + _idx];
 
