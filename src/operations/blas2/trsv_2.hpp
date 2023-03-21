@@ -183,25 +183,21 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
    
   }
   // END - solve extra-diagonal block
+  #endif
 
-  const index_t i3 = local_range*(1 + local_range) + _idx;
- 
-  l_x[i3 + local_range*_idy] = v; 
+  if (_idy != 0) tmp_x[_idx] = v; 
   
   sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::work_group);
 
-  #endif
-
-  ndItem.barrier(cl::sycl::access::fence_space::local_space);
   if (_idy == 0) {
 
   // compute recip (eventually move above)
   const value_t A_diag_recip = sycl::native::recip(loc_A[local_range*_idx + _idx]);
-/*
+
   #pragma unroll
-  for(index_t ii = 1; ii < warpnum; ++ii)
-     v += l_x[i3 + local_range*ii];
-*/
+  for(index_t y = 1; y < warpnum; ++y)
+     v += tmp_x[local_range*y + _idx];
+
   if (g_idx < _N) loc_x[_idx] = lhs_.eval(g_idx); // - v;
 
   // BEGIN - solve diagonal block
