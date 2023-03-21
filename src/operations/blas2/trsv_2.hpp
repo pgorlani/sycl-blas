@@ -97,7 +97,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   value_t * loc_A = local_mem.localAcc.get_pointer();
   value_t * tmp_A = local_mem.localAcc.get_pointer() + (local_range*warpchunck*_idy);
   value_t * loc_x = local_mem.localAcc.get_pointer() + (local_range*local_range); 
-  value_t * tmp_x = local_mem.localAcc.get_pointer() + local_range*(local_range+1+_idy); 
+  value_t * tmp_x = loc_x + local_range + (local_range*_idy); 
 
 
   auto a = sycl::atomic_ref<int, sycl::memory_order::relaxed,
@@ -149,7 +149,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
       value_t * lx = loc_x + _idy * warpchunck;
-      value_t * lA = loc_A + _idy * warpchunck;
+      value_t * lA = loc_A + local_range*_idy * warpchunck;
       #pragma unroll
       for (index_t i = 0; i < warpchunck; ++i){
         v += lA[_idx] * *lx;
@@ -190,8 +190,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   #pragma unroll
   for(index_t y = 1; y < warpnum; ++y)
-     v += tmp_x[local_range*(y+1) + _idx];
-
+     v += tmp_x[local_range*y + _idx];
+  
   if (g_idx < _N) loc_x[_idx] = lhs_.eval(g_idx) - v;
 
   // BEGIN - solve diagonal block
