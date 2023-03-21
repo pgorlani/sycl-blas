@@ -102,8 +102,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   const index_t g_idx = _offset + _idx;
 
   // BEGIN - solve extra-diagonal block
-  index_t current_block =
-      is_forward ? 0 : ((_N + local_range - 1) / local_range) - 1;
+  index_t current_block = sycl::group_broadcast(ndItem.get_sub_group(), _idx ? 0 : ((is_forward) ? 0 : ((_N + local_range - 1) / local_range) - 1));
 
   value_t v = 0;
 
@@ -136,7 +135,6 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       const index_t _off = current_block * local_range;
 
       const index_t n_it = (_off + local_range < _N) ? local_range : _N - _off;
-
       if(l_idy == 0) l_x[_idx] = lhs_.eval(_off + _idx);
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
@@ -184,17 +182,14 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   if (l_idy == 0) {
 
-  // compute recip
-
+  // compute recip (eventually move above)
   const value_t A_diag_recip = sycl::native::recip(l_x[local_range*(1 + _idx) + _idx]);
 
   #pragma unroll
   for(index_t ii = 1; ii < warpnum; ++ii)
      v += l_x[i3 + local_range*ii];
 
-
   if (g_idx < _N) l_x[_idx] = lhs_.eval(g_idx) - v;
-
 
   // BEGIN - solve diagonal block
   value_t r_x = l_x[_idx];
@@ -205,8 +200,6 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   if (!is_unitdiag && ( (is_forward && (l_idx == 0)) || (!is_forward && (l_idx == (local_range-1))) ))
      l_x[_idx]*=A_diag_recip;
-
-  
 
   #pragma unroll 
   for (index_t _it = 0; _it < local_range-1; ++_it) {
