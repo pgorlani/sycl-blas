@@ -144,7 +144,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       const index_t _off = current_block * local_range;
 
       const index_t n_it = (_off + local_range < _N) ? local_range : _N - _off;
-      if (_idy == 0) loc_x[_idx] = (g_idx<_N) ? lhs_.eval(_off + _idx) : value_t(0);
+      if (_idy == 0) loc_x[_idx] = (_off + _idx <_N) ? lhs_.eval(_off + _idx) : value_t(0);
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
