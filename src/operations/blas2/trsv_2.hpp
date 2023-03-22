@@ -190,27 +190,22 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   for(index_t y = 1; y < warpnum; ++y)
      v += tmp_x[local_range*y + _idx];
   
-  if (g_idx < _N) loc_x[_idx] = lhs_.eval(g_idx) - v;
-
-  // BEGIN - solve diagonal block
+ // BEGIN - solve diagonal block
 
   // compute recip (eventually move above)
   const value_t A_diag_recip = sycl::native::recip(loc_A[local_range*_idx + _idx]);
-
-  value_t r_x = loc_x[_idx];
-  value_t _A = loc_A[((is_forward) ? 0 : local_range*(local_range-1) ) + _idx];
-
-  if (!is_unitdiag && ( (is_forward && (_idx == 0)) || (!is_forward && (_idx == (local_range-1))) ))
-     loc_x[_idx]*=A_diag_recip;
+  value_t _A, r_diag, r_x;
+  if (g_idx < _N) r_x = lhs_.eval(g_idx) - v;
 
   #pragma unroll 
-  for (index_t _it = 0; _it < local_range-1; ++_it) {
+  for (index_t _it = 0; _it < local_range; ++_it) {
     const index_t l_diag = (is_forward) ? _it : local_range - 1 - _it;
+    r_diag = sycl::group_broadcast(ndItem.get_sub_group(), is_unitdiag ? r_x : r_x*A_diag_recip, l_diag);
+    _A = loc_A[local_range*l_diag + _idx];
     
-    r_x -= _A* loc_x[l_diag];
-    _A = loc_A[local_range*(l_diag +((is_forward) ? 1 : -1)) + _idx];
-    if ((_idx == l_diag+((is_forward) ? 1 : -1)))
-      loc_x[_idx] = (is_unitdiag) ? r_x : r_x*A_diag_recip;
+    r_x -= _A* r_diag;
+
+    if (_idx == l_diag) loc_x[_idx] = r_diag;
 
   }
   // END - solve diagonal block
