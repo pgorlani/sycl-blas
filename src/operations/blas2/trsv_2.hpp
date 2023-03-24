@@ -145,7 +145,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       const index_t _off = current_block * local_range;
 
       const index_t n_it = (_off + local_range < _N) ? local_range : _N - _off;
-      if (_idy == 0) loc_x[_idx] = (_off + _idx <_N) ? lhs_.eval(_off + _idx) : value_t(0);
+      if (_idy == 0) loc_x[_idx] = /*(_off + _idx <_N) ?*/ lhs_.eval(_off + _idx)/* : value_t(0)*/;
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
@@ -197,9 +197,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
  // BEGIN - solve diagonal block
 
   // compute recip (eventually move above)
-  const value_t A_diag_recip = (g_idx < _N) ? sycl::native::recip(loc_A[local_range*_idx + _idx]) : value_t(0);
+  const value_t A_diag_recip = /*(g_idx < _N) ?*/ sycl::native::recip(loc_A[local_range*_idx + _idx]) /*: value_t(0)*/;
   value_t _A, r_diag, r_x;
-  r_x = (g_idx < _N) ? lhs_.eval(g_idx) - v : value_t(0);
+  r_x = /*(g_idx < _N) ?*/ lhs_.eval(g_idx) - v /*: value_t(0)*/;
 
   #pragma unroll 
   for (index_t _it = 0; _it < local_range; ++_it) {
