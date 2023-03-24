@@ -117,18 +117,19 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
 
   // read first block of the row
+    {  
+        value_t * lA = tmp_A;
+        value_t * gA = matrix_.get_pointer() + matrix_.getSizeL()*((is_transposed)? ( block_id * local_range + warpchunck * _idy) : (current_block * local_range + warpchunck * _idy));
+        const index_t gt_idx = current_block * local_range+ _idx;
 
-  {  
-    value_t * lA = tmp_A;
-    value_t * gA = matrix_.get_pointer() + matrix_.getSizeL()*(current_block * local_range + warpchunck * _idy);
-    #pragma unroll 
-    for (index_t i = 0; i < warpchunck; ++i)
-    {
-        lA[_idx]  = ((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ? gA[g_idx] : value_t(0);
-        lA += local_range;
-        gA += matrix_.getSizeL(); 
-    }
-  } 
+        #pragma unroll 
+        for (index_t i = 0; i < warpchunck; ++i)
+        {
+            lA[_idx]  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ gA[(is_transposed)? gt_idx : g_idx] /*: value_t(0)*/;
+            lA += local_range;
+            gA += matrix_.getSizeL(); 
+        }
+      } 
 
 
   // initialize private accumulation value
@@ -149,12 +150,13 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
       value_t * lx = loc_x + _idy * warpchunck;
-      value_t * lA = tmp_A;
+//      value_t * lA = loc_A + (local_range*warpchunck*_idy); // tmp_A;
       #pragma unroll
       for (index_t i = 0; i < warpchunck; ++i){
-        v += lA[_idx] * *lx;
-        lx++;
-        lA+=local_range; 
+        int I =  is_transposed ? _idx : (warpchunck*_idy+i);
+        int J =  is_transposed ? (warpchunck*_idy+i): _idx;
+        v += loc_A[(local_range*I) + J] * *(lx++);
+//        lA+=local_range; 
       }
 
       if (is_forward)
@@ -164,11 +166,13 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
       {  
         value_t * lA = tmp_A;
-        value_t * gA = matrix_.get_pointer() + matrix_.getSizeL()*(current_block * local_range + warpchunck * _idy);
+        value_t * gA = matrix_.get_pointer() + matrix_.getSizeL()*((is_transposed)? ( block_id * local_range + warpchunck * _idy) : (current_block * local_range + warpchunck * _idy));
+        const index_t gt_idx = current_block * local_range+ _idx;
+
         #pragma unroll 
         for (index_t i = 0; i < warpchunck; ++i)
         {
-            lA[_idx]  = ((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ? gA[g_idx] : value_t(0);
+            lA[_idx]  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ gA[(is_transposed)? gt_idx : g_idx] /*: value_t(0)*/;
             lA += local_range;
             gA += matrix_.getSizeL(); 
         }
@@ -201,7 +205,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   for (index_t _it = 0; _it < local_range; ++_it) {
     const index_t l_diag = (is_forward) ? _it : local_range - 1 - _it;
     r_diag = sycl::group_broadcast(ndItem.get_sub_group(), is_unitdiag ? r_x : r_x*A_diag_recip, l_diag);
-    _A = loc_A[local_range*l_diag + _idx];
+    
+    _A = (is_transposed) ? loc_A[local_range*_idx+ l_diag] : loc_A[local_range*l_diag + _idx];
     
     r_x -= _A* r_diag;
 
