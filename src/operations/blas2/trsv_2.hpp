@@ -117,19 +117,19 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
 
   // read first block of the row
-    {  
-        value_t * lA = tmp_A;
-        value_t * gA = matrix_.get_pointer() + matrix_.getSizeL()*((is_transposed)? ( block_id * local_range + warpchunck * _idy) : (current_block * local_range + warpchunck * _idy));
-        const index_t gt_idx = current_block * local_range+ _idx;
 
-        #pragma unroll 
-        for (index_t i = 0; i < warpchunck; ++i)
-        {
-            lA[_idx]  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ gA[(is_transposed)? gt_idx : g_idx] /*: value_t(0)*/;
-            lA += local_range;
-            gA += matrix_.getSizeL(); 
-        }
-      } 
+  {  
+    value_t * lA = tmp_A;
+    value_t * gA = matrix_.get_pointer() + matrix_.getSizeL()*((is_transposed)? ( block_id * local_range + warpchunck * _idy) : (current_block * local_range + warpchunck * _idy));
+    const index_t gt_idx = current_block * local_range+ _idx;
+    #pragma unroll 
+    for (index_t i = 0; i < warpchunck; ++i)
+    {
+        lA[_idx]  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ gA[(is_transposed)? gt_idx : g_idx] /*: value_t(0)*/;
+        lA += local_range;
+        gA += matrix_.getSizeL(); 
+    }
+  } 
 
 
   // initialize private accumulation value
@@ -150,13 +150,11 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
       value_t * lx = loc_x + _idy * warpchunck;
-//      value_t * lA = loc_A + (local_range*warpchunck*_idy); // tmp_A;
+      value_t * lA = is_transposed ? loc_A + local_range*_idx + warpchunck*_idy : tmp_A + _idx;
       #pragma unroll
       for (index_t i = 0; i < warpchunck; ++i){
-        int I =  is_transposed ? _idx : (warpchunck*_idy+i);
-        int J =  is_transposed ? (warpchunck*_idy+i): _idx;
-        v += loc_A[(local_range*I) + J] * *(lx++);
-//        lA+=local_range; 
+        v += *lA * *(lx++);
+        lA+=is_transposed ? 1 : local_range; 
       }
 
       if (is_forward)
@@ -164,7 +162,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       else
         --current_block;
 
-      ndItem.barrier(cl::sycl::access::fence_space::local_space);
+      if(is_transposed) ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
       {  
         value_t * lA = tmp_A;
