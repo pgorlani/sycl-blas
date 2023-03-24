@@ -164,6 +164,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       else
         --current_block;
 
+      ndItem.barrier(cl::sycl::access::fence_space::local_space);
+
       {  
         value_t * lA = tmp_A;
         value_t * gA = matrix_.get_pointer() + matrix_.getSizeL()*((is_transposed)? ( block_id * local_range + warpchunck * _idy) : (current_block * local_range + warpchunck * _idy));
