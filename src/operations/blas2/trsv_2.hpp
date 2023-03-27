@@ -136,6 +136,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   // initialize private accumulation value
   value_t v = 0;
 
+  index_t glob_x_off = current_block * local_range + _idx;
   // BEGIN - solve extra-diagonal block
 
   volatile int *p = &sync_.eval(1);
@@ -143,10 +144,20 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
     const index_t rbb = group_broadcast(ndItem.get_group(), is_not_wi0 ? 0 : *p);
     while ((is_forward && (current_block < rbb)) ||
            (!is_forward && (current_block > rbb))) {
-      const index_t _off = current_block * local_range;
 
-      const index_t n_it = (_off + local_range < _N) ? local_range : _N - _off;
-      if (_idy == 0) loc_x[_idx] = /*(_off + _idx <_N) ?*/ lhs_.eval(_off + _idx)/* : value_t(0)*/;
+      if (_idy == 0) {
+        loc_x[_idx] = /*(_off + _idx <_N) ?*/ lhs_.eval(glob_x_off)/* : value_t(0)*/;
+      }
+
+      if (is_forward) {
+        ++current_block;
+        glo_A += local_range *(is_transposed ? 1 : matrix_.getSizeL());
+        glob_x_off += local_range;
+      } else {
+        --current_block;
+        glo_A -= local_range *(is_transposed ? 1 : matrix_.getSizeL());
+        glob_x_off -= local_range;
+      }
 
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
@@ -156,14 +167,6 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       for (index_t i = 0; i < warpchunck; ++i){
         v += *lA * *(lx++);
         lA+=is_transposed ? 1 : _llda; 
-      }
-
-      if (is_forward) {
-        ++current_block;
-        glo_A += local_range *(is_transposed ? 1 : matrix_.getSizeL());
-      } else {
-        --current_block;
-        glo_A -= local_range *(is_transposed ? 1 : matrix_.getSizeL());
       }
 
       if(is_transposed) ndItem.barrier(cl::sycl::access::fence_space::local_space);
