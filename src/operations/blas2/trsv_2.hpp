@@ -108,24 +108,22 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   // get the block_id of actual workgroup
   const index_t block_id = group_broadcast(ndItem.get_group(), is_not_wi0 ? 0 : (is_forward) ? a++ : a--);
 
+  // initialize current_block 
+  index_t current_block = sycl::group_broadcast(ndItem.get_sub_group(), _idx ? 0 : ((is_forward) ? 0 : ((_N + local_range - 1) / local_range) - 1));
 
   // global memory offsets
   const index_t _offset = block_id * local_range;
   const index_t g_idx = _offset + _idx;
-  value_t * const glo_A = matrix_.get_pointer() +
-    (is_transposed?  matrix_.getSizeL()*(block_id * local_range + warpchunck * _idy) /*+ current_block * local_range*/ + _idx
-                   : matrix_.getSizeL()*(/*current_block * local_range +*/ warpchunck * _idy) + block_id * local_range + _idx);
-
-  // initialize current_block 
-  index_t current_block = sycl::group_broadcast(ndItem.get_sub_group(), _idx ? 0 : ((is_forward) ? 0 : ((_N + local_range - 1) / local_range) - 1));
+  value_t * glo_A = matrix_.get_pointer() +
+    (is_transposed?  matrix_.getSizeL()*(block_id * local_range + warpchunck * _idy) + current_block * local_range + _idx
+                   : matrix_.getSizeL()*(current_block * local_range + warpchunck * _idy) + block_id * local_range + _idx);
 
 
   // read first block of the row
 
   {  
     value_t * lA = tmp_A;
-    value_t * gA = glo_A + (current_block * local_range)*(is_transposed ? 1 : matrix_.getSizeL()); //matrix_.get_pointer() + matrix_.getSizeL()*((is_transposed)? ( block_id * local_range + warpchunck * _idy) : (current_block * local_range + warpchunck * _idy));
-//    const index_t gt_idx = current_block * local_range+ _idx;
+    value_t * gA = glo_A;
     #pragma unroll 
     for (index_t i = 0; i < warpchunck; ++i)
     {
@@ -134,7 +132,6 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
         gA += matrix_.getSizeL(); 
     }
   } 
-
 
   // initialize private accumulation value
   value_t v = 0;
@@ -161,24 +158,28 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
         lA+=is_transposed ? 1 : _llda; 
       }
 
-      if (is_forward)
+      if (is_forward) {
         ++current_block;
-      else
+        glo_A += local_range *(is_transposed ? 1 : matrix_.getSizeL());
+      } else {
         --current_block;
+        glo_A -= local_range *(is_transposed ? 1 : matrix_.getSizeL());
+      }
 
-      //if(is_transposed) ndItem.barrier(cl::sycl::access::fence_space::local_space);
+      if(is_transposed) ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
       {  
         value_t * lA = tmp_A;
-        value_t * gA = glo_A + (current_block * local_range)*(is_transposed ? 1 : matrix_.getSizeL());
+        value_t * gA = glo_A;
         #pragma unroll 
         for (index_t i = 0; i < warpchunck; ++i)
         {
-            *lA/*[_idx]*/  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
+            *lA  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
             lA += _llda;
             gA += matrix_.getSizeL(); 
         }
       } 
+
 
     }
    
