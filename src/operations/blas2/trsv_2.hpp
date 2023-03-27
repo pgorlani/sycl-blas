@@ -96,7 +96,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   const index_t _llda = local_range+1;
   // pointers to local memory
   value_t * const loc_A = local_mem.localAcc.get_pointer();
-  value_t * const tmp_A = local_mem.localAcc.get_pointer() + (_llda*warpchunck*_idy);
+  value_t * const tmp_A = local_mem.localAcc.get_pointer() + (_llda*warpchunck*_idy) + _idx;
   value_t * const loc_x = local_mem.localAcc.get_pointer() + (_llda*local_range); 
   value_t * const tmp_x = loc_x + local_range + (local_range*_idy); 
 
@@ -129,7 +129,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
     #pragma unroll 
     for (index_t i = 0; i < warpchunck; ++i)
     {
-        lA[_idx]  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
+        *lA/*[_idx]*/  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
         lA += _llda;
         gA += matrix_.getSizeL(); 
     }
@@ -154,7 +154,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
       value_t * lx = loc_x + _idy * warpchunck;
-      value_t * lA = is_transposed ? loc_A + _llda*_idx + warpchunck*_idy : tmp_A + _idx;
+      value_t * lA = is_transposed ? loc_A + _llda*_idx + warpchunck*_idy : tmp_A;
       #pragma unroll
       for (index_t i = 0; i < warpchunck; ++i){
         v += *lA * *(lx++);
@@ -174,7 +174,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
         #pragma unroll 
         for (index_t i = 0; i < warpchunck; ++i)
         {
-            lA[_idx]  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
+            *lA/*[_idx]*/  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
             lA += _llda;
             gA += matrix_.getSizeL(); 
         }
