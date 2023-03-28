@@ -139,11 +139,11 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   index_t glob_x_off = current_block * local_range + _idx;
   // BEGIN - solve extra-diagonal block
 
+  // this is only for warp 0
   volatile int *p = &sync_.eval(1);
   index_t rbb = sycl::group_broadcast(ndItem.get_sub_group(), is_not_wi0 ? 0 : *p); 
 
   int steps = is_forward ? block_id : (current_block - block_id);
-
   for(int s = 0; s<steps; ++s) {
 
     if (_idy == 0) {
@@ -152,15 +152,15 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
            (!is_forward && (current_block > rbb))))
         rbb = sycl::group_broadcast(ndItem.get_sub_group(), is_not_wi0 ? 0 : *p); 
 
-        loc_x[_idx] = /*(_off + _idx <_N) ?*/ lhs_.eval(glob_x_off)/* : value_t(0)*/;
+      loc_x[_idx] = /*(_off + _idx <_N) ?*/ lhs_.eval(glob_x_off)/* : value_t(0)*/;
+
+      current_block += is_forward ? 1 : -1;
     }
 
     if (is_forward) {
-      ++current_block;
       glo_A += local_range *(is_transposed ? 1 : matrix_.getSizeL());
       glob_x_off += local_range;
     } else {
-      --current_block;
       glo_A -= local_range *(is_transposed ? 1 : matrix_.getSizeL());
       glob_x_off -= local_range;
     }
