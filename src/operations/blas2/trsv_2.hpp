@@ -93,10 +93,11 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   const index_t warpnum = 4; // <-- this will be a template argument
   const index_t warpchunck = local_range/warpnum;
 
-  const index_t _llda = local_range+3;
+  const index_t _llda = local_range+1;
   // pointers to local memory
   value_t * const loc_A = local_mem.localAcc.get_pointer();
   value_t * const tmp_A = local_mem.localAcc.get_pointer() + (_llda*warpchunck*_idy) + _idx;
+  value_t * const tmp_At = local_mem.localAcc.get_pointer() + (_llda*_idx) + (warpchunck*_idy);
   value_t * const loc_x = local_mem.localAcc.get_pointer() + (_llda*local_range); 
   value_t * const tmp_x = loc_x + local_range + (local_range*_idy); 
 
@@ -165,10 +166,21 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       glob_x_off -= local_range;
     }
 
+    value_t priv_A[warpchunck];
+    {  
+      value_t * gA = glo_A;
+      #pragma unroll 
+      for (index_t i = 0; i < warpchunck; ++i)
+      {
+        priv_A[i]  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
+        gA += matrix_.getSizeL(); 
+      }
+    } 
+ 
     ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
     value_t * lx = loc_x + _idy * warpchunck;
-    value_t * lA = is_transposed ? loc_A + _llda*_idx + warpchunck*_idy : tmp_A;
+    value_t * lA = is_transposed ? tmp_At : tmp_A;
     #pragma unroll
     for (index_t i = 0; i < warpchunck; ++i){
       v += *lA * *(lx++);
@@ -179,13 +191,11 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
     {  
       value_t * lA = tmp_A;
-      value_t * gA = glo_A;
       #pragma unroll 
       for (index_t i = 0; i < warpchunck; ++i)
       {
-        *lA  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
+        *lA  = priv_A[i];
         lA += _llda;
-        gA += matrix_.getSizeL(); 
       }
     } 
    
