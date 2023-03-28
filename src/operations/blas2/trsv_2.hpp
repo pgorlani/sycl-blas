@@ -93,7 +93,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   const index_t warpnum = 4; // <-- this will be a template argument
   const index_t warpchunck = local_range/warpnum;
 
-  const index_t _llda = local_range+1;
+  const index_t _llda = local_range+3;
   // pointers to local memory
   value_t * const loc_A = local_mem.localAcc.get_pointer();
   value_t * const tmp_A = local_mem.localAcc.get_pointer() + (_llda*warpchunck*_idy) + _idx;
@@ -140,51 +140,52 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   // BEGIN - solve extra-diagonal block
 
   volatile int *p = &sync_.eval(1);
+  index_t rbb = sycl::group_broadcast(ndItem.get_sub_group(), is_not_wi0 ? 0 : *p); 
+
   while (current_block != block_id) {
-    const index_t rbb = group_broadcast(ndItem.get_group(), is_not_wi0 ? 0 : *p);
-    while ((is_forward && (current_block < rbb)) ||
-           (!is_forward && (current_block > rbb))) {
 
-      if (_idy == 0) {
+    if (_idy == 0) {
+
+      while (!((is_forward && (current_block < rbb)) ||
+           (!is_forward && (current_block > rbb))))
+        rbb = sycl::group_broadcast(ndItem.get_sub_group(), is_not_wi0 ? 0 : *p); 
+
         loc_x[_idx] = /*(_off + _idx <_N) ?*/ lhs_.eval(glob_x_off)/* : value_t(0)*/;
-      }
-
-      if (is_forward) {
-        ++current_block;
-        glo_A += local_range *(is_transposed ? 1 : matrix_.getSizeL());
-        glob_x_off += local_range;
-      } else {
-        --current_block;
-        glo_A -= local_range *(is_transposed ? 1 : matrix_.getSizeL());
-        glob_x_off -= local_range;
-      }
-
-      ndItem.barrier(cl::sycl::access::fence_space::local_space);
-
-      value_t * lx = loc_x + _idy * warpchunck;
-      value_t * lA = is_transposed ? loc_A + _llda*_idx + warpchunck*_idy : tmp_A;
-      #pragma unroll
-      for (index_t i = 0; i < warpchunck; ++i){
-        v += *lA * *(lx++);
-        lA+=is_transposed ? 1 : _llda; 
-      }
-
-      if(is_transposed) ndItem.barrier(cl::sycl::access::fence_space::local_space);
-
-      {  
-        value_t * lA = tmp_A;
-        value_t * gA = glo_A;
-        #pragma unroll 
-        for (index_t i = 0; i < warpchunck; ++i)
-        {
-            *lA  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
-            lA += _llda;
-            gA += matrix_.getSizeL(); 
-        }
-      } 
-
-
     }
+
+    if (is_forward) {
+      ++current_block;
+      glo_A += local_range *(is_transposed ? 1 : matrix_.getSizeL());
+      glob_x_off += local_range;
+    } else {
+      --current_block;
+      glo_A -= local_range *(is_transposed ? 1 : matrix_.getSizeL());
+      glob_x_off -= local_range;
+    }
+
+    ndItem.barrier(cl::sycl::access::fence_space::local_space);
+
+    value_t * lx = loc_x + _idy * warpchunck;
+    value_t * lA = is_transposed ? loc_A + _llda*_idx + warpchunck*_idy : tmp_A;
+    #pragma unroll
+    for (index_t i = 0; i < warpchunck; ++i){
+      v += *lA * *(lx++);
+      lA+=is_transposed ? 1 : _llda; 
+    }
+
+    if(is_transposed) ndItem.barrier(cl::sycl::access::fence_space::local_space);
+
+    {  
+      value_t * lA = tmp_A;
+      value_t * gA = glo_A;
+      #pragma unroll 
+      for (index_t i = 0; i < warpchunck; ++i)
+      {
+        *lA  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
+        lA += _llda;
+        gA += matrix_.getSizeL(); 
+      }
+    } 
    
   }
   // END - solve extra-diagonal block
