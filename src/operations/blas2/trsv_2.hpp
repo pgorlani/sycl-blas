@@ -142,7 +142,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   volatile int *p = &sync_.eval(1);
   index_t rbb = sycl::group_broadcast(ndItem.get_sub_group(), is_not_wi0 ? 0 : *p); 
 
-  while (current_block != block_id) {
+  int steps = is_forward ? block_id : (current_block - block_id);
+
+  for(int s = 0; s<steps; ++s) {
 
     if (_idy == 0) {
 
