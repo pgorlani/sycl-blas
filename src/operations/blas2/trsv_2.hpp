@@ -120,15 +120,16 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
                    : matrix_.getSizeL()*(current_block * local_range + warpchunck * _idy) + block_id * local_range + _idx);
 
 
-  // read first block of the row
+  index_t glob_x_off = current_block * local_range + _idx;
 
+  // read first block of the row
   {  
     value_t * lA = tmp_A;
     value_t * gA = glo_A;
     #pragma unroll 
     for (index_t i = 0; i < warpchunck; ++i)
     {
-        *lA/*[_idx]*/  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
+        *lA = ((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx< _N) ) ? *gA : value_t(0);
         lA += _llda;
         gA += matrix_.getSizeL(); 
     }
@@ -137,7 +138,6 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   // initialize private accumulation value
   value_t v = 0;
 
-  index_t glob_x_off = current_block * local_range + _idx;
   // BEGIN - solve extra-diagonal block
 
   // this is only for warp 0
@@ -153,10 +153,11 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
            (!is_forward && (current_block > rbb))))
         rbb = sycl::group_broadcast(ndItem.get_sub_group(), is_not_wi0 ? 0 : *p); 
 
-      loc_x[_idx] = /*(_off + _idx <_N) ?*/ lhs_.eval(glob_x_off)/* : value_t(0)*/;
+      loc_x[_idx] = (glob_x_off <_N) ? lhs_.eval(glob_x_off) : value_t(0);
 
-      current_block += is_forward ? 1 : -1;
     }
+
+    current_block += is_forward ? 1 : -1;
 
     if (is_forward) {
       glo_A += local_range *(is_transposed ? 1 : matrix_.getSizeL());
@@ -172,7 +173,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       #pragma unroll 
       for (index_t i = 0; i < warpchunck; ++i)
       {
-        priv_A[i]  = /*((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx<_N)) ?*/ *gA /*: value_t(0)*/;
+        priv_A[i] = ((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx< _N)) ? *gA : value_t(0);
         gA += matrix_.getSizeL(); 
       }
     } 
@@ -216,9 +217,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
  // BEGIN - solve diagonal block
 
   // compute recip (eventually move above)
-  const value_t A_diag_recip = /*(g_idx < _N) ?*/ sycl::native::recip(loc_A[_llda*_idx + _idx]) /*: value_t(0)*/;
+  const value_t A_diag_recip = (g_idx < _N) ? sycl::native::recip(loc_A[_llda*_idx + _idx]) : value_t(0);
   value_t _A, r_diag, r_x;
-  r_x = /*(g_idx < _N) ?*/ lhs_.eval(g_idx) - v /*: value_t(0)*/;
+  r_x = (g_idx < _N) ? lhs_.eval(g_idx) - v : value_t(0);
 
   #pragma unroll 
   for (index_t _it = 0; _it < local_range; ++_it) {
