@@ -55,7 +55,7 @@ void run_test(const combination_t<scalar_t> combi) {
   std::vector<scalar_t> x_v_cpu(x_size);
 
   // Control the magnitude of extra-diagonal elements
-//  fill_random_with_range(a_m, scalar_t(-0.05), scalar_t(0.05));
+  // fill_random_with_range(a_m, scalar_t(-0.05), scalar_t(0.05));
 
   for (index_t i = 0; i < n; ++i)
     for (index_t j = 0; j < n; ++j)
@@ -116,11 +116,11 @@ const auto combi = ::testing::Combine(
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
 const auto combi = ::testing::Combine(
-    ::testing::Values(32, 64, 256, 288, 320, 8192/*, 321, 444, 512, 515, 544, 576, 8192, 8193*/),  // n
+    ::testing::Values(14, 64, 33, 256, 288, 320, 321, 444, 512, 515, 517, 518, 520, 523, 533, 544, 576, 8192, 8193),  // n
     ::testing::Values(true, false),  // is_upper
     ::testing::Values(false, true),  // trans
     ::testing::Values(true, false),  // is_unit
-    ::testing::Values(1),            // incX
+    ::testing::Values(2),            // incX
     ::testing::Values(2),            // lda_mul
     ::testing::Values(0));
 #endif
