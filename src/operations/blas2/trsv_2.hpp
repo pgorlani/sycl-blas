@@ -129,7 +129,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
     #pragma unroll 
     for (index_t i = 0; i < warpchunck; ++i)
     {
-        *lA = ((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx< _N) ) ? *gA : value_t(0);
+        const bool read_it = (is_transposed) ? ((block_id * local_range + warpchunck * _idy + i < _N) && (glob_x_off < _N)) : ((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx< _N));
+        *lA = read_it ? *gA : value_t(0);
         lA += _llda;
         gA += matrix_.getSizeL(); 
     }
@@ -173,7 +174,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       #pragma unroll 
       for (index_t i = 0; i < warpchunck; ++i)
       {
-        priv_A[i] = ((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx< _N)) ? *gA : value_t(0);
+        const bool read_it = (is_transposed) ? ((block_id * local_range + warpchunck * _idy + i < _N) && (glob_x_off < _N)) : ((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx< _N));
+        priv_A[i] = read_it ? *gA : value_t(0);
         gA += matrix_.getSizeL(); 
       }
     } 
