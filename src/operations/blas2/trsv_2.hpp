@@ -80,56 +80,62 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   constexpr bool is_forward =
       (is_upper && is_transposed) || (!is_upper && !is_transposed);
 
+  constexpr index_t x_range = local_range;
+  // number of subgroups per workgroup 
+  constexpr index_t sub_num = 4; // <-- this will be a template argument
+  constexpr index_t y_range = x_range/sub_num;
+
   const index_t _N = lhs_.get_size();
 
   // is the not first wi of the wg 
   const bool is_not_wi0 = ndItem.get_local_id(0);
 
   // local bi-dimensional indexes 
-  const index_t _idx = ndItem.get_local_id(0)%local_range;
-  const index_t _idy = ndItem.get_local_id(0)/local_range;
+  const index_t _idx = ndItem.get_local_id(0)%x_range;
+  const index_t _idy = ndItem.get_local_id(0)/x_range;
 
-  // number of warps per wg
-  const index_t warpnum = 4; // <-- this will be a template argument
-  const index_t warpchunck = local_range/warpnum;
+  // local memory stride
+  const index_t _llda = x_range+1;
 
-  const index_t _llda = local_range+1;
   // pointers to local memory
   value_t * const loc_A = local_mem.localAcc.get_pointer();
-  value_t * const tmp_A = local_mem.localAcc.get_pointer() + (_llda*warpchunck*_idy) + _idx;
-  value_t * const tmp_At = local_mem.localAcc.get_pointer() + (_llda*_idx) + (warpchunck*_idy);
-  value_t * const loc_x = local_mem.localAcc.get_pointer() + (_llda*local_range); 
-  value_t * const tmp_x = loc_x + local_range + (local_range*_idy); 
+  value_t * const sub_A = loc_A + _llda*y_range*_idy + _idx;
+  value_t * const sub_At = loc_A + _llda*_idx + y_range*_idy;
+
+  value_t * const loc_x = loc_A + _llda * x_range; 
+  value_t * const sub_x = loc_x + y_range*_idy ;
+
+  value_t * const par_x = loc_x + x_range + x_range*_idy; 
 
 
   auto a = sycl::atomic_ref<int, sycl::memory_order::relaxed,
                             sycl::memory_scope::device,
                             sycl::access::address_space::global_space>(
       sync_.eval(0));
-  // get the block_id of actual workgroup
-  const index_t block_id = group_broadcast(ndItem.get_group(), is_not_wi0 ? 0 : (is_forward) ? a++ : a--);
+
+  // get the wg_id of actual workgroup
+  const index_t wg_id = group_broadcast(ndItem.get_group(), is_not_wi0 ? 0 : (is_forward) ? a++ : a--);
 
   // initialize current_block 
-  index_t current_block = sycl::group_broadcast(ndItem.get_sub_group(), _idx ? 0 : ((is_forward) ? 0 : ((_N + local_range - 1) / local_range) - 1));
+  index_t curr_block = ((is_forward) ? 0 : ((_N + x_range - 1) / x_range) - 1);
+  index_t curr_offset = curr_block * x_range + _idx;
 
   // global memory offsets
-  const index_t _offset = block_id * local_range;
-  const index_t g_idx = _offset + _idx;
+  const index_t g_idx = wg_id * x_range + _idx;
   value_t * glo_A = matrix_.get_pointer() +
-    (is_transposed?  matrix_.getSizeL()*(block_id * local_range + warpchunck * _idy) + current_block * local_range + _idx
-                   : matrix_.getSizeL()*(current_block * local_range + warpchunck * _idy) + block_id * local_range + _idx);
+    (is_transposed?  matrix_.getSizeL()*(wg_id * x_range + y_range * _idy) + curr_block * x_range + _idx
+                   : matrix_.getSizeL()*(curr_block * x_range + y_range * _idy) + wg_id * x_range + _idx);
 
-
-  index_t glob_x_off = current_block * local_range + _idx;
-
-  // read first block of the row
+  // read first block 
   {  
-    value_t * lA = tmp_A;
+    value_t * lA = sub_A;
     value_t * gA = glo_A;
-    #pragma unroll 
-    for (index_t i = 0; i < warpchunck; ++i)
+
+    for (index_t i = 0; i < y_range; ++i)
     {
-        const bool read_it = (is_transposed) ? ((block_id * local_range + warpchunck * _idy + i < _N) && (glob_x_off < _N)) : ((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx< _N));
+        const bool read_it = (is_transposed) ?
+          ((wg_id * x_range + y_range * _idy + i < _N) && (curr_offset < _N))
+          : ((curr_block * x_range + y_range * _idy + i < _N) && (g_idx< _N));
         *lA = read_it ? *gA : value_t(0);
         lA += _llda;
         gA += matrix_.getSizeL(); 
@@ -141,51 +147,53 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   // BEGIN - solve extra-diagonal block
 
-  // this is only for warp 0
   volatile int *p = &sync_.eval(1);
-  index_t rbb = sycl::group_broadcast(ndItem.get_sub_group(), is_not_wi0 ? 0 : *p); 
+  index_t rbb = (_idy == 0) ? sycl::group_broadcast(ndItem.get_sub_group(), is_not_wi0 ? 0 : *p) : 0; 
 
-  int steps = is_forward ? block_id : (current_block - block_id);
+  int steps = is_forward ? wg_id : (curr_block - wg_id);
   for(int s = 0; s<steps; ++s) {
 
     if (_idy == 0) {
 
-      while (!((is_forward && (current_block < rbb)) ||
-           (!is_forward && (current_block > rbb))))
+      while (!((is_forward && (curr_block < rbb)) ||
+           (!is_forward && (curr_block > rbb))))
         rbb = sycl::group_broadcast(ndItem.get_sub_group(), is_not_wi0 ? 0 : *p); 
 
-      loc_x[_idx] = (glob_x_off <_N) ? lhs_.eval(glob_x_off) : value_t(0);
+      loc_x[_idx] = (curr_offset <_N) ? lhs_.eval(curr_offset) : value_t(0);
 
     }
-
-    current_block += is_forward ? 1 : -1;
 
     if (is_forward) {
-      glo_A += local_range *(is_transposed ? 1 : matrix_.getSizeL());
-      glob_x_off += local_range;
+      glo_A += x_range *(is_transposed ? 1 : matrix_.getSizeL());
+      curr_offset += x_range;
+      curr_block += 1;
     } else {
-      glo_A -= local_range *(is_transposed ? 1 : matrix_.getSizeL());
-      glob_x_off -= local_range;
+      glo_A -= x_range *(is_transposed ? 1 : matrix_.getSizeL());
+      curr_offset -= x_range;
+      curr_block -= 1;
     }
 
-    value_t priv_A[warpchunck];
+    value_t priv_A[y_range];
+
     {  
       value_t * gA = glo_A;
       #pragma unroll 
-      for (index_t i = 0; i < warpchunck; ++i)
+      for (index_t i = 0; i < y_range; ++i)
       {
-        const bool read_it = (is_transposed) ? ((block_id * local_range + warpchunck * _idy + i < _N) && (glob_x_off < _N)) : ((current_block * local_range + warpchunck * _idy + i < _N) && (g_idx< _N));
-        priv_A[i] = read_it ? *gA : value_t(0);
+        const bool read_it = (is_transposed) ?
+          ((wg_id * x_range + y_range * _idy + i < _N) && (curr_offset < _N))
+          : ((curr_block * x_range + y_range * _idy + i < _N) && (g_idx< _N));
+         priv_A[i] = read_it ? *gA : value_t(0);
         gA += matrix_.getSizeL(); 
       }
     } 
  
     ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
-    value_t * lx = loc_x + _idy * warpchunck;
-    value_t * lA = is_transposed ? tmp_At : tmp_A;
+    value_t * lx = sub_x;
+    value_t * lA = is_transposed ? sub_At : sub_A;
     #pragma unroll
-    for (index_t i = 0; i < warpchunck; ++i){
+    for (index_t i = 0; i < y_range; ++i){
       v += *lA * *(lx++);
       lA+=is_transposed ? 1 : _llda; 
     }
@@ -193,9 +201,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
     if(is_transposed) ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
     {  
-      value_t * lA = tmp_A;
+      value_t * lA = sub_A;
       #pragma unroll 
-      for (index_t i = 0; i < warpchunck; ++i)
+      for (index_t i = 0; i < y_range; ++i)
       {
         *lA  = priv_A[i];
         lA += _llda;
@@ -205,16 +213,15 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   }
   // END - solve extra-diagonal block
 
-  if (_idy != 0) tmp_x[_idx] = v; 
+  if (_idy != 0) par_x[_idx] = v; 
   
-  //sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::work_group);
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
   if (_idy == 0) {
 
   #pragma unroll
-  for(index_t y = 1; y < warpnum; ++y)
-     v += tmp_x[local_range*y + _idx];
+  for(index_t y = 1; y < sub_num; ++y)
+     v += par_x[x_range*y + _idx];
   
  // BEGIN - solve diagonal block
 
@@ -224,8 +231,8 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   r_x = (g_idx < _N) ? lhs_.eval(g_idx) - v : value_t(0);
 
   #pragma unroll 
-  for (index_t _it = 0; _it < local_range; ++_it) {
-    const index_t l_diag = (is_forward) ? _it : local_range - 1 - _it;
+  for (index_t _it = 0; _it < x_range; ++_it) {
+    const index_t l_diag = (is_forward) ? _it : x_range - 1 - _it;
     r_diag = sycl::group_broadcast(ndItem.get_sub_group(), is_unitdiag ? r_x : r_x*A_diag_recip, l_diag);
     
     _A = (is_transposed) ? loc_A[_llda*_idx+ l_diag] : loc_A[_llda*l_diag + _idx];
@@ -244,7 +251,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
   volatile int * sync = sync_.get_pointer() + 1;
-  if (!is_not_wi0) *sync = block_id+ ((is_forward) ? 1 : - 1);
+  if (!is_not_wi0) *sync = wg_id+ ((is_forward) ? 1 : - 1);
   sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
 
   return 0;
