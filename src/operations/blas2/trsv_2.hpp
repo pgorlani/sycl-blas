@@ -106,7 +106,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   value_t * const sub_x = loc_x + y_range*_idy ;
 
   value_t * const par_x = loc_x + x_range + x_range*_idy; 
-
+  value_t * const loc_recip = loc_x + x_range; 
 
   auto a = sycl::atomic_ref<int, sycl::memory_order::relaxed,
                             sycl::memory_scope::device,
@@ -214,6 +214,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   // END - solve extra-diagonal block
 
   if (_idy != 0) par_x[_idx] = v; 
+
+  if (!is_unitdiag && (_idx >= y_range*_idy) && (_idx < y_range*(_idy+1)))
+    loc_recip[_idx] = /*sycl::native::recip*/value_t(1)/(loc_A[_llda*_idx + _idx]);
   
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
@@ -226,7 +229,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
  // BEGIN - solve diagonal block
 
   // compute recip (eventually move above)
-  const value_t A_diag_recip = (g_idx < _N) ? sycl::native::recip(loc_A[_llda*_idx + _idx]) : value_t(0);
+  const value_t A_diag_recip = (!is_unitdiag && g_idx < _N) ? loc_recip[_idx] : value_t(0);
   value_t _A, r_diag, r_x;
   r_x = (g_idx < _N) ? lhs_.eval(g_idx) - v : value_t(0);
 
