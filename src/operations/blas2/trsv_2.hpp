@@ -94,6 +94,9 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   const index_t _idx = ndItem.get_local_id(0)%x_range;
   const index_t _idy = ndItem.get_local_id(0)/x_range;
 
+  // private memory
+  value_t priv_A[y_range];
+
   // local memory stride
   const index_t _llda = x_range+1;
 
@@ -163,18 +166,10 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
     }
 
-    if (is_forward) {
-      glo_A += x_range *(is_transposed ? 1 : matrix_.getSizeL());
-      curr_offset += x_range;
-      curr_block += 1;
-    } else {
-      glo_A -= x_range *(is_transposed ? 1 : matrix_.getSizeL());
-      curr_offset -= x_range;
-      curr_block -= 1;
-    }
-
-    value_t priv_A[y_range];
-
+    glo_A += (is_forward ?  x_range : -x_range )*(is_transposed ? 1 : matrix_.getSizeL());
+    curr_offset += is_forward ? x_range : -x_range;
+    curr_block += is_forward ? 1 : -1;
+ 
     {  
       value_t * gA = glo_A;
       #pragma unroll 
@@ -216,7 +211,7 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
   if (_idy != 0) par_x[_idx] = v; 
 
   if (!is_unitdiag && (_idx >= y_range*_idy) && (_idx < y_range*(_idy+1)))
-    loc_recip[_idx] = /*sycl::native::recip*/value_t(1)/(loc_A[_llda*_idx + _idx]);
+    loc_recip[_idx] = value_t(1)/(loc_A[_llda*_idx + _idx]);
   
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
