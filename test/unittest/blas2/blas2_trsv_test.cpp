@@ -48,7 +48,7 @@ void run_test(const combination_t<scalar_t> combi) {
   index_t x_size = 1 + (n - 1) * incX;
 
   // Input matrix
-  std::vector<scalar_t> a_m(a_size,1);
+  std::vector<scalar_t> a_m(a_size, 1);
   // Input/output vector
   std::vector<scalar_t> x_v(x_size);
   // Input/output system vector
@@ -59,8 +59,11 @@ void run_test(const combination_t<scalar_t> combi) {
 
   for (index_t i = 0; i < n; ++i)
     for (index_t j = 0; j < n; ++j)
-      a_m[(j * n * lda_mul) + i] = ((!is_upper && (i>j)) || (is_upper && (i<j))) ? random_scalar(scalar_t(-0.05), scalar_t(0.05)) : NAN;
- 
+      a_m[(j * n * lda_mul) + i] =
+          ((!is_upper && (i > j)) || (is_upper && (i < j)))
+              ? random_scalar(scalar_t(-0.05), scalar_t(0.05))
+              : NAN;
+
   if (!is_unit) {
     // Populate main diagonal with dominant elements
     for (index_t i = 0; i < n; ++i)
@@ -90,9 +93,9 @@ void run_test(const combination_t<scalar_t> combi) {
 #define PRINTMAXERR
 #ifdef PRINTMAXERR
   double maxerr = -1.0;
-  for (index_t i = 0; i < x_size; i += incX){
+  for (index_t i = 0; i < x_size; i += incX) {
     maxerr = std::max(maxerr, std::fabs(double(x_v[i]) - double(x_v_cpu[i])));
-//    std::cerr<<i<<" "<<x_v[i]<<" "<<x_v_cpu[i]<<std::endl;
+    //    std::cerr<<i<<" "<<x_v[i]<<" "<<x_v_cpu[i]<<std::endl;
   }
   std::cerr << " Maximum error compared to reference: " << maxerr << std::endl;
 #endif
@@ -116,12 +119,13 @@ const auto combi = ::testing::Combine(
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
 const auto combi = ::testing::Combine(
-    ::testing::Values(14, 64, 33, 256, 288, 320, 321, 444, 512, 515, 517, 518, 520, 523, 533, 544, 576, 8192, 8193),  // n
-    ::testing::Values(true, false),  // is_upper
-    ::testing::Values(false, true),  // trans
-    ::testing::Values(true, false),  // is_unit
-    ::testing::Values(2),            // incX
-    ::testing::Values(2),            // lda_mul
+    ::testing::Values(14, 64, 33, 256, 288, 320, 321, 444, 512, 515, 517, 518,
+                      520, 523, 533, 544, 576, 8192, 8193),  // n
+    ::testing::Values(true, false),                          // is_upper
+    ::testing::Values(false, true),                          // trans
+    ::testing::Values(true, false),                          // is_unit
+    ::testing::Values(2),                                    // incX
+    ::testing::Values(2),                                    // lda_mul
     ::testing::Values(0));
 #endif
 
