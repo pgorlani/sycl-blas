@@ -154,18 +154,10 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
 
   int steps = is_forward ? wg_id : (curr_block - wg_id);
   for(int s = 0; s<steps; ++s) {
-
-    if (_idy == 0) {
-      while (!((is_forward && (curr_block < ready_block)) ||
-           (!is_forward && (curr_block > ready_block))))
-        ready_block = sycl::group_broadcast(ndItem.get_sub_group(), not_wi0 ? 0 : *p); 
-
-      loc_x[_idx] = (curr_offset <_N) ? lhs_.eval(curr_offset) : value_t(0);
-    }
-
+  
+    const index_t next_offset = curr_offset + (is_forward ? x_range : -x_range);
+    const index_t next_block = curr_block + (is_forward ? 1 : -1);
     glo_A += (is_forward ?  x_range : -x_range )*(is_transposed ? 1 : matrix_.getSizeL());
-    curr_offset += is_forward ? x_range : -x_range;
-    curr_block += is_forward ? 1 : -1;
 
     // Read next block 
     {  
@@ -174,12 +166,23 @@ Trsv_2<lhs_t, matrix_t, vector_t, sync_t, local_range, is_upper, is_transposed,
       for (index_t i = 0; i < y_range; ++i)
       {
         const bool read_it = (is_transposed) ?
-          ((wg_id * x_range + y_range * _idy + i < _N) && (curr_offset < _N))
-          : ((curr_block * x_range + y_range * _idy + i < _N) && (g_idx< _N));
+          ((wg_id * x_range + y_range * _idy + i < _N) && (next_offset < _N))
+          : ((next_block * x_range + y_range * _idy + i < _N) && (g_idx< _N));
          priv_A[i] = read_it ? *gA : value_t(0);
         gA += matrix_.getSizeL(); 
       }
     } 
+ 
+    if (_idy == 0) {
+      while (!((is_forward && (curr_block < ready_block)) ||
+           (!is_forward && (curr_block > ready_block))))
+        ready_block = sycl::group_broadcast(ndItem.get_sub_group(), not_wi0 ? 0 : *p); 
+
+      loc_x[_idx] = (curr_offset <_N) ? lhs_.eval(curr_offset) : value_t(0);
+    }
+
+    curr_offset = next_offset;
+    curr_block = next_block;
  
     ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
