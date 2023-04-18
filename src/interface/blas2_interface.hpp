@@ -856,8 +856,9 @@ typename sb_handle_t::event_t inline _trsv(sb_handle_t& sb_handle, char _Uplo,
                                            container_t0 _mA, index_t _lda,
                                            container_t1 _vx,
                                            increment_t _incx) {
-  INST_UPLO_TRANS_DIAG(blas::trsv::backend::_trsv, sb_handle, _N, _mA, _lda,
-                       _vx, _incx)
+  return blas::trsv::backend::_trsv<uplo_type::Lower, transpose_type::Normal,
+                                    diag_type::Nonunit>(sb_handle, _N, _mA,
+                                                        _lda, _vx, _incx);
 }
 
 template <typename sb_handle_t, typename index_t, typename element_t,

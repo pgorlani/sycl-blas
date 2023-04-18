@@ -11,6 +11,7 @@ find_package(SyclBLAS REQUIRED)
 set(SAMPLES_LIST
   gemv.cpp
   gemm.cpp
+  trsv.cpp
 )
 
 foreach(src_file ${SAMPLES_LIST})
