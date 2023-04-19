@@ -18,20 +18,19 @@ int main(int argc, char** argv) {
   blas::SB_Handle sb_handle(q);
 
   auto kernelIds = sycl::get_kernel_ids();
-  std::cerr << kernelIds.size() << std::endl;
 
   for (auto kernelId : kernelIds) {
     sycl::kernel myKernel = myBundle.get_kernel(kernelId);
-    size_t maxWgSize =
-        myKernel.get_info<sycl::info::kernel_device_specific::work_group_size>(
-            myDev);
     size_t maxSgSize =
         myKernel
             .get_info<sycl::info::kernel_device_specific::max_sub_group_size>(
                 myDev);
     size_t compSgSize = myKernel.get_info<
         sycl::info::kernel_device_specific::compile_sub_group_size>(myDev);
-    std::cerr << maxSgSize << " " << compSgSize << std::endl;
+    std::cerr << "sycl::info::kernel_device_specific::max_sub_group_size: "
+              << maxSgSize
+              << "\nsycl::info::kernel_device_specific::compile_sub_group_size: "
+              << compSgSize << std::endl;
   }
 
   const bool trans = false;
