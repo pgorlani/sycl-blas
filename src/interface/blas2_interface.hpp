@@ -329,6 +329,9 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
   throw std::runtime_error("Unimplemented for ComputeCPP");
 #endif
 
+  static_assert(subgroup_size % subgroups == 0,
+                "`subgroups` needs to be a multiple of `subgroup_size`.");
+
   using one = constant<increment_t, const_val::one>;
   constexpr bool is_upper = (uplo == uplo_type::Upper);
   constexpr bool is_transposed = (trn != transpose_type::Normal);
@@ -658,6 +661,9 @@ typename sb_handle_t::event_t _tbsv_impl(sb_handle_t& sb_handle, index_t _N,
 #ifdef __COMPUTECPP__
   throw std::runtime_error("Unimplemented for ComputeCPP");
 #endif
+
+  static_assert(subgroup_size % subgroups == 0,
+                "`subgroups` needs to be a multiple of `subgroup_size`.");
 
   if (_K >= _N) throw std::invalid_argument("Erroneous parameter: _K >= _N");
 
