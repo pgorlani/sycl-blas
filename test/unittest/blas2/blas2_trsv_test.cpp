@@ -37,8 +37,9 @@ void run_test(const combination_t<scalar_t> combi) {
   bool is_unit;
   index_t incX;
   index_t lda_mul;
-  scalar_t wa;
-  std::tie(n, is_upper, trans, is_unit, incX, lda_mul, wa) = combi;
+  scalar_t unused; /* Work around dpcpp compiler bug
+                      (https://github.com/intel/llvm/issues/7075) */
+  std::tie(n, is_upper, trans, is_unit, incX, lda_mul, unused) = combi;
 
   const char* t_str = trans ? "t" : "n";
   const char* uplo_str = is_upper ? "u" : "l";
@@ -110,7 +111,8 @@ const auto combi =
                        ::testing::Values(true, false),             // is_unit
                        ::testing::Values(1, 2),                    // incX
                        ::testing::Values(1, 2),                    // lda_mul
-                       ::testing::Values(0));
+                       ::testing::Values(0)                        // unused
+    );
 #else
 // For the purpose of travis and other slower platforms, we need a faster test
 // (the stress_test above takes about ~5 minutes)
@@ -122,7 +124,8 @@ const auto combi = ::testing::Combine(
     ::testing::Values(true, false),                        // is_unit
     ::testing::Values(4),                                  // incX
     ::testing::Values(3),                                  // lda_mul
-    ::testing::Values(0));
+    ::testing::Values(0)                                   // unused
+);
 #endif
 
 template <class T>
@@ -132,8 +135,9 @@ static std::string generate_name(
   bool is_upper;
   bool trans;
   bool is_unit;
-  T wa;
-  BLAS_GENERATE_NAME(info.param, n, is_upper, trans, is_unit, incX, ldaMul, wa);
+  T unused;
+  BLAS_GENERATE_NAME(info.param, n, is_upper, trans, is_unit, incX, ldaMul,
+                     unused);
 }
 
 BLAS_REGISTER_TEST_ALL(Trsv, combination_t, combi, generate_name);
