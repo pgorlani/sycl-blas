@@ -64,7 +64,7 @@ void run(benchmark::State& state, cublasHandle_t* cuda_handle_ptr,
 
   cublasHandle_t& cuda_handle = *cuda_handle_ptr;
 
-  const int m_size = static_cast<int>(n * n);
+  const int m_size = ((n + 1) * n) / 2;
 
   // Input matrix/vector, output vector.
   std::vector<scalar_t> m_a(m_size, 0);
