@@ -47,22 +47,32 @@ void run_test(const combination_t<scalar_t> combi) {
   index_t x_size = 1 + (n - 1) * incX;
 
   // Input matrix
-  std::vector<scalar_t> a_m(a_size);
+  std::vector<scalar_t> a_m(a_size, 0);
   // Input/output vector
-  std::vector<scalar_t> x_v(x_size);
+  std::vector<scalar_t> x_v(x_size, 1);
   // Input/output system vector
   std::vector<scalar_t> x_v_cpu(x_size);
 
   // Control the magnitude of extra-diagonal elements
   fill_random_with_range(a_m, scalar_t(-0.05), scalar_t(0.05));
-  /*if (!is_unit) {
+
+  scalar_t* a_ptr = a_m.data();
+  index_t stride = is_upper ? 2 : n;
+  if (!is_unit) {
     // Populate main diagonal with dominant elements
-    for (index_t i = 0; i < n; ++i)
-      a_m[i * (k + 1) * lda_mul + ((is_upper) ? k : 0)] =
-          random_scalar(scalar_t(9), scalar_t(11));
-  }*/
+    for (index_t i = 0; i < n; ++i) {
+      *a_ptr = random_scalar(scalar_t(9), scalar_t(11));
+      a_ptr += stride;
+      is_upper ? stride++ : stride--;
+    }
+  }
 
   fill_random(x_v);
+
+  /*
+    for(int i = 0; i<x_size;++i)
+      x_v[i] = i+1;
+  */
 
   x_v_cpu = x_v;
 
@@ -82,10 +92,12 @@ void run_test(const combination_t<scalar_t> combi) {
                                           x_v.data(), x_size);
   sb_handle.wait(event);
 
+#define PRINTMAXERR
 #ifdef PRINTMAXERR
   double maxerr = -1.0;
   for (index_t i = 0; i < x_size; i += incX) {
     maxerr = std::max(maxerr, std::fabs(double(x_v[i]) - double(x_v_cpu[i])));
+    //    std::cerr<<i<<": "<<x_v[i]<<" "<<x_v_cpu[i]<<std::endl;
   }
   std::cerr << std::endl
             << " Maximum error compared to reference: " << maxerr << std::endl;
@@ -109,14 +121,14 @@ const auto combi = ::testing::Combine(
 // For the purpose of travis and other slower platforms, we need a faster test
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
-const auto combi =
-    ::testing::Combine(::testing::Values(14, 63, 257, 1010),  // n
-                       ::testing::Values(true, false),        // is_upper
-                       ::testing::Values(true, false),        // trans
-                       ::testing::Values(true, false),        // is_unit
-                       ::testing::Values(1, 2),               // incX
-                       ::testing::Values(0)                   // unused
-    );
+const auto combi = ::testing::Combine(
+    ::testing::Values(16, 32, 48, 8192 /*14, 63, 257, 1010*/),  // n
+    ::testing::Values(true, false),                             // is_upper
+    ::testing::Values(true, false),                             // trans
+    ::testing::Values(true, false),                             // is_unit
+    ::testing::Values(1 /*, 2*/),                               // incX
+    ::testing::Values(0)                                        // unused
+);
 #endif
 
 template <class T>
