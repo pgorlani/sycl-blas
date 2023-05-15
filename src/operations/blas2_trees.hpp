@@ -35,5 +35,6 @@
 #include "blas2/tbsv.hpp"
 #include "blas2/trsv.hpp"
 #include "blas2/xpmv.hpp"
+//#include "blas2/tpsv.hpp" // <--- restore BEFORE MERGING
 
 #endif  // BLAS2_TREES_HPP
