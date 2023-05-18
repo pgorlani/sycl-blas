@@ -157,9 +157,15 @@ SYCL_BLAS_INLINE
     for (index_t _i = 0; _i < y_range; ++_i) {
       const index_t i = _idy * y_range + _i;
 
-      const bool read_it = (wg_id != curr_block) ? true
-                                                 : ((!is_upper && _idx >= i) ||
-                                                    (is_upper && _idx <= i));
+      bool read_it = (wg_id != curr_block) ? true
+                                           : ((!is_upper && _idx >= i) ||
+                                              (is_upper && _idx <= i));
+      read_it = read_it && (is_transposed)
+                    ? ((wg_id * x_range + y_range * _idy + _i < _N) &&
+                       (curr_offset < _N))
+                    : ((curr_block * x_range + y_range * _idy + _i < _N) &&
+                       (g_idx < _N));
+
       *lA = read_it ? *glo_A : value_t(0);
 
       lA += _llda;
@@ -197,10 +203,14 @@ SYCL_BLAS_INLINE
 #pragma unroll
       for (index_t _i = 0; _i < y_range; ++_i) {
         const index_t i = _idy * y_range + _i;
-        const bool read_it =
-            (wg_id != next_block)
-                ? true
-                : ((!is_upper && _idx >= i) || (is_upper && _idx <= i));
+        bool read_it = (wg_id != next_block) ? true
+                                             : ((!is_upper && _idx >= i) ||
+                                                (is_upper && _idx <= i));
+        read_it = read_it && (is_transposed)
+                      ? ((wg_id * x_range + y_range * _idy + _i < _N) &&
+                         (next_offset < _N))
+                      : ((next_block * x_range + y_range * _idy + _i < _N) &&
+                         (g_idx < _N));
         priv_A[_i] = read_it ? *glo_A : value_t(0);
         glo_A += _mat_next_stride(stride);
       }
