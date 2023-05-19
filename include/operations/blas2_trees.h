@@ -524,6 +524,45 @@ make_tpsv(lhs_t &lhs_, matrix_t &matrix_, vector_t &vector_, sync_t &sync_) {
               is_upper, is_transposed, is_unit>(lhs_, matrix_, vector_, sync_);
 }
 
+/**
+ * @struct Txsv
+ * @brief Tree node representing a triangular band matrix_ vector_
+ * multiplication.
+ */
+template <typename vector_t, typename matrix_t, typename sync_t, uint32_t type,
+          uint32_t subgroup_size, uint32_t subgroups, bool is_upper,
+          bool is_transposed, bool is_unit>
+struct Txsv {
+  using value_t = typename vector_t::value_t;
+  using index_t = typename vector_t::index_t;
+
+  vector_t lhs_;
+  matrix_t matrix_;
+  index_t k_;
+  sync_t sync_;
+
+  Txsv(vector_t &_l, matrix_t &_matrix, index_t &_k, sync_t &_sync);
+  index_t get_size() const;
+  bool valid_thread(cl::sycl::nd_item<1> ndItem) const;
+  template <typename local_memory_t>
+  value_t eval(local_memory_t local_mem, cl::sycl::nd_item<1> ndItem);
+  void bind(cl::sycl::handler &h);
+  void adjust_access_displacement();
+};
+/*!
+ @brief Generator/factory for TXSV trees.
+ */
+template <uint32_t type, uint32_t subgroup_size, uint32_t subgroups,
+          bool is_upper, bool is_transposed, bool is_unit, typename vector_t,
+          typename matrix_t, typename sync_t>
+Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups, is_upper,
+     is_transposed, is_unit>
+make_txsv(vector_t &lhs_, matrix_t &matrix_, typename vector_t::index_t k_,
+          sync_t &sync_) {
+  return Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups,
+              is_upper, is_transposed, is_unit>(lhs_, matrix_, k_, sync_);
+}
+
 /**** GER BY ROWS M ROWS x N BLOCK USING PROPERLY THE SHARED MEMORY ****/
 // template <typename lhs_t,typename rhs_1_t,typename rhs_2_t>
 template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
