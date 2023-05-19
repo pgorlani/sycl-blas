@@ -180,8 +180,9 @@ SYCL_BLAS_INLINE
                           : ((curr_block * x_range + y_range * _idy + i < _N) &&
                              (g_idx < _N));
       *lA = read_it ? *gA : value_t(0);
-      lA += _llda;
       gA += matrix_.getSizeL();
+
+      lA += _llda;
     }
   } else if (type == 0) {
     // tpsv
