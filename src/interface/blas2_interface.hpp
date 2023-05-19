@@ -354,8 +354,8 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
   auto sync = make_vector_view(sync_buffer, one::value(), sync_vec.size());
 
   auto trsv =
-      make_trsv<subgroup_size, subgroups, is_upper, is_transposed, is_unit>(
-          vx, mA, vx, sync);
+      make_txsv<1, subgroup_size, subgroups, is_upper, is_transposed, is_unit>(
+          vx, mA, /*vx*/ 0, sync);
 
   const index_t sub_num = subgroups;
   return sb_handle.execute(
@@ -689,7 +689,7 @@ typename sb_handle_t::event_t _tbsv_impl(sb_handle_t& sb_handle, index_t _N,
   auto sync = make_vector_view(sync_buffer, one::value(), sync_vec.size());
 
   auto tbsv =
-      make_tbsv<subgroup_size, subgroups, is_upper, is_transposed, is_unit>(
+      make_txsv<2, subgroup_size, subgroups, is_upper, is_transposed, is_unit>(
           vx, mA, _K, sync);
 
   const index_t sub_num = subgroups;

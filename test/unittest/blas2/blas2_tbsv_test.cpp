@@ -86,6 +86,7 @@ void run_test(const combination_t<scalar_t> combi) {
                                           x_v.data(), x_size);
   sb_handle.wait(event);
 
+#define PRINTMAXERR
 #ifdef PRINTMAXERR
   double maxerr = -1.0;
   for (index_t i = 0; i < x_size; i += incX) {
@@ -116,14 +117,14 @@ const auto combi = ::testing::Combine(
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
 const auto combi =
-    ::testing::Combine(::testing::Values(14, 63, 257, 1010),  // n
-                       ::testing::Values(3, 4, 9, 13),        // k
-                       ::testing::Values(true, false),        // is_upper
-                       ::testing::Values(true, false),        // trans
-                       ::testing::Values(true, false),        // is_unit
-                       ::testing::Values(1, 2),               // incX
-                       ::testing::Values(1, 2),               // lda_mul
-                       ::testing::Values(0)                   // unused
+    ::testing::Combine(::testing::Range(14, 1111),      // n
+                       ::testing::Values(3, 4, 9, 13),  // k
+                       ::testing::Values(true, false),  // is_upper
+                       ::testing::Values(true, false),  // trans
+                       ::testing::Values(true, false),  // is_unit
+                       ::testing::Values(1, 2),         // incX
+                       ::testing::Values(1, 2),         // lda_mul
+                       ::testing::Values(0)             // unused
     );
 #endif
 

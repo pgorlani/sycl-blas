@@ -126,19 +126,111 @@ SYCL_BLAS_INLINE
 
   const index_t num_blocks = ((k_ + x_range - 1) / x_range);
   // Actual extra-diagonal block processed
-  index_t curr_block =
-      is_forward ? ((wg_id - num_blocks < 0) ? 0 : wg_id - num_blocks)
-                 : (wg_id + num_blocks > (((_N + x_range - 1) / x_range) - 1)
-                        ? (((_N + x_range - 1) / x_range) - 1)
-                        : (wg_id + num_blocks));
+
+  index_t curr_block;
+
+  if (type == 2) {
+    curr_block =
+        is_forward ? ((wg_id - num_blocks < 0) ? 0 : wg_id - num_blocks)
+                   : (wg_id + num_blocks > (((_N + x_range - 1) / x_range) - 1)
+                          ? (((_N + x_range - 1) / x_range) - 1)
+                          : (wg_id + num_blocks));
+  } else {
+    curr_block = ((is_forward) ? 0 : ((_N + x_range - 1) / x_range) - 1);
+  }
+
   index_t curr_offset = curr_block * x_range + _idx;
 
   // Global memory offsets
   const index_t g_idx = wg_id * x_range + _idx;
 
+  auto _mat_J_offset = [&_N](const index_t &_J) {
+    return is_upper ? ((_J * (_J + 1)) / 2) : (_J * _N) - ((_J * (_J + 1)) / 2);
+  };
+
+  auto _mat_initial_stride = [&_N](const index_t &_J) {
+    return is_upper ? _J + 1 : _N - _J - 1;
+  };
+
+  auto _mat_next_stride = [](index_t &_stride) {
+    return is_upper ? _stride++ : _stride--;
+  };
+
+  value_t *glo_A =
+      matrix_.get_pointer() +
+      (is_transposed
+           ? matrix_.getSizeL() * (wg_id * x_range + y_range * _idy) +
+                 curr_block * x_range + _idx
+           : matrix_.getSizeL() * (curr_block * x_range + y_range * _idy) +
+                 wg_id * x_range + _idx);
+
   // Read first block // Read (wg_id,curr_block) or (curr_block,wg_id) of
   // matrix_ into sub_A
-  {}
+
+  // Read first block
+  if (type == 1) {
+    // trsv
+    value_t *lA = sub_A;
+    value_t *gA = glo_A;
+
+    for (index_t i = 0; i < y_range; ++i) {
+      const bool read_it =
+          (is_transposed) ? ((wg_id * x_range + y_range * _idy + i < _N) &&
+                             (curr_offset < _N))
+                          : ((curr_block * x_range + y_range * _idy + i < _N) &&
+                             (g_idx < _N));
+      *lA = read_it ? *gA : value_t(0);
+      lA += _llda;
+      gA += matrix_.getSizeL();
+    }
+  } else if (type == 0) {
+    // tpsv
+    value_t *A_I_offset =
+        matrix_.get_pointer() +
+        (is_transposed ? curr_block * x_range + _idx : wg_id * x_range + _idx);
+
+    const index_t J = (is_transposed ? wg_id * x_range + y_range * _idy
+                                     : curr_block * x_range + y_range * _idy);
+
+    value_t *glo_A = A_I_offset + _mat_J_offset(J);
+    index_t stride = _mat_initial_stride(J);
+
+    value_t *lA = sub_A;
+#pragma unroll
+    for (index_t _i = 0; _i < y_range; ++_i) {
+      const index_t i = _idy * y_range + _i;
+
+      bool read_it = (wg_id != curr_block) ? true
+                                           : ((!is_upper && _idx >= i) ||
+                                              (is_upper && _idx <= i));
+      read_it = read_it && (is_transposed)
+                    ? ((wg_id * x_range + y_range * _idy + _i < _N) &&
+                       (curr_offset < _N))
+                    : ((curr_block * x_range + y_range * _idy + _i < _N) &&
+                       (g_idx < _N));
+
+      *lA = read_it ? *glo_A : value_t(0);
+
+      lA += _llda;
+      glo_A += _mat_next_stride(stride);
+    }
+  } else if (type == 2) {
+    // tbsv
+    value_t *lA = sub_A;
+
+#pragma unroll
+    for (index_t i = 0; i < y_range; ++i) {
+      const index_t col =
+          ((is_transposed ? wg_id : curr_block) * x_range) + y_range * _idy + i;
+      const index_t row_full =
+          (is_transposed ? curr_block : wg_id) * x_range + _idx;
+      const index_t row = (is_upper) ? k_ + row_full - col : row_full - col;
+
+      const bool read_it = (row < k_ + 1) && (row >= 0) && (col < _N);
+      *lA = read_it ? matrix_.eval(row, col) : value_t(0);
+      lA += _llda;
+    }
+  }
 
   // Solve extra-diagonal blocks
 
@@ -154,9 +246,70 @@ SYCL_BLAS_INLINE
     const index_t next_offset = curr_offset + (is_forward ? x_range : -x_range);
     const index_t next_block = curr_block + (is_forward ? 1 : -1);
 
+    const short jump =
+        (is_transposed ? x_range * 1l : x_range * matrix_.getSizeL());
+
+    if (is_forward)
+      glo_A += x_range * (is_transposed ? 1 : matrix_.getSizeL());
+    else
+      glo_A -= x_range * (is_transposed ? 1 : matrix_.getSizeL());
+
     // Read next block // Read (wg_id,next_block) or (next_block,wg_id) of
     // matrix_ into priv_A
-    {}
+    if (type == 0) {
+      // tpsv
+      value_t *A_I_offset =
+          matrix_.get_pointer() + (is_transposed ? next_block * x_range + _idx
+                                                 : wg_id * x_range + _idx);
+
+      const index_t J = (is_transposed ? wg_id * x_range + y_range * _idy
+                                       : next_block * x_range + y_range * _idy);
+
+      value_t *glo_A = A_I_offset + _mat_J_offset(J);
+      index_t stride = _mat_initial_stride(J);
+
+#pragma unroll
+      for (index_t _i = 0; _i < y_range; ++_i) {
+        const index_t i = _idy * y_range + _i;
+        bool read_it = (wg_id != next_block) ? true
+                                             : ((!is_upper && _idx >= i) ||
+                                                (is_upper && _idx <= i));
+        read_it = read_it && (is_transposed)
+                      ? ((wg_id * x_range + y_range * _idy + _i < _N) &&
+                         (next_offset < _N))
+                      : ((next_block * x_range + y_range * _idy + _i < _N) &&
+                         (g_idx < _N));
+        priv_A[_i] = read_it ? *glo_A : value_t(0);
+        glo_A += _mat_next_stride(stride);
+      }
+    } else if (type == 1) {
+      // trsv
+      value_t *gA = glo_A;
+#pragma unroll
+      for (index_t i = 0; i < y_range; ++i) {
+        const bool read_it =
+            (is_transposed)
+                ? ((wg_id * x_range + y_range * _idy + i < _N) &&
+                   (next_offset < _N))
+                : ((next_block * x_range + y_range * _idy + i < _N) &&
+                   (g_idx < _N));
+        priv_A[i] = read_it ? *gA : value_t(0);
+        gA += matrix_.getSizeL();
+      }
+    } else if (type == 2) {
+      // tbsv
+#pragma unroll
+      for (index_t i = 0; i < y_range; ++i) {
+        const index_t col = ((is_transposed ? wg_id : next_block) * x_range) +
+                            y_range * _idy + i;
+        const index_t row_full =
+            (is_transposed ? next_block : wg_id) * x_range + _idx;
+        const index_t row = (is_upper) ? k_ + row_full - col : row_full - col;
+
+        const bool read_it = (row < k_ + 1) && (row >= 0) && (col < _N);
+        priv_A[i] = read_it ? matrix_.eval(row, col) : value_t(0);
+      }
+    }
 
     if (_idy == 0) {
       while (!((is_forward && (curr_block < ready_block)) ||
