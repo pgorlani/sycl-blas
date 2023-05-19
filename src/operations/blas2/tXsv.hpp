@@ -249,11 +249,6 @@ SYCL_BLAS_INLINE
     const short jump =
         (is_transposed ? x_range * 1l : x_range * matrix_.getSizeL());
 
-    if (is_forward)
-      glo_A += x_range * (is_transposed ? 1 : matrix_.getSizeL());
-    else
-      glo_A -= x_range * (is_transposed ? 1 : matrix_.getSizeL());
-
     // Read next block // Read (wg_id,next_block) or (next_block,wg_id) of
     // matrix_ into priv_A
     if (type == 0) {
@@ -284,6 +279,12 @@ SYCL_BLAS_INLINE
       }
     } else if (type == 1) {
       // trsv
+
+      if (is_forward)
+        glo_A += x_range * (is_transposed ? 1 : matrix_.getSizeL());
+      else
+        glo_A -= x_range * (is_transposed ? 1 : matrix_.getSizeL());
+
       value_t *gA = glo_A;
 #pragma unroll
       for (index_t i = 0; i < y_range; ++i) {
