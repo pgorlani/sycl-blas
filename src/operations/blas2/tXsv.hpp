@@ -65,7 +65,6 @@ Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups, is_upper,
   // Valid threads are established by ::eval.
   return true;
 }
-
 template <typename vector_t, typename matrix_t, typename sync_t, uint32_t type,
           uint32_t subgroup_size, uint32_t subgroups, bool is_upper,
           bool is_transposed, bool is_unitdiag>
@@ -130,39 +129,46 @@ SYCL_BLAS_INLINE
   index_t curr_block;
 
   if (type == 2) {
+    // this is for tbsv since in this case all the row doesn't need to be computed
     curr_block =
         is_forward ? ((wg_id - num_blocks < 0) ? 0 : wg_id - num_blocks)
                    : (wg_id + num_blocks > (((_N + x_range - 1) / x_range) - 1)
                           ? (((_N + x_range - 1) / x_range) - 1)
                           : (wg_id + num_blocks));
   } else {
+    // this is for trsv and tpsv.
     curr_block = ((is_forward) ? 0 : ((_N + x_range - 1) / x_range) - 1);
   }
 
-  index_t curr_offset = curr_block * x_range + _idx;
-
   // Global memory offsets
-  const index_t g_idx = wg_id * x_range + _idx;
 
+  index_t curr_offset = curr_block * x_range + _idx; // < offset of the current block processed
+  const index_t g_idx = wg_id * x_range + _idx; // < offset of the solution
+
+  /////////////////////////////////////////// things for global memory accesses
+
+  //// lamdas for triangular packed matrices 
   auto _mat_J_offset = [&_N](const index_t &_J) {
     return is_upper ? ((_J * (_J + 1)) / 2) : (_J * _N) - ((_J * (_J + 1)) / 2);
   };
-
   auto _mat_initial_stride = [&_N](const index_t &_J) {
     return is_upper ? _J + 1 : _N - _J - 1;
   };
-
   auto _mat_next_stride = [](index_t &_stride) {
     return is_upper ? _stride++ : _stride--;
   };
 
   value_t *glo_A =
+      // this is only for trsv
       matrix_.get_pointer() +
       (is_transposed
            ? matrix_.getSizeL() * (wg_id * x_range + y_range * _idy) +
                  curr_block * x_range + _idx
            : matrix_.getSizeL() * (curr_block * x_range + y_range * _idy) +
                  wg_id * x_range + _idx);
+
+  /////////////////////////////////////////////////////////////////////////////
+
 
   // Read first block // Read (wg_id,curr_block) or (curr_block,wg_id) of
   // matrix_ into sub_A
@@ -173,6 +179,7 @@ SYCL_BLAS_INLINE
     value_t *lA = sub_A;
     value_t *gA = glo_A;
 
+#pragma unroll
     for (index_t i = 0; i < y_range; ++i) {
       const bool read_it =
           (is_transposed) ? ((wg_id * x_range + y_range * _idy + i < _N) &&
