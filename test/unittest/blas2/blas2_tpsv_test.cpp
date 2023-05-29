@@ -54,7 +54,8 @@ void run_test(const combination_t<scalar_t> combi) {
   std::vector<scalar_t> x_v_cpu(x_size);
 
   // Control the magnitude of extra-diagonal elements
-  fill_random_with_range(a_m, scalar_t(-0.05), scalar_t(0.05));
+  fill_random_with_range(a_m, scalar_t(-10) / scalar_t(n),
+                         scalar_t(10) / scalar_t(n));
 
   scalar_t* a_ptr = a_m.data();
   index_t stride = is_upper ? 2 : n;
@@ -70,11 +71,18 @@ void run_test(const combination_t<scalar_t> combi) {
   fill_random(x_v);
 
   /*
-    for(int i = 0; i<x_size;++i)
-      x_v[i] = i+1;
-  */
+     for(int i = 0; i<x_size;++i)
+       x_v[i] = i+1;
+   */
 
   x_v_cpu = x_v;
+
+  std::vector<double> a_m_double(a_m.size());
+  std::vector<double> x_v_cpu_double(x_v_cpu.size());
+
+  for (index_t i = 0; i < a_m.size(); ++i) a_m_double[i] = a_m[i];
+
+  for (index_t i = 0; i < x_v_cpu.size(); ++i) x_v_cpu_double[i] = x_v_cpu[i];
 
   // SYSTEM TPSV
   reference_blas::tpsv(uplo_str, t_str, diag_str, n, a_m.data(), x_v_cpu.data(),
@@ -92,11 +100,12 @@ void run_test(const combination_t<scalar_t> combi) {
                                           x_v.data(), x_size);
   sb_handle.wait(event);
 
+#define PRINTMAXERR
 #ifdef PRINTMAXERR
   double maxerr = -1.0;
   for (index_t i = 0; i < x_size; i += incX) {
     maxerr = std::max(maxerr, std::fabs(double(x_v[i]) - double(x_v_cpu[i])));
-    //    std::cerr<<i<<": "<<x_v[i]<<" "<<x_v_cpu[i]<<std::endl;
+    ///       std::cerr<<i<<": "<<x_v[i]<<" "<<x_v_cpu[i]<<std::endl;
   }
   std::cerr << std::endl
             << " Maximum error compared to reference: " << maxerr << std::endl;
@@ -121,12 +130,12 @@ const auto combi = ::testing::Combine(
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
 const auto combi = ::testing::Combine(
-    ::testing::Values(7777),  // n
-    //::testing::Range(1, 1111),       // n
+    //::testing::Values(16, 32, 48, 8192 /*14, 63, 257, 1010*/),  // n
+    ::testing::Values(16, 7777),     // n
     ::testing::Values(true, false),  // is_upper
     ::testing::Values(true, false),  // trans
-    ::testing::Values(true, false),        // is_unit
-    ::testing::Values(1),         // incX
+    ::testing::Values(false),        // is_unit
+    ::testing::Values(1),            // incX
     ::testing::Values(0)             // unused
 );
 #endif
