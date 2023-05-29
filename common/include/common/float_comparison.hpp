@@ -184,52 +184,60 @@ inline bool almost_equal(scalar_t const& scalar1, scalar_t const& scalar2) {
   return (absolute_diff / absolute_sum) < getRelativeErrorMargin<epsilon_t>();
 }
 
-template<typename FLOAT_TYPE>
-class float_classifier
-{
-
-  private:
-
+template <typename FLOAT_TYPE>
+class float_classifier {
+ private:
   size_t _infs, _nans, _normals, _subnormals, _zeros;
   size_t _unknowns;
   size_t _total;
 
-  public:
+ public:
+  float_classifier()
+      : _infs(0),
+        _nans(0),
+        _normals(0),
+        _subnormals(0),
+        _zeros(0),
+        _unknowns(0),
+        _total(0){};
 
-  float_classifier() : 
-    _infs(0), _nans(0), _normals(0), _subnormals(0), _zeros(0),
-    _unknowns(0), _total(0) {};
-
-  void eval(FLOAT_TYPE f)
-  {
-    switch(std::fpclassify(f))
-    {
-      case FP_INFINITE:  ++_infs;       break;       
-      case FP_NAN:       ++_nans;       break;
-      case FP_NORMAL:    ++_normals;    break;
-      case FP_SUBNORMAL: ++_subnormals; break;
-      case FP_ZERO:      ++_zeros;      break;
-      default:           ++_unknowns;
+  void eval(FLOAT_TYPE f) {
+    switch (std::fpclassify(f)) {
+      case FP_INFINITE:
+        ++_infs;
+        break;
+      case FP_NAN:
+        ++_nans;
+        break;
+      case FP_NORMAL:
+        ++_normals;
+        break;
+      case FP_SUBNORMAL:
+        ++_subnormals;
+        break;
+      case FP_ZERO:
+        ++_zeros;
+        break;
+      default:
+        ++_unknowns;
     }
     ++_total;
   }
 
-  size_t infs()       const { return _infs; }
-  size_t nans()       const { return _nans; }
-  size_t normals()    const { return _normals; }
+  size_t infs() const { return _infs; }
+  size_t nans() const { return _nans; }
+  size_t normals() const { return _normals; }
   size_t subnormals() const { return _subnormals; }
-  size_t zeros()      const { return _zeros; }
-  size_t unknowns()   const { return _unknowns; }
-  size_t total()      const { return _total; }
-
+  size_t zeros() const { return _zeros; }
+  size_t unknowns() const { return _unknowns; }
+  size_t total() const { return _total; }
 };
 
 template <typename scalar_t>
 inline void print_error_report(int inc, std::vector<scalar_t> const& vec,
-                            std::vector<scalar_t> const& ref,
-                            std::ostream& err_stream,
-                            std::string end_line);
- 
+                               std::vector<scalar_t> const& ref,
+                               std::ostream& err_stream, std::string end_line);
+
 /**
  * Compare two vectors and returns false if the difference is not acceptable.
  * The second vector is considered the reference.
@@ -301,14 +309,12 @@ inline bool compare_vectors_strided(std::vector<scalar_t> const& vec,
   return true;
 }
 
-
 /**
  */
 template <typename scalar_t>
 inline void print_error_report(int inc, std::vector<scalar_t> const& vec,
-                            std::vector<scalar_t> const& ref,
-                            std::ostream& err_stream,
-                            std::string end_line) {
+                               std::vector<scalar_t> const& ref,
+                               std::ostream& err_stream, std::string end_line) {
   if (vec.size() != ref.size()) {
     err_stream << "Error: tried to compare vectors of different sizes"
                << std::endl;
@@ -316,25 +322,23 @@ inline void print_error_report(int inc, std::vector<scalar_t> const& vec,
 
   float_classifier<scalar_t> _fpclass;
 
-auto float_ulp_distance = [](float f_a, float f_b)
-{
+  auto float_ulp_distance = [](float f_a, float f_b) {
+    static_assert(sizeof(float) == sizeof(unsigned int),
+                  "unsigned int/float sizes differ");
 
-  static_assert(sizeof(float) == sizeof(unsigned int), "unsigned int/float sizes differ"); 
+    unsigned int ulp;
+    unsigned int a, b;
 
-  unsigned int ulp;
-  unsigned int a, b;
+    std::memcpy(&a, &f_a, sizeof(float));
+    std::memcpy(&b, &f_b, sizeof(float));
 
-  std::memcpy(&a, &f_a, sizeof(float));
-  std::memcpy(&b, &f_b, sizeof(float));
-
-  if (a > b)
-    ulp = a - b;
+    if (a > b)
+      ulp = a - b;
     else
       ulp = b - a;
 
-  return ulp; 
-};
-
+    return ulp;
+  };
 
   long double max_abs_err = -1.0;
   long double max_rel_err = -1.0;
@@ -342,13 +346,13 @@ auto float_ulp_distance = [](float f_a, float f_b)
   long double tot_abs_err = 0;
   long double tot_rel_err = 0;
   long double tot_ulp_err = 0;
-  
-  for (int i = 0; i < vec.size(); i += inc) {
 
+  for (int i = 0; i < vec.size(); i += inc) {
     _fpclass.eval(vec[i]);
 
-    const long double delta = std::fabs((long double)vec[i] - (long double)ref[i]);
-    const long double delta_rel = delta/std::fabs((long double)ref[i]);
+    const long double delta =
+        std::fabs((long double)vec[i] - (long double)ref[i]);
+    const long double delta_rel = delta / std::fabs((long double)ref[i]);
     const unsigned int delta_ulp = float_ulp_distance(vec[i], ref[i]);
 
     max_abs_err = (max_abs_err > delta) ? max_abs_err : delta;
@@ -358,22 +362,29 @@ auto float_ulp_distance = [](float f_a, float f_b)
     tot_abs_err += delta;
     tot_rel_err += delta_rel;
     tot_ulp_err += delta_ulp;
-
   }
 
-  const double perc_tot = 100.0/_fpclass.total();
-  err_stream<<"\nResult check"<<end_line;
-  err_stream<<"Abs err (max)\t"<<max_abs_err<<"\t(mean)\t"<< tot_abs_err/_fpclass.total() << end_line;
-  err_stream<<"Rel err (max)\t"<<max_rel_err<<"\t(mean)\t"<< tot_rel_err/_fpclass.total() << end_line;
-  err_stream<<"ULP dis (max)\t"<<max_ulp_err<<"\t(mean)\t"<< tot_ulp_err/_fpclass.total() << end_line;
-  err_stream<<"Fp-clss";
-  err_stream<<" #norm: "<<_fpclass.normals()<<" ("<<perc_tot*_fpclass.normals()<<" %)";
-  err_stream<<" #NaNs: "<<_fpclass.nans()<<" ("<<perc_tot*_fpclass.nans()<<" %)";
-  err_stream<<" #infs: "<<_fpclass.infs()<<" ("<<perc_tot*_fpclass.infs()<<" %)";
-  err_stream<<" #subn: "<<_fpclass.subnormals()<<" ("<<perc_tot*_fpclass.subnormals()<<" %)";
-  err_stream<<" #subn: "<<_fpclass.unknowns()<<" ("<<perc_tot*_fpclass.unknowns()<<" %)";
-  err_stream<<" #zero: "<<_fpclass.zeros()<<" ("<<perc_tot*_fpclass.zeros()<<" %)"<<end_line;
-
+  const double perc_tot = 100.0 / _fpclass.total();
+  err_stream << "\nResult check" << end_line;
+  err_stream << "Abs err (max)\t" << max_abs_err << "\t(mean)\t"
+             << tot_abs_err / _fpclass.total() << end_line;
+  err_stream << "Rel err (max)\t" << max_rel_err << "\t(mean)\t"
+             << tot_rel_err / _fpclass.total() << end_line;
+  err_stream << "ULP dis (max)\t" << max_ulp_err << "\t(mean)\t"
+             << tot_ulp_err / _fpclass.total() << end_line;
+  err_stream << "Fp-clss";
+  err_stream << " #norm: " << _fpclass.normals() << " ("
+             << perc_tot * _fpclass.normals() << " %)";
+  err_stream << " #NaNs: " << _fpclass.nans() << " ("
+             << perc_tot * _fpclass.nans() << " %)";
+  err_stream << " #infs: " << _fpclass.infs() << " ("
+             << perc_tot * _fpclass.infs() << " %)";
+  err_stream << " #subn: " << _fpclass.subnormals() << " ("
+             << perc_tot * _fpclass.subnormals() << " %)";
+  err_stream << " #subn: " << _fpclass.unknowns() << " ("
+             << perc_tot * _fpclass.unknowns() << " %)";
+  err_stream << " #zero: " << _fpclass.zeros() << " ("
+             << perc_tot * _fpclass.zeros() << " %)" << end_line;
 }
 
 }  // namespace utils
