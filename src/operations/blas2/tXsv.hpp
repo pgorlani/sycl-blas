@@ -280,7 +280,7 @@ SYCL_BLAS_INLINE
 #pragma unroll
       for (index_t i = 0; i < y_range; ++i) {
         const bool read_it = (col + i < _N) && (row < _N);
-        priv_A[i] = read_it ? *gA : value_t(0);
+        priv_A[i] = read_it ? matrix_.eval(row, col+i) /* *gA*/ : value_t(0);
         gA += matrix_.getSizeL();
       }
     } else if (type == 2) {
