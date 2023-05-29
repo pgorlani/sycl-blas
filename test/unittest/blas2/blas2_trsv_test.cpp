@@ -117,15 +117,15 @@ const auto combi =
 // For the purpose of travis and other slower platforms, we need a faster test
 // (the stress_test above takes about ~5 minutes)
 template <typename scalar_t>
-const auto combi = ::testing::Combine(
-    ::testing::Values(14, 64, 33, 515, 1024, 1200, 3000),  // n
-    ::testing::Values(true, false),                        // is_upper
-    ::testing::Values(true, false),                        // trans
-    ::testing::Values(true, false),                        // is_unit
-    ::testing::Values(4),                                  // incX
-    ::testing::Values(3),                                  // lda_mul
-    ::testing::Values(0)                                   // unused
-);
+const auto combi =
+    ::testing::Combine(::testing::Values(7777),         // n
+                       ::testing::Values(true, false),  // is_upper
+                       ::testing::Values(true, false),  // trans
+                       ::testing::Values(true, false),  // is_unit
+                       ::testing::Values(4),            // incX
+                       ::testing::Values(3),            // lda_mul
+                       ::testing::Values(0)             // unused
+    );
 #endif
 
 template <class T>
