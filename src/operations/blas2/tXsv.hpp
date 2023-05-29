@@ -270,10 +270,11 @@ SYCL_BLAS_INLINE
     } else if (type == 1) {
       // trsv
 
-      if (is_forward)
-        glo_A += x_range * (is_transposed ? 1 : matrix_.getSizeL());
-      else
-        glo_A -= x_range * (is_transposed ? 1 : matrix_.getSizeL());
+      glo_A = matrix_.get_pointer() + matrix_.getSizeL() * col + row;
+      //if (is_forward)
+      //  glo_A += x_range * (is_transposed ? 1 : matrix_.getSizeL());
+      //else
+      //  glo_A -= x_range * (is_transposed ? 1 : matrix_.getSizeL());
 
       value_t *gA = glo_A;
 #pragma unroll
