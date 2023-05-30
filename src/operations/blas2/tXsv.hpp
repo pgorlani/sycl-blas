@@ -61,16 +61,19 @@ template <typename vector_t, typename matrix_t, typename sync_t,
           matrix_storage_t matrix_storage, uint32_t subgroup_size,
           uint32_t subgroups, bool is_upper, bool is_transposed,
           bool is_unitdiag>
-SYCL_BLAS_INLINE 
-typename Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
-     is_upper, is_transposed, is_unitdiag>::value_t
-Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
-     is_upper, is_transposed, is_unitdiag>::read_matrix(
-const typename Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
-     is_upper, is_transposed, is_unitdiag>::index_t & row,
-const typename Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
-     is_upper, is_transposed, is_unitdiag>::index_t & col) const {
-
+SYCL_BLAS_INLINE
+    typename Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size,
+                  subgroups, is_upper, is_transposed, is_unitdiag>::value_t
+    Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
+         is_upper, is_transposed, is_unitdiag>::
+        read_matrix(
+            const typename Txsv<vector_t, matrix_t, sync_t, matrix_storage,
+                                subgroup_size, subgroups, is_upper,
+                                is_transposed, is_unitdiag>::index_t &row,
+            const typename Txsv<vector_t, matrix_t, sync_t, matrix_storage,
+                                subgroup_size, subgroups, is_upper,
+                                is_transposed, is_unitdiag>::index_t &col)
+            const {
   const index_t _N = lhs_.get_size();
 
   if (matrix_storage == matrix_storage_t::full) {
@@ -78,17 +81,20 @@ const typename Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, s
     const bool read_it = (col < _N) && (row < _N);
     return read_it ? matrix_.eval(row, col) : value_t(0);
   } else if (matrix_storage == matrix_storage_t::packed) {
+    auto _mat_J_offset = [&_N](const index_t &_J) {
+      return is_upper ? ((_J * (_J + 1)) / 2)
+                      : (_J * _N) - ((_J * (_J + 1)) / 2);
+    };
     // tpsv
-    const bool read_it = is_upper ?  ((col >= row) && (row < _N) && (col < _N)) : ((col <= row) && (row < _N)); 
+    const bool read_it = is_upper ? ((col >= row) && (row < _N) && (col < _N))
+                                  : ((col <= row) && (row < _N));
 
-     value_t *val = matrix_.get_pointer() + _mat_J_offset(col) + row;
-     return read_it ? *val : value_t(0);
+    value_t *val = matrix_.get_pointer() + _mat_J_offset(col) + row;
+    return read_it ? *val : value_t(0);
   } else if (matrix_storage == matrix_storage_t::banded) {
     // tbsv
-    const index_t row_band =
-          (is_upper) ? k_ + row - col : row - col;
-    const bool read_it =
-          (row_band < k_ + 1) && (row_band >= 0) && (col < _N);
+    const index_t row_band = (is_upper) ? k_ + row - col : row - col;
+    const bool read_it = (row_band < k_ + 1) && (row_band >= 0) && (col < _N);
 
     return read_it ? matrix_.eval(row_band, col) : value_t(0);
   }
@@ -200,6 +206,16 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
                 y_range * _idy /*+ _i*/;
   index_t row = (is_transposed ? curr_block : wg_id) * x_range + _idx;
 
+  {
+    value_t *lA = sub_A;
+#pragma unroll
+    for (index_t i = 0; i < y_range; ++i) {
+      *lA = read_matrix(row, col + i);
+      lA += _llda;
+    }
+  }
+
+#if 0
   // Read first block
   if (matrix_storage == matrix_storage_t::full) {
     // trsv
@@ -236,6 +252,7 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
       lA += _llda;
     }
   }
+#endif
 
   // Solve extra-diagonal blocks
 
@@ -258,6 +275,12 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
           y_range * _idy /*+ _i*/;
     row = (is_transposed ? next_block : wg_id) * x_range + _idx;
 
+#pragma unroll
+    for (index_t i = 0; i < y_range; ++i) {
+      priv_A[i] = read_matrix(row, col + i);
+    }
+
+#if 0
     if (matrix_storage == matrix_storage_t::packed) {
       // tpsv
 #pragma unroll
@@ -284,6 +307,7 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
         priv_A[i] = read_it ? matrix_.eval(row_band, col + i) : value_t(0);
       }
     }
+#endif
 
     if (_idy == 0) {
       while (!((is_forward && (curr_block < ready_block)) ||
