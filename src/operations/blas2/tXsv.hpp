@@ -33,38 +33,41 @@ namespace blas {
  * @brief Tree node representing a triangular band matrix_ lhs_
  * multiplication.
  */
-template <typename vector_t, typename matrix_t, typename sync_t, uint32_t type,
-          uint32_t subgroup_size, uint32_t subgroups, bool is_upper,
-          bool is_transposed, bool is_unitdiag>
-SYCL_BLAS_INLINE Txsv<vector_t, matrix_t, sync_t, type, subgroup_size,
+template <typename vector_t, typename matrix_t, typename sync_t,
+          matrix_storage_t matrix_storage, uint32_t subgroup_size,
+          uint32_t subgroups, bool is_upper, bool is_transposed,
+          bool is_unitdiag>
+SYCL_BLAS_INLINE Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size,
                       subgroups, is_upper, is_transposed, is_unitdiag>::
     Txsv(vector_t &_l, matrix_t &_matrix,
-         typename Txsv<vector_t, matrix_t, sync_t, type, subgroup_size,
-                       subgroups, is_upper, is_transposed, is_unitdiag>::index_t
-             &_k,
+         typename Txsv<vector_t, matrix_t, sync_t, matrix_storage,
+                       subgroup_size, subgroups, is_upper, is_transposed,
+                       is_unitdiag>::index_t &_k,
          sync_t &_sync)
     : lhs_(_l), matrix_(_matrix), k_(_k), sync_(_sync) {}
 
-template <typename vector_t, typename matrix_t, typename sync_t, uint32_t type,
-          uint32_t subgroup_size, uint32_t subgroups, bool is_upper,
-          bool is_transposed, bool is_unitdiag>
+template <typename vector_t, typename matrix_t, typename sync_t,
+          matrix_storage_t matrix_storage, uint32_t subgroup_size,
+          uint32_t subgroups, bool is_upper, bool is_transposed,
+          bool is_unitdiag>
 SYCL_BLAS_INLINE bool
-Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups, is_upper,
-     is_transposed, is_unitdiag>::valid_thread(cl::sycl::nd_item<1> ndItem)
-    const {
+Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
+     is_upper, is_transposed, is_unitdiag>::valid_thread(cl::sycl::nd_item<1>
+                                                             ndItem) const {
   // Valid threads are established by ::eval.
   return true;
 }
-template <typename vector_t, typename matrix_t, typename sync_t, uint32_t type,
-          uint32_t subgroup_size, uint32_t subgroups, bool is_upper,
-          bool is_transposed, bool is_unitdiag>
+template <typename vector_t, typename matrix_t, typename sync_t,
+          matrix_storage_t matrix_storage, uint32_t subgroup_size,
+          uint32_t subgroups, bool is_upper, bool is_transposed,
+          bool is_unitdiag>
 template <typename local_memory_t>
-SYCL_BLAS_INLINE
-    typename Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups,
-                  is_upper, is_transposed, is_unitdiag>::value_t
-    Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups, is_upper,
-         is_transposed, is_unitdiag>::eval(local_memory_t local_mem,
-                                           cl::sycl::nd_item<1> ndItem) {
+SYCL_BLAS_INLINE typename Txsv<vector_t, matrix_t, sync_t, matrix_storage,
+                               subgroup_size, subgroups, is_upper,
+                               is_transposed, is_unitdiag>::value_t
+Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
+     is_upper, is_transposed, is_unitdiag>::eval(local_memory_t local_mem,
+                                                 cl::sycl::nd_item<1> ndItem) {
 #ifndef __COMPUTECPP__
 
   constexpr bool is_forward =
@@ -120,7 +123,7 @@ SYCL_BLAS_INLINE
 
   index_t curr_block;
 
-  if (type == 2) {
+  if (matrix_storage == matrix_storage_t::banded) {
     // this is for tbsv since in this case all the row doesn't need to be
     // computed
     curr_block =
@@ -162,7 +165,7 @@ SYCL_BLAS_INLINE
   index_t row = (is_transposed ? curr_block : wg_id) * x_range + _idx;
 
   // Read first block
-  if (type == 1) {
+  if (matrix_storage == matrix_storage_t::full) {
     // trsv
     value_t *lA = sub_A;
 #pragma unroll
@@ -171,7 +174,7 @@ SYCL_BLAS_INLINE
       *lA = read_it ? matrix_.eval(row, col + i) : value_t(0);
       lA += _llda;
     }
-  } else if (type == 0) {
+  } else if (matrix_storage == matrix_storage_t::packed) {
     // tpsv
     value_t *glo_A = matrix_.get_pointer() + _mat_J_offset(col) + row;
     index_t stride = _mat_initial_stride(col);
@@ -189,7 +192,7 @@ SYCL_BLAS_INLINE
       lA += _llda;
       glo_A += _mat_next_stride(stride);
     }
-  } else if (type == 2) {
+  } else if (matrix_storage == matrix_storage_t::banded) {
     // tbsv
     value_t *lA = sub_A;
 
@@ -226,7 +229,7 @@ SYCL_BLAS_INLINE
           y_range * _idy /*+ _i*/;
     row = (is_transposed ? next_block : wg_id) * x_range + _idx;
 
-    if (type == 0) {
+    if (matrix_storage == matrix_storage_t::packed) {
       // tpsv
       value_t *glo_A = matrix_.get_pointer() + _mat_J_offset(col) + row;
       index_t stride = _mat_initial_stride(col);
@@ -244,14 +247,14 @@ SYCL_BLAS_INLINE
         priv_A[_i] = read_it ? *glo_A : value_t(0);
         glo_A += _mat_next_stride(stride);
       }
-    } else if (type == 1) {
+    } else if (matrix_storage == matrix_storage_t::full) {
       // trsv
 #pragma unroll
       for (index_t i = 0; i < y_range; ++i) {
         const bool read_it = (col + i < _N) && (row < _N);
         priv_A[i] = read_it ? matrix_.eval(row, col + i) : value_t(0);
       }
-    } else if (type == 2) {
+    } else if (matrix_storage == matrix_storage_t::banded) {
       // tbsv
 #pragma unroll
       for (index_t i = 0; i < y_range; ++i) {
@@ -351,22 +354,24 @@ SYCL_BLAS_INLINE
   return 0;
 }
 
-template <typename vector_t, typename matrix_t, typename sync_t, uint32_t type,
-          uint32_t subgroup_size, uint32_t subgroups, bool is_upper,
-          bool is_transposed, bool is_unitdiag>
+template <typename vector_t, typename matrix_t, typename sync_t,
+          matrix_storage_t matrix_storage, uint32_t subgroup_size,
+          uint32_t subgroups, bool is_upper, bool is_transposed,
+          bool is_unitdiag>
 SYCL_BLAS_INLINE void
-Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups, is_upper,
-     is_transposed, is_unitdiag>::bind(cl::sycl::handler &h) {
+Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
+     is_upper, is_transposed, is_unitdiag>::bind(cl::sycl::handler &h) {
   lhs_.bind(h);
   matrix_.bind(h);
   sync_.bind(h);
 }
-template <typename vector_t, typename matrix_t, typename sync_t, uint32_t type,
-          uint32_t subgroup_size, uint32_t subgroups, bool is_upper,
-          bool is_transposed, bool is_unitdiag>
+template <typename vector_t, typename matrix_t, typename sync_t,
+          matrix_storage_t matrix_storage, uint32_t subgroup_size,
+          uint32_t subgroups, bool is_upper, bool is_transposed,
+          bool is_unitdiag>
 SYCL_BLAS_INLINE void
-Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups, is_upper,
-     is_transposed, is_unitdiag>::adjust_access_displacement() {
+Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
+     is_upper, is_transposed, is_unitdiag>::adjust_access_displacement() {
   lhs_.adjust_access_displacement();
   matrix_.adjust_access_displacement();
   sync_.adjust_access_displacement();

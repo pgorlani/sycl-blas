@@ -529,9 +529,12 @@ make_tpsv(lhs_t &lhs_, matrix_t &matrix_, vector_t &vector_, sync_t &sync_) {
  * @brief Tree node representing a triangular band matrix_ vector_
  * multiplication.
  */
-template <typename vector_t, typename matrix_t, typename sync_t, uint32_t type,
-          uint32_t subgroup_size, uint32_t subgroups, bool is_upper,
-          bool is_transposed, bool is_unit>
+
+enum class matrix_storage_t : uint32_t { full = 1, banded = 2, packed = 0 };
+
+template <typename vector_t, typename matrix_t, typename sync_t,
+          matrix_storage_t matrix_storage, uint32_t subgroup_size,
+          uint32_t subgroups, bool is_upper, bool is_transposed, bool is_unit>
 struct Txsv {
   using value_t = typename vector_t::value_t;
   using index_t = typename vector_t::index_t;
@@ -551,15 +554,16 @@ struct Txsv {
 /*!
  @brief Generator/factory for TXSV trees.
  */
-template <uint32_t type, uint32_t subgroup_size, uint32_t subgroups,
-          bool is_upper, bool is_transposed, bool is_unit, typename vector_t,
-          typename matrix_t, typename sync_t>
-Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups, is_upper,
-     is_transposed, is_unit>
+template <matrix_storage_t matrix_storage, uint32_t subgroup_size,
+          uint32_t subgroups, bool is_upper, bool is_transposed, bool is_unit,
+          typename vector_t, typename matrix_t, typename sync_t>
+Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
+     is_upper, is_transposed, is_unit>
 make_txsv(vector_t &lhs_, matrix_t &matrix_, typename vector_t::index_t k_,
           sync_t &sync_) {
-  return Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups,
-              is_upper, is_transposed, is_unit>(lhs_, matrix_, k_, sync_);
+  return Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size,
+              subgroups, is_upper, is_transposed, is_unit>(lhs_, matrix_, k_,
+                                                           sync_);
 }
 
 /**** GER BY ROWS M ROWS x N BLOCK USING PROPERLY THE SHARED MEMORY ****/

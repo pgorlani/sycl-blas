@@ -354,8 +354,8 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
   auto sync = make_vector_view(sync_buffer, one::value(), sync_vec.size());
 
   auto trsv =
-      make_txsv<1, subgroup_size, subgroups, is_upper, is_transposed, is_unit>(
-          vx, mA, /*vx*/ 0, sync);
+      make_txsv<matrix_storage_t::full, subgroup_size, subgroups, is_upper,
+                is_transposed, is_unit>(vx, mA, /*vx*/ 0, sync);
 
   const index_t sub_num = subgroups;
   return sb_handle.execute(
@@ -688,9 +688,8 @@ typename sb_handle_t::event_t _tbsv_impl(sb_handle_t& sb_handle, index_t _N,
       blas::make_sycl_iterator_buffer<int32_t>(sync_vec, sync_vec.size());
   auto sync = make_vector_view(sync_buffer, one::value(), sync_vec.size());
 
-  auto tbsv =
-      make_txsv<2, subgroup_size, subgroups, is_upper, is_transposed, is_unit>(
-          vx, mA, _K, sync);
+  auto tbsv = make_txsv<matrix_storage_t::banded, subgroup_size, subgroups,
+                        is_upper, is_transposed, is_unit>(vx, mA, _K, sync);
 
   const index_t sub_num = subgroups;
   return sb_handle.execute(
@@ -737,9 +736,8 @@ typename sb_handle_t::event_t _tpsv_impl(sb_handle_t& sb_handle, index_t _N,
       blas::make_sycl_iterator_buffer<int32_t>(sync_vec, sync_vec.size());
   auto sync = make_vector_view(sync_buffer, one::value(), sync_vec.size());
 
-  auto tpsv =
-      make_txsv<0, subgroup_size, subgroups, is_upper, is_transposed, is_unit>(
-          vx, mA, 0, sync);
+  auto tpsv = make_txsv<matrix_storage_t::packed, subgroup_size, subgroups,
+                        is_upper, is_transposed, is_unit>(vx, mA, 0, sync);
 
   const index_t sub_num = subgroups;
   return sb_handle.execute(
