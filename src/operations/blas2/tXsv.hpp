@@ -111,7 +111,7 @@ SYCL_BLAS_INLINE typename Txsv<vector_t, matrix_t, sync_t, matrix_storage,
 Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
      is_upper, is_transposed, is_unitdiag>::eval(local_memory_t local_mem,
                                                  cl::sycl::nd_item<1> ndItem) {
-#ifndef __COMPUTECPP__
+#if SYCL_LANGUAGE_VERSION >= 202000
 
   constexpr bool is_forward =
       (is_upper && is_transposed) || (!is_upper && !is_transposed);
@@ -165,15 +165,13 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
   index_t curr_block;
 
   if (matrix_storage == matrix_storage_t::banded) {
-    // this is for tbsv since in this case all the row doesn't need to be
-    // computed
+    // all the row doesn't need to be computed for tbsv
     curr_block =
         is_forward ? ((wg_id - num_blocks < 0) ? 0 : wg_id - num_blocks)
                    : (wg_id + num_blocks > (((_N + x_range - 1) / x_range) - 1)
                           ? (((_N + x_range - 1) / x_range) - 1)
                           : (wg_id + num_blocks));
   } else {
-    // this is for trsv and tpsv.
     curr_block = ((is_forward) ? 0 : ((_N + x_range - 1) / x_range) - 1);
   }
 
@@ -197,8 +195,6 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
     }
   }
 
-  // Solve extra-diagonal blocks
-
   volatile int32_t *p = &sync_.eval(1);
   int32_t ready_block =
       (_idy == 0)
@@ -207,6 +203,7 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
 
   const index_t steps =
       is_forward ? (wg_id - curr_block) : (curr_block - wg_id);
+
   for (index_t s = 0; s < steps; ++s) {
     const index_t next_offset = curr_offset + (is_forward ? x_range : -x_range);
     const index_t next_block = curr_block + (is_forward ? 1 : -1);
