@@ -122,7 +122,7 @@ const auto combi =
                        ::testing::Values(true, false),  // is_upper
                        ::testing::Values(true, false),  // trans
                        ::testing::Values(true, false),  // is_unit
-                       ::testing::Values(4),            // incX
+                       ::testing::Values(1),            // incX
                        ::testing::Values(3),            // lda_mul
                        ::testing::Values(0)             // unused
     );

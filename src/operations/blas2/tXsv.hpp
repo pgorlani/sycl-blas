@@ -48,16 +48,6 @@ SYCL_BLAS_INLINE Txsv<vector_t, matrix_t, sync_t, type, subgroup_size,
 template <typename vector_t, typename matrix_t, typename sync_t, uint32_t type,
           uint32_t subgroup_size, uint32_t subgroups, bool is_upper,
           bool is_transposed, bool is_unitdiag>
-SYCL_BLAS_INLINE
-    typename Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups,
-                  is_upper, is_transposed, is_unitdiag>::index_t
-    Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups, is_upper,
-         is_transposed, is_unitdiag>::get_size() const {
-  return matrix_.get_size();
-}
-template <typename vector_t, typename matrix_t, typename sync_t, uint32_t type,
-          uint32_t subgroup_size, uint32_t subgroups, bool is_upper,
-          bool is_transposed, bool is_unitdiag>
 SYCL_BLAS_INLINE bool
 Txsv<vector_t, matrix_t, sync_t, type, subgroup_size, subgroups, is_upper,
      is_transposed, is_unitdiag>::valid_thread(cl::sycl::nd_item<1> ndItem)
