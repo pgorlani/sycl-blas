@@ -154,8 +154,6 @@ SYCL_BLAS_INLINE
 
   /////////////////////////////////////////////////////////////////////////////
 
-  value_t *glo_A;
-
   // Read first block // Read (wg_id,curr_block) or (curr_block,wg_id) of
   // matrix_ into sub_A
 
@@ -166,26 +164,17 @@ SYCL_BLAS_INLINE
   // Read first block
   if (type == 1) {
     // trsv
-
-    glo_A = matrix_.get_pointer() + matrix_.getSizeL() * col + row;
-
     value_t *lA = sub_A;
-    value_t *gA = glo_A;
-
 #pragma unroll
     for (index_t i = 0; i < y_range; ++i) {
       const bool read_it = (col + i < _N) && (row < _N);
-      *lA = read_it ? *gA : value_t(0);
-      gA += matrix_.getSizeL();
-
+      *lA = read_it ? matrix_.eval(row, col + i) : value_t(0);
       lA += _llda;
     }
   } else if (type == 0) {
     // tpsv
-    value_t *A_I_offset = matrix_.get_pointer() + row;
-    const index_t J = col;
-    value_t *glo_A = A_I_offset + _mat_J_offset(J);
-    index_t stride = _mat_initial_stride(J);
+    value_t *glo_A = matrix_.get_pointer() + _mat_J_offset(col) + row;
+    index_t stride = _mat_initial_stride(col);
 
     value_t *lA = sub_A;
 #pragma unroll
@@ -239,10 +228,8 @@ SYCL_BLAS_INLINE
 
     if (type == 0) {
       // tpsv
-      value_t *A_I_offset = matrix_.get_pointer() + row;
-      const index_t J = col;
-      value_t *glo_A = A_I_offset + _mat_J_offset(J);
-      index_t stride = _mat_initial_stride(J);
+      value_t *glo_A = matrix_.get_pointer() + _mat_J_offset(col) + row;
+      index_t stride = _mat_initial_stride(col);
 
 #pragma unroll
       for (index_t _i = 0; _i < y_range; ++_i) {
@@ -259,19 +246,10 @@ SYCL_BLAS_INLINE
       }
     } else if (type == 1) {
       // trsv
-
-      glo_A = matrix_.get_pointer() + matrix_.getSizeL() * col + row;
-      //if (is_forward)
-      //  glo_A += x_range * (is_transposed ? 1 : matrix_.getSizeL());
-      //else
-      //  glo_A -= x_range * (is_transposed ? 1 : matrix_.getSizeL());
-
-      value_t *gA = glo_A;
 #pragma unroll
       for (index_t i = 0; i < y_range; ++i) {
         const bool read_it = (col + i < _N) && (row < _N);
-        priv_A[i] = read_it ? matrix_.eval(row, col+i) /* *gA*/ : value_t(0);
-        gA += matrix_.getSizeL();
+        priv_A[i] = read_it ? matrix_.eval(row, col + i) : value_t(0);
       }
     } else if (type == 2) {
       // tbsv

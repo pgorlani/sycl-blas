@@ -542,7 +542,6 @@ struct Txsv {
   sync_t sync_;
 
   Txsv(vector_t &_l, matrix_t &_matrix, index_t &_k, sync_t &_sync);
-  index_t get_size() const;
   bool valid_thread(cl::sycl::nd_item<1> ndItem) const;
   template <typename local_memory_t>
   value_t eval(local_memory_t local_mem, cl::sycl::nd_item<1> ndItem);
