@@ -81,15 +81,14 @@ SYCL_BLAS_INLINE
     const bool read_it = (col < _N) && (row < _N);
     return read_it ? matrix_.eval(row, col) : value_t(0);
   } else if (matrix_storage == matrix_storage_t::packed) {
-    auto _mat_J_offset = [&_N](const index_t &_J) {
-      return is_upper ? ((_J * (_J + 1)) / 2)
-                      : (_J * _N) - ((_J * (_J + 1)) / 2);
-    };
     // tpsv
     const bool read_it = is_upper ? ((col >= row) && (row < _N) && (col < _N))
                                   : ((col <= row) && (row < _N));
 
-    value_t *val = matrix_.get_pointer() + _mat_J_offset(col) + row;
+    const index_t col_offset = is_upper ? ((col * (col + 1)) / 2)
+                                        : (col * _N) - ((col * (col + 1)) / 2);
+
+    value_t *val = matrix_.get_pointer() + col_offset + row;
     return read_it ? *val : value_t(0);
   } else if (matrix_storage == matrix_storage_t::banded) {
     // tbsv
@@ -184,26 +183,9 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
       curr_block * x_range + _idx;  // < offset of the current block processed
   const index_t g_idx = wg_id * x_range + _idx;  // < offset of the solution
 
-  /////////////////////////////////////////// things for global memory accesses
-
-  //// lamdas for triangular packed matrices
-  auto _mat_J_offset = [&_N](const index_t &_J) {
-    return is_upper ? ((_J * (_J + 1)) / 2) : (_J * _N) - ((_J * (_J + 1)) / 2);
-  };
-  auto _mat_initial_stride = [&_N](const index_t &_J) {
-    return is_upper ? _J + 1 : _N - _J - 1;
-  };
-  auto _mat_next_stride = [](index_t &_stride) {
-    return is_upper ? _stride++ : _stride--;
-  };
-
-  /////////////////////////////////////////////////////////////////////////////
-
-  // Read first block // Read (wg_id,curr_block) or (curr_block,wg_id) of
-  // matrix_ into sub_A
-
-  index_t col = ((is_transposed ? wg_id : curr_block) * x_range) +
-                y_range * _idy /*+ _i*/;
+  // Read first block
+  index_t col =
+      ((is_transposed ? wg_id : curr_block) * x_range) + y_range * _idy;
   index_t row = (is_transposed ? curr_block : wg_id) * x_range + _idx;
 
   {
@@ -214,45 +196,6 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
       lA += _llda;
     }
   }
-
-#if 0
-  // Read first block
-  if (matrix_storage == matrix_storage_t::full) {
-    // trsv
-    value_t *lA = sub_A;
-#pragma unroll
-    for (index_t i = 0; i < y_range; ++i) {
-      const bool read_it = (col + i < _N) && (row < _N);
-      *lA = read_it ? matrix_.eval(row, col + i) : value_t(0);
-      lA += _llda;
-    }
-  } else if (matrix_storage == matrix_storage_t::packed) {
-    // tpsv
-    value_t *lA = sub_A;
-#pragma unroll
-    for (index_t _i = 0; _i < y_range; ++_i) {
-      const bool read_it = is_upper ?  ((col + _i >= row) && (row < _N) && (col + _i < _N)) : ((col + _i <= row) && (row < _N)); 
-
-      value_t *val = matrix_.get_pointer() + _mat_J_offset(col + _i) + row;
-      *lA = read_it ? *val : value_t(0);
-      lA += _llda;
-    }
-  } else if (matrix_storage == matrix_storage_t::banded) {
-    // tbsv
-    value_t *lA = sub_A;
-
-#pragma unroll
-    for (index_t i = 0; i < y_range; ++i) {
-      const index_t row_band =
-          (is_upper) ? k_ + row - (col + i) : row - (col + i);
-      const bool read_it =
-          (row_band < k_ + 1) && (row_band >= 0) && (col + i < _N);
-
-      *lA = read_it ? matrix_.eval(row_band, col + i) : value_t(0);
-      lA += _llda;
-    }
-  }
-#endif
 
   // Solve extra-diagonal blocks
 
@@ -268,46 +211,14 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
     const index_t next_offset = curr_offset + (is_forward ? x_range : -x_range);
     const index_t next_block = curr_block + (is_forward ? 1 : -1);
 
-    // Read next block // Read (wg_id,next_block) or (next_block,wg_id) of
-    // matrix_ into priv_A
-
-    col = ((is_transposed ? wg_id : next_block) * x_range) +
-          y_range * _idy /*+ _i*/;
+    // Read next block
+    col = ((is_transposed ? wg_id : next_block) * x_range) + y_range * _idy;
     row = (is_transposed ? next_block : wg_id) * x_range + _idx;
 
 #pragma unroll
     for (index_t i = 0; i < y_range; ++i) {
       priv_A[i] = read_matrix(row, col + i);
     }
-
-#if 0
-    if (matrix_storage == matrix_storage_t::packed) {
-      // tpsv
-#pragma unroll
-      for (index_t _i = 0; _i < y_range; ++_i) {
-        const bool read_it = is_upper ?  ((col + _i >= row) && (row < _N) && (col + _i < _N)) : ((col + _i <= row) && (row < _N)); 
-        value_t *val = matrix_.get_pointer() + _mat_J_offset(col + _i) + row;
-        priv_A[_i] = read_it ? *val : value_t(0);
-      }
-    } else if (matrix_storage == matrix_storage_t::full) {
-      // trsv
-#pragma unroll
-      for (index_t i = 0; i < y_range; ++i) {
-        const bool read_it = (col + i < _N) && (row < _N);
-        priv_A[i] = read_it ? matrix_.eval(row, col + i) : value_t(0);
-      }
-    } else if (matrix_storage == matrix_storage_t::banded) {
-      // tbsv
-#pragma unroll
-      for (index_t i = 0; i < y_range; ++i) {
-        const index_t row_band =
-            (is_upper) ? k_ + row - (col + i) : row - (col + i);
-        const bool read_it =
-            (row_band < k_ + 1) && (row_band >= 0) && (col + i < _N);
-        priv_A[i] = read_it ? matrix_.eval(row_band, col + i) : value_t(0);
-      }
-    }
-#endif
 
     if (_idy == 0) {
       while (!((is_forward && (curr_block < ready_block)) ||
