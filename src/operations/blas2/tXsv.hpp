@@ -66,38 +66,34 @@ typename Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgrou
      is_upper, is_transposed, is_unitdiag>::value_t
 Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
      is_upper, is_transposed, is_unitdiag>::read_matrix(
-typename Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
-     is_upper, is_transposed, is_unitdiag>::index_t row,
-typename Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
-     is_upper, is_transposed, is_unitdiag>::index_t col) const {
+const typename Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
+     is_upper, is_transposed, is_unitdiag>::index_t & row,
+const typename Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
+     is_upper, is_transposed, is_unitdiag>::index_t & col) const {
 
-#if 0 
+  const index_t _N = lhs_.get_size();
+
   if (matrix_storage == matrix_storage_t::full) {
     // trsv
-    const bool read_it = (col + i < _N) && (row < _N);
-    return read_it ? matrix_.eval(row, col + i) : value_t(0);
+    const bool read_it = (col < _N) && (row < _N);
+    return read_it ? matrix_.eval(row, col) : value_t(0);
   } else if (matrix_storage == matrix_storage_t::packed) {
     // tpsv
-    const index_t i = _idy * y_range + _i;
-    const bool read_it = (col + _i < _N) && (row < _N) &&
-                           ((wg_id != curr_block) ? true
-                                                  : ((!is_upper && _idx >= i) ||
-                                                     (is_upper && _idx <= i)));
+    const bool read_it = is_upper ?  ((col >= row) && (row < _N) && (col < _N)) : ((col <= row) && (row < _N)); 
 
-      value_t *val = matrix_.get_pointer() + _mat_J_offset(col + _i) + row;
+     value_t *val = matrix_.get_pointer() + _mat_J_offset(col) + row;
      return read_it ? *val : value_t(0);
   } else if (matrix_storage == matrix_storage_t::banded) {
     // tbsv
     const index_t row_band =
-          (is_upper) ? k_ + row - (col + i) : row - (col + i);
+          (is_upper) ? k_ + row - col : row - col;
     const bool read_it =
-          (row_band < k_ + 1) && (row_band >= 0) && (col + i < _N);
+          (row_band < k_ + 1) && (row_band >= 0) && (col < _N);
 
-    return read_it ? matrix_.eval(row_band, col + i) : value_t(0);
-    }
+    return read_it ? matrix_.eval(row_band, col) : value_t(0);
   }
-#endif
-  return 0;
+
+  return value_t(0);
 }
 template <typename vector_t, typename matrix_t, typename sync_t,
           matrix_storage_t matrix_storage, uint32_t subgroup_size,
@@ -219,14 +215,6 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
     value_t *lA = sub_A;
 #pragma unroll
     for (index_t _i = 0; _i < y_range; ++_i) {
-/*
-      const index_t i = _idy * y_range + _i;
-      const bool read_it = (col + _i < _N) && (row < _N) &&
-                           ((wg_id != curr_block) ? true
-                                                  : ((!is_upper && _idx >= i) ||
-                                                     (is_upper && _idx <= i)));
-*/
-
       const bool read_it = is_upper ?  ((col + _i >= row) && (row < _N) && (col + _i < _N)) : ((col + _i <= row) && (row < _N)); 
 
       value_t *val = matrix_.get_pointer() + _mat_J_offset(col + _i) + row;
@@ -274,15 +262,7 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
       // tpsv
 #pragma unroll
       for (index_t _i = 0; _i < y_range; ++_i) {
-       // const index_t i = _idy * y_range + _i;
-
         const bool read_it = is_upper ?  ((col + _i >= row) && (row < _N) && (col + _i < _N)) : ((col + _i <= row) && (row < _N)); 
-       /*const bool read_it =
-            (col + _i < _N) && (row < _N) &&
-            ((wg_id != curr_block)
-                 ? true
-                 : ((!is_upper && _idx >= i) || (is_upper && _idx <= i)));
-*/
         value_t *val = matrix_.get_pointer() + _mat_J_offset(col + _i) + row;
         priv_A[_i] = read_it ? *val : value_t(0);
       }
