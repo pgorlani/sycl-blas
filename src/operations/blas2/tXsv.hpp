@@ -80,8 +80,6 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
 
   const index_t _N = lhs_.get_size();
 
-  // matrix_type sss(matrix_); sss.a = 1;
-
   // True if not work-item 0
   const bool not_wi0 = ndItem.get_local_id(0);
 
@@ -176,8 +174,8 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
     }
   } else if (matrix_storage == matrix_storage_t::packed) {
     // tpsv
-    value_t *glo_A = matrix_.get_pointer() + _mat_J_offset(col) + row;
-    index_t stride = _mat_initial_stride(col);
+    //value_t *glo_A = matrix_.get_pointer() + _mat_J_offset(col) + row;
+    //index_t stride = _mat_initial_stride(col);
 
     value_t *lA = sub_A;
 #pragma unroll
@@ -188,9 +186,10 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
                                                   : ((!is_upper && _idx >= i) ||
                                                      (is_upper && _idx <= i)));
 
+      value_t *glo_A = matrix_.get_pointer() + _mat_J_offset(col +_i) + row;
       *lA = read_it ? *glo_A : value_t(0);
       lA += _llda;
-      glo_A += _mat_next_stride(stride);
+      //glo_A += _mat_next_stride(stride);
     }
   } else if (matrix_storage == matrix_storage_t::banded) {
     // tbsv
@@ -231,8 +230,8 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
 
     if (matrix_storage == matrix_storage_t::packed) {
       // tpsv
-      value_t *glo_A = matrix_.get_pointer() + _mat_J_offset(col) + row;
-      index_t stride = _mat_initial_stride(col);
+      //value_t *glo_A = matrix_.get_pointer() + _mat_J_offset(col) + row;
+      //index_t stride = _mat_initial_stride(col);
 
 #pragma unroll
       for (index_t _i = 0; _i < y_range; ++_i) {
@@ -244,8 +243,9 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
                  ? true
                  : ((!is_upper && _idx >= i) || (is_upper && _idx <= i)));
 
+        value_t *glo_A = matrix_.get_pointer() + _mat_J_offset(col +_i) + row;
         priv_A[_i] = read_it ? *glo_A : value_t(0);
-        glo_A += _mat_next_stride(stride);
+        //glo_A += _mat_next_stride(stride);
       }
     } else if (matrix_storage == matrix_storage_t::full) {
       // trsv
