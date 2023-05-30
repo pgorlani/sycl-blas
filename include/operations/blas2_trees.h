@@ -550,6 +550,7 @@ struct Txsv {
   value_t eval(local_memory_t local_mem, cl::sycl::nd_item<1> ndItem);
   void bind(cl::sycl::handler &h);
   void adjust_access_displacement();
+  value_t read_matrix(index_t row, index_t col) const;
 };
 /*!
  @brief Generator/factory for TXSV trees.
