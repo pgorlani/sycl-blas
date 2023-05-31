@@ -182,9 +182,9 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
   const index_t g_idx = wg_id * x_range + _idx;  // < offset of the solution
 
   // Read first block
-  index_t col =
-      ((is_transposed ? wg_id : curr_block) * x_range) + y_range * _idy;
-  index_t row = (is_transposed ? curr_block : wg_id) * x_range + _idx;
+  const index_t col =
+      (is_transposed ? wg_id : curr_block) * x_range + y_range * _idy;
+  const index_t row = (is_transposed ? curr_block : wg_id) * x_range + _idx;
 
   {
     value_t *lA = sub_A;
@@ -205,16 +205,17 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
       is_forward ? (wg_id - curr_block) : (curr_block - wg_id);
 
   for (index_t s = 0; s < steps; ++s) {
+    // Read next block
     const index_t next_offset = curr_offset + (is_forward ? x_range : -x_range);
     const index_t next_block = curr_block + (is_forward ? 1 : -1);
-
-    // Read next block
-    col = ((is_transposed ? wg_id : next_block) * x_range) + y_range * _idy;
-    row = (is_transposed ? next_block : wg_id) * x_range + _idx;
+    const index_t next_col =
+        (is_transposed ? wg_id : next_block) * x_range + y_range * _idy;
+    const index_t next_row =
+        (is_transposed ? next_block : wg_id) * x_range + _idx;
 
 #pragma unroll
     for (index_t i = 0; i < y_range; ++i) {
-      priv_A[i] = read_matrix(row, col + i);
+      priv_A[i] = read_matrix(next_row, next_col + i);
     }
 
     if (_idy == 0) {
