@@ -111,6 +111,8 @@ SYCL_BLAS_INLINE typename Txsv<vector_t, matrix_t, sync_t, matrix_storage,
 Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
      is_upper, is_transposed, is_unitdiag>::eval(local_memory_t local_mem,
                                                  cl::sycl::nd_item<1> ndItem) {
+
+  value_t ret = 0;
 #if SYCL_LANGUAGE_VERSION >= 202000
 
   constexpr bool is_forward =
@@ -182,15 +184,15 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
   const index_t g_idx = wg_id * x_range + _idx;  // < offset of the solution
 
   // Read first block
-  const index_t col =
+  index_t curr_col =
       (is_transposed ? wg_id : curr_block) * x_range + y_range * _idy;
-  const index_t row = (is_transposed ? curr_block : wg_id) * x_range + _idx;
+  index_t curr_row = (is_transposed ? curr_block : wg_id) * x_range + _idx;
 
   {
     value_t *lA = sub_A;
 #pragma unroll
     for (index_t i = 0; i < y_range; ++i) {
-      *lA = read_matrix(row, col + i);
+      *lA = read_matrix(curr_row, curr_col + i);
       lA += _llda;
     }
   }
@@ -208,10 +210,8 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
     // Read next block
     const index_t next_offset = curr_offset + (is_forward ? x_range : -x_range);
     const index_t next_block = curr_block + (is_forward ? 1 : -1);
-    const index_t next_col =
-        (is_transposed ? wg_id : next_block) * x_range + y_range * _idy;
-    const index_t next_row =
-        (is_transposed ? next_block : wg_id) * x_range + _idx;
+    const index_t next_col = curr_col + (is_transposed ? 0 : (is_forward ? x_range : -x_range));
+    const index_t next_row = curr_row + (is_transposed ? (is_forward ? x_range : -x_range) : 0);
 
 #pragma unroll
     for (index_t i = 0; i < y_range; ++i) {
@@ -229,6 +229,8 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
 
     curr_offset = next_offset;
     curr_block = next_block;
+    curr_col = next_col;
+    curr_row = next_row;
 
     ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
@@ -291,7 +293,7 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
     }
 
     volatile value_t *lhs_p = lhs_.get_pointer() + lhs_.get_stride() * g_idx;
-    if (g_idx < _N) *lhs_p = loc_x[_idx];
+    if (g_idx < _N) ret = *lhs_p = loc_x[_idx];
   }
 
   sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
@@ -302,7 +304,7 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
   sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
 
 #endif
-  return 0;
+  return ret;
 }
 
 template <typename vector_t, typename matrix_t, typename sync_t,
