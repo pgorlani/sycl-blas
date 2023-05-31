@@ -242,8 +242,7 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
       }
     }
 
-    if (is_transposed)
-      ndItem.barrier(cl::sycl::access::fence_space::local_space);
+    ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
     // Copy next block to local memory
     {
