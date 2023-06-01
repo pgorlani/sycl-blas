@@ -293,7 +293,7 @@ Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
     }
 
     volatile value_t *lhs_p = lhs_.get_pointer() + lhs_.get_stride() * g_idx;
-    if (g_idx < _N) ret = *lhs_p = loc_x[_idx];
+    if (g_idx < _N) *lhs_p = ret = loc_x[_idx];
   }
 
   sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
