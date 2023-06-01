@@ -28,6 +28,11 @@
 namespace blas {
 
 /*!
+ * @brief Determines the storage format of a matrix.
+ */
+enum class matrix_format_t : uint32_t { full = 1, banded = 2, packed = 0 };
+
+/*!
  * @brief Determines the memory type of the GEMV kernel.
  * It can either use local memory or not
  */
@@ -330,8 +335,8 @@ Sbmv<lhs_t, matrix_t, vector_t, local_range, uplo> make_sbmv(
  * @tparam is_unit  specifies whether considering the input matrix
  * main-diagonal filled with ones
  * @param lhs_      the output vector
- * @param matrix_a_ the input matrix A
- * @param vector_x_ the input vector
+ * @param matrix_   the input matrix
+ * @param vector_   the input vector
  * @param alpha_    factor used only if is_symmetric == true
  * @param beta_     factor used only if is_symmetric == true
  */
@@ -526,14 +531,29 @@ make_tpsv(lhs_t &lhs_, matrix_t &matrix_, vector_t &vector_, sync_t &sync_) {
 
 /**
  * @struct Txsv
- * @brief Tree node representing a triangular band matrix_ vector_
- * multiplication.
+ * @brief Tree node representing a linear system solver for triangular matrices,
+ * i.e., it computes lhs_  such that lhs_ = matrix_ * lhs_
+ *
+ * The class is constructed using the make_txsv function below.
+ *
+ * @tparam matrix_format  specifies how the matrix is stored, full, packed, or
+ * banded
+ * @tparam subgroup_size  specifies the subgroup size of the device
+ * @tparam subgroups      specifies the number of subgroups within a work group
+ * @tparam is_upper       specifies whether the triangular input matrix is upper
+ * @tparam is_upper       specifies whether the triangular input matrix is upper
+ * @tparam is_transposed  specifies whether the input matrix should be
+ * transposed
+ * @tparam is_unit  specifies whether considering the input matrix
+ * @param lhs_      the input/output vector
+ * @param matrix_   the input matrix
+ * @param k_        the number of extra-diagonal in case of banded matrices
+ * @param sync_     vector of size 2 utilized for work group synchronization
+ * purposes
+ *
  */
-
-enum class matrix_storage_t : uint32_t { full = 1, banded = 2, packed = 0 };
-
 template <typename vector_t, typename matrix_t, typename sync_t,
-          matrix_storage_t matrix_storage, uint32_t subgroup_size,
+          matrix_format_t matrix_format, uint32_t subgroup_size,
           uint32_t subgroups, bool is_upper, bool is_transposed, bool is_unit>
 struct Txsv {
   using value_t = typename vector_t::value_t;
@@ -545,7 +565,6 @@ struct Txsv {
   sync_t sync_;
 
   Txsv(vector_t &_l, matrix_t &_matrix, index_t &_k, sync_t &_sync);
-  bool valid_thread(cl::sycl::nd_item<1> ndItem) const;
   template <typename local_memory_t>
   value_t eval(local_memory_t local_mem, cl::sycl::nd_item<1> ndItem);
   void bind(cl::sycl::handler &h);
@@ -555,14 +574,14 @@ struct Txsv {
 /*!
  @brief Generator/factory for TXSV trees.
  */
-template <matrix_storage_t matrix_storage, uint32_t subgroup_size,
+template <matrix_format_t matrix_format, uint32_t subgroup_size,
           uint32_t subgroups, bool is_upper, bool is_transposed, bool is_unit,
           typename vector_t, typename matrix_t, typename sync_t>
-Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size, subgroups,
+Txsv<vector_t, matrix_t, sync_t, matrix_format, subgroup_size, subgroups,
      is_upper, is_transposed, is_unit>
 make_txsv(vector_t &lhs_, matrix_t &matrix_, typename vector_t::index_t k_,
           sync_t &sync_) {
-  return Txsv<vector_t, matrix_t, sync_t, matrix_storage, subgroup_size,
+  return Txsv<vector_t, matrix_t, sync_t, matrix_format, subgroup_size,
               subgroups, is_upper, is_transposed, is_unit>(lhs_, matrix_, k_,
                                                            sync_);
 }
