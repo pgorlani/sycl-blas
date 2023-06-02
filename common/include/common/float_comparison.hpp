@@ -309,6 +309,47 @@ inline bool compare_vectors_strided(std::vector<scalar_t> const& vec,
   return true;
 }
 
+template< typename float_type>
+inline uint64_t my_float_ulp_distance(float_type f_a, float_type f_b) {return 100;}
+
+template<>
+inline uint64_t my_float_ulp_distance<float>(float f_a, float f_b) {
+  static_assert(sizeof(float) == sizeof(uint32_t),
+                "unsigned int/float sizes differ");
+
+  uint32_t ulp;
+  uint32_t a, b;
+
+  std::memcpy(&a, &f_a, sizeof(float));
+  std::memcpy(&b, &f_b, sizeof(float));
+
+  if (a > b)
+    ulp = a - b;
+  else
+    ulp = b - a;
+
+  return ulp;
+}
+
+template<>
+inline uint64_t my_float_ulp_distance<double>(double f_a, double f_b) {
+  static_assert(sizeof(double) == sizeof(uint64_t),
+                "unsigned int/float sizes differ");
+
+  uint64_t ulp;
+  uint64_t a, b;
+
+  std::memcpy(&a, &f_a, sizeof(double));
+  std::memcpy(&b, &f_b, sizeof(double));
+
+  if (a > b)
+    ulp = a - b;
+  else
+    ulp = b - a;
+
+  return ulp;
+}
+
 /**
  */
 template <typename scalar_t>
@@ -322,27 +363,9 @@ inline void print_error_report(int inc, std::vector<scalar_t> const& vec,
 
   float_classifier<scalar_t> _fpclass;
 
-  auto float_ulp_distance = [](float f_a, float f_b) {
-    static_assert(sizeof(float) == sizeof(unsigned int),
-                  "unsigned int/float sizes differ");
-
-    unsigned int ulp;
-    unsigned int a, b;
-
-    std::memcpy(&a, &f_a, sizeof(float));
-    std::memcpy(&b, &f_b, sizeof(float));
-
-    if (a > b)
-      ulp = a - b;
-    else
-      ulp = b - a;
-
-    return ulp;
-  };
-
   long double max_abs_err = -1.0;
   long double max_rel_err = -1.0;
-  unsigned int max_ulp_err = 0;
+  uint64_t max_ulp_err = 0;
   long double tot_abs_err = 0;
   long double tot_rel_err = 0;
   long double tot_ulp_err = 0;
@@ -353,7 +376,7 @@ inline void print_error_report(int inc, std::vector<scalar_t> const& vec,
     const long double delta =
         std::fabs((long double)vec[i] - (long double)ref[i]);
     const long double delta_rel = delta / std::fabs((long double)ref[i]);
-    const unsigned int delta_ulp = float_ulp_distance(vec[i], ref[i]);
+    uint64_t delta_ulp = my_float_ulp_distance<scalar_t>(vec[i], ref[i]);
 
     max_abs_err = (max_abs_err > delta) ? max_abs_err : delta;
     max_rel_err = (max_rel_err > delta_rel) ? max_rel_err : delta_rel;
