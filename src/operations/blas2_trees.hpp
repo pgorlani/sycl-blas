@@ -31,7 +31,7 @@
 #include "blas2/ger.hpp"
 #include "blas2/sbmv.hpp"
 #include "blas2/spr.hpp"
-#include "blas2/tXsv.hpp"  // <--- restore BEFORE MERGING
+//#include "blas2/tXsv.hpp"  // <--- restore BEFORE MERGING
 #include "blas2/tbmv.hpp"
 #include "blas2/tbsv.hpp"
 #include "blas2/trsv.hpp"
