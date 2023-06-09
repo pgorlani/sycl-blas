@@ -143,10 +143,8 @@ Txsv<vector_t, matrix_t, sync_t, matrix_format, subgroup_size, subgroups,
       sync_.eval(0));
 
   // Get the wg_id of actual workgroup
-  const index_t wg_id =
-      group_broadcast(ndItem.get_group(), not_wi0        ? 0
-                                          : (is_forward) ? a++
-                                                         : a--);
+  const index_t wg_id = group_broadcast(ndItem.get_group(),
+                                        not_wi0 ? 0 : (is_forward) ? a++ : a--);
 
   const index_t num_blocks = ((k_ + x_range - 1) / x_range);
   // Actual extra-diagonal block processed
@@ -217,11 +215,16 @@ Txsv<vector_t, matrix_t, sync_t, matrix_format, subgroup_size, subgroups,
       while (!((is_forward && (curr_block < ready_block)) ||
                (!is_forward && (curr_block > ready_block))))
         ready_block =
-            sycl::group_broadcast(ndItem.get_sub_group(), not_wi0 ? 0 : p.load(sycl::memory_order::relaxed, sycl::memory_scope::device));
+            sycl::group_broadcast(ndItem.get_sub_group(),
+                                  not_wi0 ? 0
+                                          : p.load(sycl::memory_order::relaxed,
+                                                   sycl::memory_scope::device));
 
-      sycl::atomic_fence(sycl::memory_order::acquire, sycl::memory_scope::device);
+      sycl::atomic_fence(sycl::memory_order::acquire,
+                         sycl::memory_scope::device);
 
-      if (_idy == 0) loc_x[_idx] = (curr_offset < _N) ? lhs_.eval(curr_offset) : value_t(0);
+      if (_idy == 0)
+        loc_x[_idx] = (curr_offset < _N) ? lhs_.eval(curr_offset) : value_t(0);
     }
 
     curr_offset = next_offset;
@@ -295,12 +298,16 @@ Txsv<vector_t, matrix_t, sync_t, matrix_format, subgroup_size, subgroups,
 
   sycl::atomic_fence(sycl::memory_order::release, sycl::memory_scope::device);
 
-  //sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
+  // sycl::atomic_fence(sycl::memory_order::seq_cst,
+  // sycl::memory_scope::device);
 
-  //volatile int32_t *sync = sync_.get_pointer() + 1;
-  if (!not_wi0) /*sync*/ p.store(wg_id + (is_forward ? 1 : -1), sycl::memory_order::relaxed, sycl::memory_scope::device);
+  // volatile int32_t *sync = sync_.get_pointer() + 1;
+  if (!not_wi0) /*sync*/
+    p.store(wg_id + (is_forward ? 1 : -1), sycl::memory_order::relaxed,
+            sycl::memory_scope::device);
 
-  //sycl::atomic_fence(sycl::memory_order::seq_cst, sycl::memory_scope::device);
+    // sycl::atomic_fence(sycl::memory_order::seq_cst,
+    // sycl::memory_scope::device);
 
 #endif
   return ret;
