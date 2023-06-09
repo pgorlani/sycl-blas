@@ -116,10 +116,8 @@ SYCL_BLAS_INLINE
       sync_.eval(0));
 
   // Get the wg_id of actual workgroup
-  const index_t wg_id =
-      group_broadcast(ndItem.get_group(), not_wi0        ? 0
-                                          : (is_forward) ? a++
-                                                         : a--);
+  const index_t wg_id = group_broadcast(ndItem.get_group(),
+                                        not_wi0 ? 0 : (is_forward) ? a++ : a--);
 
   // Actual extra-diagonal block processed
   index_t curr_block = ((is_forward) ? 0 : ((_N + x_range - 1) / x_range) - 1);

@@ -309,10 +309,12 @@ inline bool compare_vectors_strided(std::vector<scalar_t> const& vec,
   return true;
 }
 
-template< typename float_type>
-inline uint64_t my_float_ulp_distance(float_type f_a, float_type f_b) {return 100;}
+template <typename float_type>
+inline uint64_t my_float_ulp_distance(float_type f_a, float_type f_b) {
+  return 100;
+}
 
-template<>
+template <>
 inline uint64_t my_float_ulp_distance<float>(float f_a, float f_b) {
   static_assert(sizeof(float) == sizeof(uint32_t),
                 "unsigned int/float sizes differ");
@@ -331,7 +333,7 @@ inline uint64_t my_float_ulp_distance<float>(float f_a, float f_b) {
   return ulp;
 }
 
-template<>
+template <>
 inline uint64_t my_float_ulp_distance<double>(double f_a, double f_b) {
   static_assert(sizeof(double) == sizeof(uint64_t),
                 "unsigned int/float sizes differ");
