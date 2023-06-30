@@ -25,6 +25,7 @@
 #include "interface/blas2_interface.hpp"
 #include "sb_handle/kernel_constructor.hpp"
 #include "sb_handle/sycl_blas_handle.hpp"
+#include "../src/operations/blas2/txsv.hpp" // <--- REMOVE BEFORE MERGING
 
 namespace blas {
 namespace internal {

@@ -32,7 +32,7 @@
 #include "blas2/sbmv.hpp"
 #include "blas2/spr.hpp"
 #include "blas2/tbmv.hpp"
-#include "blas2/txsv.hpp"
+//#include "blas2/txsv.hpp" <--- RESTORE BEFORE MERGING
 #include "blas2/xpmv.hpp"
 
 #endif  // BLAS2_TREES_HPP
