@@ -89,10 +89,10 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
   // enable easier access to tile dimensions
   static constexpr index_t item_rows = tile_type::item_rows;
   static constexpr index_t item_cols = tile_type::item_cols;
-  static constexpr index_t wg_rows = tile_type::wg_rows;
-  static constexpr index_t wg_cols = tile_type::wg_cols;
-  static constexpr index_t sg_rows = tile_type::sg_rows;
-  static constexpr index_t sg_cols = tile_type::sg_cols;
+  static constexpr index_t wg_rows = tile_type::wg_rows; // this is not about the local memory (?)
+  static constexpr index_t wg_cols = tile_type::wg_cols; // this is not about the local memory (?)
+//  static constexpr index_t sg_rows = tile_type::sg_rows; // unused
+//  static constexpr index_t sg_cols = tile_type::sg_cols; // unused
   static constexpr index_t tl_rows = tile_type::tl_rows;
   static constexpr index_t tl_cols = tile_type::tl_cols;
   static constexpr index_t tile_size = tl_rows * tl_cols;
@@ -230,13 +230,13 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     const cl::sycl::range<1> nwg(get_workgroup_cluster() *
                                  get_num_workgroup_cluster(compute_units));
     const cl::sycl::range<1> wgs(wg_size);
-#ifdef VERBOSE
+//#ifdef VERBOSE
     std::cout << " M: " << a_.get_size_row() << " , N " << b_.get_size_col()
               << " , big_tile_rows: " << big_tile_rows
               << " , big_tile_cols: " << big_tile_cols
               << " , wg_size: " << wg_size
               << " , nwg : " << get_workgroup_cluster() << std::endl;
-#endif
+//#endif
     return cl::sycl::nd_range<1>(nwg * wgs, wgs);
   }
 
@@ -300,8 +300,8 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     const index_t row_c = wg_row + item_id % wg_rows * vector_offset;
     const index_t col_c = wg_col + (item_id / wg_rows) * item_cols;
 
-    element_t reg_a[item_rows];
-    element_t reg_b;
+    element_t reg_a[item_rows]; // what are you for?
+    element_t reg_b; // what are you for?
     ptr_C += row_c + col_c * ldc;
 
     const index_t mc = m - row_c;
@@ -376,15 +376,15 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     }
     constexpr index_t offset =
         (!check_m_limit && !check_n_limit) ? packetize_t::packet_size : 1;
-#pragma unroll
+//#pragma unroll
     for (index_t i = 0; i < item_cols; ++i) {
-#pragma unroll
+//#pragma unroll
       for (index_t j = 0; j < item_rows / offset; ++j) {
         const bool in_range =
             do_check<check_m_limit>(j * wg_rows * offset < mc) &&
             do_check<check_n_limit>(i < nc);
         if (in_range) {
-#pragma unroll
+//#pragma unroll
           for (index_t l = 0; l < offset; ++l) {
             reg_res[i * item_rows + j * offset + l] =
                 beta_ * *(C + j * (wg_rows * offset) + l);
@@ -400,7 +400,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
   PORTBLAS_INLINE typename std::enable_if<beta_zero>::type scaling_c(
       element_t *reg_res, InputPointerType, const index_t &, const index_t &,
       const index_t &, const bool) {
-#pragma unroll
+//#pragma unroll
     for (index_t i = 0; i < item_cols * item_rows; ++i) {
       reg_res[i] = 0;
     }
@@ -435,7 +435,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       const bool out_of_range, index_t batch_stride, index_t wg_batch_id,
       index_t batch_size) noexcept {
     index_t ofs = 1;
-    do {
+    do {                                      // for each matrix in the batch
       auto A = orig_A;
       auto B = orig_B;
       auto C = orig_C;
@@ -444,19 +444,21 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       index_t ca = col_a;
       index_t rb = row_b;
       index_t cb = col_b;
-      element_t reg_res[item_rows * item_cols];
+      element_t reg_res[item_rows * item_cols]; // private memory containing the item_tile of the solution
       scaling_c<check_m_limit, check_n_limit>(reg_res, C, mc, nc, ldc,
                                               out_of_range);
       while (k >= cl_elems) {
+        // READ A and B and put them in the local memory
         extract_input_blocks<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range);
+        // s1, s3 -> s2, s4
         id.barrier(cl::sycl::access::fence_space::local_space);
         compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
                                                          reg_b, reg_res);
         A += cl_elems * (trans_a ? 1 : lda);
         B += cl_elems * (trans_b ? ldb : 1);
-
+/*
         if constexpr (symm_a) {
           if constexpr (trans_a) {
             ra += cl_elems;
@@ -471,13 +473,15 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
             rb += cl_elems;
           }
         }
-
+*/
         sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
                   ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
         k -= cl_elems;
       }
 
+      // this is for the left-over
       if (k > 0) {
+/*
         if constexpr (symm_a) {
           if constexpr (trans_a) {
             ra = row_a + (orig_k - k);
@@ -492,7 +496,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
             rb = row_b + (orig_k - k);
           }
         }
-
+*/
         extract_input_blocks<check_m_limit, check_n_limit, true, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range);
@@ -563,9 +567,9 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     }
     constexpr index_t offset =
         (!check_m_limit && !check_n_limit) ? packetize_t::packet_size : 1;
-#pragma unroll
+//#pragma unroll
     for (index_t i = 0; i < item_cols; ++i) {
-#pragma unroll
+//#pragma unroll
       for (index_t j = 0; j < item_rows / offset; j++) {
         const bool in_range =
             do_check<check_m_limit>(j * wg_rows * offset < mc) &&
@@ -658,7 +662,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       ColPredicate in_col) {
     constexpr index_t bs = rows * cols;
     constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
-#pragma unroll
+//#pragma unroll
     for (index_t i = 0; i < (bs - 1) / (wg_size * multiplier) + 1; ++i) {
       if (!do_check<((bs % (wg_size * multiplier)) != 0)>(
               item_id + i * (wg_size * multiplier) < bs))
@@ -695,7 +699,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       ColPredicate in_col) {
     const index_t bs = rows * cols;
     constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
-#pragma unroll
+//#pragma unroll
     for (index_t i = 0; i < (bs - 1) / (wg_size * multiplier) + 1; ++i) {
       if (!do_check<((bs % (wg_size * multiplier)) != 0)>(
               item_id + i * (wg_size * multiplier) < bs))
@@ -747,6 +751,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     //       resulting from loop unrollment.
     constexpr index_t work_per_load =
         !check_m_limit && !check_n_limit ? packetize_t::packet_size : 1;
+#pragma unroll
     for (index_t i = 0; i < cl_elems; ++i) {
 #pragma unroll
       for (index_t j = 0; j < item_rows / work_per_load; ++j) {
