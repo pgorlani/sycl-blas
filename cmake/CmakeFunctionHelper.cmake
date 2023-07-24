@@ -743,11 +743,15 @@ elseif(${TUNING_TARGET} STREQUAL "NVIDIA_GPU")
       128 2 2 8 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 1 "strided" "false")
     add_gemm_configuration(
         "${data}"  64 "false" "false" "true"
-          64 8 8 8 8 1 1 2 2 1 1 1 1 1 float float "local" "standard" "full" 1 "strided" "false")
+      64 8 8 8 8 1 1 2 2 1 1 1 1 1 float float "local" "standard" "full" 1 "strided" "false")
     add_gemm_configuration(
       "${data}" 64 "false" "false" "false"
       64 2 2 4 4 1 1 1 1 4 4 1 1 1 float float "no_local" "standard" "full" 4 "interleaved" "false")
-  endforeach()
+#
+    add_gemm_configuration(
+        "${data}"  256 "false" "false" "true"
+      128 8 8 16 16 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 1 "strided" "false")
+    endforeach()
 else() # default cpu backend
   set(supported_types
     "float"
