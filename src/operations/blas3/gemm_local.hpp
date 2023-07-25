@@ -230,13 +230,13 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     const cl::sycl::range<1> nwg(get_workgroup_cluster() *
                                  get_num_workgroup_cluster(compute_units));
     const cl::sycl::range<1> wgs(wg_size);
-//#ifdef VERBOSE
+#ifdef VERBOSE
     std::cout << " M: " << a_.get_size_row() << " , N " << b_.get_size_col()
               << " , big_tile_rows: " << big_tile_rows
               << " , big_tile_cols: " << big_tile_cols
               << " , wg_size: " << wg_size
               << " , nwg : " << get_workgroup_cluster() << std::endl;
-//#endif
+#endif
     return cl::sycl::nd_range<1>(nwg * wgs, wgs);
   }
 
