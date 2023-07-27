@@ -300,8 +300,8 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     const index_t row_c = wg_row + item_id % wg_rows * vector_offset;
     const index_t col_c = wg_col + (item_id / wg_rows) * item_cols;
 
-    element_t reg_a[item_rows]; // what are you for?
-    element_t reg_b; // what are you for?
+    element_t reg_a[item_rows]; // what are you for? it somehow allocate temporary memory for computation
+    element_t reg_b; // what are you for? problably it is better to move it the appropriate method
     ptr_C += row_c + col_c * ldc;
 
     const index_t mc = m - row_c;
