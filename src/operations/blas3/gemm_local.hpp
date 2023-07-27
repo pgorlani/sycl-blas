@@ -136,9 +136,9 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                 "of the number of columns in a block\n"
                 " --- this is ensured iff: item_cols | wg_rows");
 
-  static_assert(big_tile_rows == big_tile_cols,
-                "Big tile level dimensions should be square, i.e. tl_rows * "
-                "block_rows == tl_cols * block_cols");
+//  static_assert(big_tile_rows == big_tile_cols,
+//                "Big tile level dimensions should be square, i.e. tl_rows * "
+//                "block_rows == tl_cols * block_cols");
 
   static_assert(item_rows % packetize_t::packet_size == 0,
                 "Item rows must be a multiple of the vector packet size");
@@ -199,7 +199,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
    */
   PORTBLAS_INLINE index_t get_workgroup_cluster() const noexcept {
     return (((a_.get_size_row() - 1) / big_tile_rows + 1) *
-            ((b_.get_size_col() - 1) / big_tile_cols + 1) * tl_rows * tl_cols);
+           ((b_.get_size_col() - 1) / big_tile_cols + 1) * tl_rows * tl_cols);
   }
   /*!
    *@brief get_num_workgroup_cluster. This function is used to extend the number
@@ -230,13 +230,16 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     const cl::sycl::range<1> nwg(get_workgroup_cluster() *
                                  get_num_workgroup_cluster(compute_units));
     const cl::sycl::range<1> wgs(wg_size);
-#ifdef VERBOSE
+//#ifdef VERBOSE
     std::cout << " M: " << a_.get_size_row() << " , N " << b_.get_size_col()
               << " , big_tile_rows: " << big_tile_rows
               << " , big_tile_cols: " << big_tile_cols
               << " , wg_size: " << wg_size
-              << " , nwg : " << get_workgroup_cluster() << std::endl;
-#endif
+              << " , nwg: " << get_workgroup_cluster() * get_num_workgroup_cluster(compute_units) 
+              << " , get_workgroup_cluster: " << get_workgroup_cluster()
+              << " , compute_units :" << compute_units << std::endl;
+//#endif
+    // Basically, a gazillion of workgroup are launched, then most of them will bail out in ---> [*]
     return cl::sycl::nd_range<1>(nwg * wgs, wgs);
   }
 
@@ -263,7 +266,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     // The batch index that each workgroup should start working with
     const index_t wg_batch_id = id.get_group(0) / get_workgroup_cluster();
     // This will disable all workgroups that dont have any batch to work on
-    if (wg_batch_id >= batch_size_) {
+    if (wg_batch_id >= batch_size_) { //<--- [*]
       return;
     }
     const index_t batch_stride =
