@@ -589,63 +589,67 @@ endfunction()
 if(${TUNING_TARGET} STREQUAL "INTEL_GPU")
   set(supported_types
     "float"
-    "double"
-    "half"
+#    "double"
+#    "half"
   )
   foreach(data ${supported_types})
-    add_gemm_configuration(
-      "${data}" 64 "true" "false" "false"
-      64 4 4 8 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 4 "strided" "false")
+#    add_gemm_configuration(
+#      "${data}" 64 "true" "false" "false"
+#      64 4 4 8 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 4 "strided" "false")
+#    add_gemm_configuration(
+#      "${data}" 64 "false" "false" "false"
+#      64 4 8 16 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 4 "strided" "false")
+#    add_gemm_configuration(
+#      "${data}" 64 "false" "false" "false"
+#      64 8 8 8 8 1 1 1 1 1 1 1 1 1 float float "no_local" "standard" "partial" 4 "strided" "false")
+#
+#    if (${data} STREQUAL "half")
+#      add_gemm_configuration(
+#         "${data}" 16 "true" "false" "false"
+#         64 1 1 8 8 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
+#      add_gemm_configuration(
+#        "${data}" 16 "true" "false" "false"
+#         64 2 2 8 8 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
+#    else()
+#      add_gemm_configuration(
+#         "${data}" 16 "true" "false" "false"
+#         64 1 1 4 4 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
+#      add_gemm_configuration(
+#        "${data}" 16 "true" "false" "false"
+#         64 2 2 4 4 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
+#    endif()
+#
+#    add_gemm_configuration(
+#      "${data}" 64 "true" "true" "true"
+#      64 2 2 8 8 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
+#    add_gemm_configuration(
+#      "${data}" 64 "true" "true" "true"
+#      64 4 4 8 8 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
+#
+#    if (${data} STREQUAL "double")
+#      add_gemm_configuration(
+#        "${data}" 256 "true" "true" "true"
+#        64 4 4 8 8 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
+#    else()
+#      add_gemm_configuration(
+#        "${data}" 256 "true" "true" "true"
+#        64 4 4 16 16 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
+#    endif()
+#
+#    add_gemm_configuration(
+#      "${data}" 32 "true" "true" "true"
+#      64 2 1 8 4 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
+#    add_gemm_configuration(
+#      "${data}" 32 "true" "true" "true"
+#      64 2 2 8 4 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
+#
+#    add_gemm_configuration(
+#      "${data}" 64 "false" "false" "false"
+#      64 4 4 4 4 1 1 1 1 4 4 1 1 1 float float "no_local" "standard" "full" 4 "interleaved" "false")
+#
     add_gemm_configuration(
       "${data}" 64 "false" "false" "false"
-      64 4 8 16 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 4 "strided" "false")
-    add_gemm_configuration(
-      "${data}" 64 "false" "false" "false"
-      64 8 8 8 8 1 1 1 1 1 1 1 1 1 float float "no_local" "standard" "partial" 4 "strided" "false")
-
-    if (${data} STREQUAL "half")
-      add_gemm_configuration(
-         "${data}" 16 "true" "false" "false"
-         64 1 1 8 8 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
-      add_gemm_configuration(
-        "${data}" 16 "true" "false" "false"
-         64 2 2 8 8 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
-    else()
-      add_gemm_configuration(
-         "${data}" 16 "true" "false" "false"
-         64 1 1 4 4 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
-      add_gemm_configuration(
-        "${data}" 16 "true" "false" "false"
-         64 2 2 4 4 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
-    endif()
-
-    add_gemm_configuration(
-      "${data}" 64 "true" "true" "true"
-      64 2 2 8 8 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
-    add_gemm_configuration(
-      "${data}" 64 "true" "true" "true"
-      64 4 4 8 8 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
-
-    if (${data} STREQUAL "double")
-      add_gemm_configuration(
-        "${data}" 256 "true" "true" "true"
-        64 4 4 8 8 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
-    else()
-      add_gemm_configuration(
-        "${data}" 256 "true" "true" "true"
-        64 4 4 16 16 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
-    endif()
-
-    add_gemm_configuration(
-      "${data}" 32 "true" "true" "true"
-      64 2 1 8 4 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
-    add_gemm_configuration(
-      "${data}" 32 "true" "true" "true"
-      64 2 2 8 4 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
-
-    add_gemm_configuration(
-      "${data}" 64 "false" "false" "false"
-      64 4 4 4 4 1 1 1 1 4 4 1 1 1 float float "no_local" "standard" "full" 4 "interleaved" "false")
+      64 4 4 16 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 4 "strided" "false")
   endforeach()
 elseif(${TUNING_TARGET} STREQUAL "POWER_VR" AND NOT IMGDNN_DIR)
   set(supported_types
