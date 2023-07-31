@@ -106,9 +106,9 @@ inline void verify_gemm(const gemm_arguments_t<scalar_t> arguments) {
   const index_t buffer_size_b = batch * size_b + offset;
   const index_t buffer_size_c = batch * size_c + offset;
 
-  std::vector<scalar_t> a_m(buffer_size_a);
-  std::vector<scalar_t> b_m(buffer_size_b);
-  std::vector<scalar_t> c_m_gpu(buffer_size_c);
+  std::vector<scalar_t> a_m(buffer_size_a, 1);
+  std::vector<scalar_t> b_m(buffer_size_b, 1);
+  std::vector<scalar_t> c_m_gpu(buffer_size_c, 0);
 
   fill_random(a_m);
   fill_random(b_m);
@@ -161,6 +161,9 @@ inline void verify_gemm(const gemm_arguments_t<scalar_t> arguments) {
   }
 
   sb_handle.wait();
+
+//  for(auto v : c_m_gpu) std::cerr<<v<<" ";
+//  std::cerr<<std::endl;
 
   const bool isAlmostEqual = utils::compare_vectors(c_m_gpu, c_m_cpu);
   ASSERT_TRUE(isAlmostEqual);

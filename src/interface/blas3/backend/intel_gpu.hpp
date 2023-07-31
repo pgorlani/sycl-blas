@@ -209,7 +209,7 @@ typename sb_handle_t::event_t _gemm(
   }
 #else
     return blas::Gemm_Launcher<
-        64, false, false, false, 64, Tile<4, 4, 16, 8>, _t_a, _t_b, s_a, s_b,
+        64, false, false, false, 64, Tile<8, 4, 16, 8>, _t_a, _t_b, s_a, s_b,
         static_cast<int>(gemm_memory_t::local),
         static_cast<int>(gemm_algorithm_t::standard),
         static_cast<int>(gemm_vectorization_t::full), is_beta_zero, 4,
