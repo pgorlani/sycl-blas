@@ -289,13 +289,19 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                  (wg_batch_id * stridec_);
 
     const index_t item_id = id.get_local_id(0);
-    const index_t tile_id = wg_id / tile_size;
-    const index_t tile_local_id = wg_id % tile_size;
-    const index_t tiles_per_col = (m - 1) / big_tile_rows + 1;
-    const index_t tile_row = (tile_id % tiles_per_col) * tl_rows;
-    const index_t tile_col = (tile_id / tiles_per_col) * tl_cols;
-    const index_t wg_row = (tile_row + tile_local_id % tl_rows) * block_rows;
-    const index_t wg_col = (tile_col + tile_local_id / tl_rows) * block_rows;
+
+    // BEGIN entangled indexes 
+    const index_t tile_id = wg_id / tile_size;  //  BIG tile ID - a workgroup will deal with a BIG tile
+    const index_t tile_local_id = wg_id % tile_size; // id of the wg_tile within the big tile
+
+    const index_t tiles_per_col = (m - 1) / big_tile_rows + 1; // number of big tiles contained in a C-column
+    const index_t tile_row = (tile_id % tiles_per_col) * tl_rows; //
+    const index_t tile_col = (tile_id / tiles_per_col) * tl_cols; // 
+
+    const index_t wg_row = (tile_row + tile_local_id % tl_rows) * block_rows; // <--
+    const index_t wg_col = (tile_col + tile_local_id / tl_rows) * block_rows; // <--
+    // END entangled indexes - wg_{row,col} are the only product of the section
+
     const bool out_of_range = (wg_row >= m || wg_col >= n);
     const bool internal = m - wg_row >= block_rows && n - wg_col >= block_cols;
     const index_t vector_offset = internal ? packetize_t::packet_size : 1;
