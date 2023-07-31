@@ -299,7 +299,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     const index_t tile_col = (tile_id / tiles_per_col) * tl_cols; // 
 
     const index_t wg_row = (tile_row + tile_local_id % tl_rows) * block_rows; // <--
-    const index_t wg_col = (tile_col + tile_local_id / tl_rows) * block_rows; // <--
+    const index_t wg_col = (tile_col + tile_local_id / tl_rows) * block_cols; // <--
     // END entangled indexes - wg_{row,col} are the only product of the section
 
     const bool out_of_range = (wg_row >= m || wg_col >= n);
