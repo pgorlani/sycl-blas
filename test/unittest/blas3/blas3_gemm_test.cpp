@@ -26,6 +26,7 @@
 #include "blas3_gemm_common.hpp"
 #include "blas_test.hpp"
 
+#if 0
 template <typename scalar_t>
 const auto mytest = ::testing::Combine(
     ::testing::Values(0),                          // offset
@@ -44,8 +45,7 @@ const auto mytest = ::testing::Combine(
 );
 GENERATE_GEMM_TEST(Gemm, mytest);
 
-
-#if 0
+#else
 template <typename scalar_t>
 const auto SmallBetaNonZeroLDMatch = ::testing::Combine(
     ::testing::Values(0),                          // offset
