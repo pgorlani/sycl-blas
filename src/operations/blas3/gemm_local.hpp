@@ -230,7 +230,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     const cl::sycl::range<1> nwg(get_workgroup_cluster() *
                                  get_num_workgroup_cluster(compute_units));
     const cl::sycl::range<1> wgs(wg_size);
-//#ifdef VERBOSE
+#ifdef VERBOSE
     std::cout << " M: " << a_.get_size_row() << " , N " << b_.get_size_col()
               << " , big_tile_rows: " << big_tile_rows
               << " , big_tile_cols: " << big_tile_cols
@@ -238,7 +238,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
               << " , nwg: " << get_workgroup_cluster() * get_num_workgroup_cluster(compute_units) 
               << " , get_workgroup_cluster: " << get_workgroup_cluster()
               << " , compute_units :" << compute_units << std::endl;
-//#endif
+#endif
     // Basically, a gazillion of workgroup are launched, then most of them will bail out in ---> [*]
     return cl::sycl::nd_range<1>(nwg * wgs, wgs);
   }
@@ -671,7 +671,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       ColPredicate in_col) {
     constexpr index_t bs = rows * cols;
     constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
-//#pragma unroll
+#pragma unroll
     for (index_t i = 0; i < (bs - 1) / (wg_size * multiplier) + 1; ++i) {
       if (!do_check<((bs % (wg_size * multiplier)) != 0)>(
               item_id + i * (wg_size * multiplier) < bs))
@@ -708,7 +708,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       ColPredicate in_col) {
     const index_t bs = rows * cols;
     constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
-//#pragma unroll
+#pragma unroll
     for (index_t i = 0; i < (bs - 1) / (wg_size * multiplier) + 1; ++i) {
       if (!do_check<((bs % (wg_size * multiplier)) != 0)>(
               item_id + i * (wg_size * multiplier) < bs))
