@@ -147,9 +147,9 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                 "Cache line size must be a multiple of packet_size");
 
   //! @brief leading dimension of block of A in local
-  static constexpr index_t ldsa = block_rows + nbc_a;
+  static constexpr index_t ldsa = block_rows + nbc_a; // <-- ? it is possible to avoid bank conflicts if block_rows = 32 
   //! @brief leading dimension of block of B in local
-  static constexpr index_t ldsb = cl_elems + nbc_b;
+  static constexpr index_t ldsb = cl_elems + nbc_b; // <-- ? it is possible to avoid bank conflicts if cl_elems= 32 
   //! @brief size (in elements) of local (local) memory required by each
   //         work group
   static constexpr index_t local_memory_size =
@@ -340,8 +340,8 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     auto s3 =
         scratch + ofs +
         (trans_a
-             ? item_id_ofs / cl_elems + (item_id_ofs % cl_elems) * ldsa
-             : item_id_ofs % block_rows + (item_id_ofs / block_rows) * ldsa);
+             ? /*row*/ item_id_ofs / cl_elems   + /*col*/ (item_id_ofs % cl_elems) * ldsa
+             : /*row*/ item_id_ofs % block_rows + /*col*/ (item_id_ofs / block_rows) * ldsa);
     auto s4 = scratch + ofs + (item_id % wg_rows * vector_offset);
 
     if (internal) {
@@ -708,7 +708,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       ColPredicate in_col) {
     const index_t bs = rows * cols;
     constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
-#pragma unroll
+#pragma unroll // this get unrolled by the nvidia backend
     for (index_t i = 0; i < (bs - 1) / (wg_size * multiplier) + 1; ++i) {
       if (!do_check<((bs % (wg_size * multiplier)) != 0)>(
               item_id + i * (wg_size * multiplier) < bs))
