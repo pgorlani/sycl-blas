@@ -110,7 +110,7 @@ typename sb_handle_t::event_t _gemm(
   else {
     if (_M <= 2048 &&  _N <= 2048 && _K <= 2048) {
     return blas::Gemm_Launcher<
-      128, false, false, true, 128,
+      128, false, true, true, 128,
       Tile<8, 8, 16, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, float, float>, _t_a, _t_b,
         s_a, s_b, static_cast<int>(gemm_memory_t::local),
         static_cast<int>(gemm_algorithm_t::standard),
@@ -121,7 +121,7 @@ typename sb_handle_t::event_t _gemm(
                                       _ldc, _stridec, batch_size); 
     } else {
     return blas::Gemm_Launcher<
-      256, false, false, true, 128,
+      256, false, true, true, 128,
       Tile<8, 8, 16, 16, 1, 1, 1, 1, 1, 1, 1, 1, 1, float, float>, _t_a, _t_b,
         s_a, s_b, static_cast<int>(gemm_memory_t::local),
         static_cast<int>(gemm_algorithm_t::standard),
