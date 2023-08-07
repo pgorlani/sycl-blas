@@ -108,10 +108,10 @@ typename sb_handle_t::event_t _gemm(
 
 #else  // SB_ENABLE_JOINT_MATRIX
   else {
-    if (_M <= 2048 &&  _N <= 2048 && _K <= 2048) {
+    if (_M <= 2048 &&  _N <= 2048 /*&& _K <= 2048*/) {
     return blas::Gemm_Launcher<
       128, false, true, true, 128,
-      Tile<8, 8, 16, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, float, float>, _t_a, _t_b,
+      Tile<2, 2, 16, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, float, float>, _t_a, _t_b,
         s_a, s_b, static_cast<int>(gemm_memory_t::local),
         static_cast<int>(gemm_algorithm_t::standard),
         static_cast<int>(gemm_vectorization_t::full), is_beta_zero, 1,
