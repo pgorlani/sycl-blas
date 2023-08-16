@@ -25,7 +25,6 @@
 #ifndef PORTBLAS_BLAS3_GEMM_LOAD_STORE_HPP
 #define PORTBLAS_BLAS3_GEMM_LOAD_STORE_HPP
 
-#include <sycl/ext/oneapi/experimental/cuda/builtins.hpp>
 namespace blas {
 
 /*! @brief Contains static methods for loading and storing vector packets
@@ -88,7 +87,7 @@ struct Packetize {
       *dest = round_to_tf32(val);
     }
 #else
-    *(dest) = in_range ? sycl::ext::oneapi::experimental::cuda::ldg((const float *__restrict__)src.get()) : value_t{0};
+    *(dest) = in_range ? *(src) : value_t{0};
 #endif
   }
   /*! @brief Performs a vectorised load using sycl::vec::load when the current
@@ -107,11 +106,10 @@ struct Packetize {
     PacketType packet{};
 
     if (in_range) {
-//      using address_t = cl::sycl::access::address_space;
-//      packet.template load<address_t::global_space>(
-//          0, cl::sycl::multi_ptr<const value_t, address_t::global_space>(src));
-        reinterpret_cast<value_t *>(&packet)[0] = sycl::ext::oneapi::experimental::cuda::ldg((const float *__restrict__)src.get());
-     } else {
+      using address_t = cl::sycl::access::address_space;
+      packet.template load<address_t::global_space>(
+          0, cl::sycl::multi_ptr<const value_t, address_t::global_space>(src));
+    } else {
 #pragma unroll
       for (index_t i = 0; i < packet_size; i++) {
         reinterpret_cast<value_t *>(&packet)[i] =
