@@ -210,7 +210,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
    */
   SYCL_BLAS_INLINE index_t
   get_num_workgroup_cluster(index_t compute_units) const noexcept {
-    return ((4 * compute_units - 1) / get_workgroup_cluster() + 1);
+    return ((/*32*/ 4  * compute_units - 1) / get_workgroup_cluster() + 1);
   }
 
   /*!
