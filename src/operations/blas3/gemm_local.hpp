@@ -753,6 +753,8 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                                            InputPointerType A, element_t *reg_a,
                                            element_t &reg_b,
                                            element_t *reg_res) noexcept {
+
+#if 0
     // NOTE: Adding "#pragma unroll" here reduces performance on AMD R9
     // Nano.
     //       Seems that the small reduction of arithmetic operations does
@@ -782,6 +784,34 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       A = A + ldsa;
       B = B + 1;
     }
+#else
+
+    element_t _reg_a[item_rows];
+    element_t _reg_b[item_cols];
+
+#pragma unroll
+    for (index_t k = 0; k < cl_elems; ++k) {
+
+#pragma unroll
+      for (index_t i = 0; i < item_rows ; ++i)
+        _reg_a[i] = *(A + (i * wg_rows) + ldsa*k);
+
+#pragma unroll
+      for (index_t j = 0; j < item_cols; ++j)
+        _reg_b[j] = *(B + j * ldsb + k);
+
+#pragma unroll
+      for (index_t i = 0; i < item_rows; ++i) {
+#pragma unroll
+        for (index_t j = 0; j < item_cols; ++j) {
+          reg_res[j * item_rows + i] =
+              cl::sycl::mad(_reg_a[i], _reg_b[j], reg_res[j * item_rows + i]);
+        }
+      }
+
+    }
+
+#endif
   }
 
   /*!
