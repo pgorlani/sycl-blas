@@ -786,26 +786,28 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     }
 #else
 
-    element_t _reg_a[item_rows];
-    element_t _reg_b[item_cols];
+    cl::sycl::float4 /*element_t*/ _reg_a[item_rows/4];
+    cl::sycl::float4 /*element_t*/ _reg_b[item_cols/4];
 
 #pragma unroll
     for (index_t k = 0; k < cl_elems; ++k) {
 
 #pragma unroll
-      for (index_t i = 0; i < item_rows ; ++i)
-        _reg_a[i] = *(A + (i * wg_rows) + ldsa*k);
+      for (index_t i = 0; i < item_rows/4 ; ++i)
+        _reg_a[i] = *((cl::sycl::float4*) (A.get() + ldsa*k + i)); //*(A + (i * wg_rows) + ldsa*k);
 
 #pragma unroll
-      for (index_t j = 0; j < item_cols; ++j)
-        _reg_b[j] = *(B + j * ldsb + k);
+      for (index_t j = 0; j < item_cols/4; ++j)
+        _reg_b[j] = *((cl::sycl::float4*) (B.get() + ldsb*k + j)); //*(B + j * ldsb + k);
 
 #pragma unroll
-      for (index_t i = 0; i < item_rows; ++i) {
+      for (index_t i = 0; i < item_rows/4; ++i) {
 #pragma unroll
-        for (index_t j = 0; j < item_cols; ++j) {
-          reg_res[j * item_rows + i] =
-              cl::sycl::mad(_reg_a[i], _reg_b[j], reg_res[j * item_rows + i]);
+        for (index_t j = 0; j < item_cols/4; ++j) {
+          for (index_t v1 = 0; v1 < 4; ++v1)
+          for (index_t v2 = 0; v2 < 4; ++v2)
+          reg_res[(j+v2) * item_rows + i + v1] =
+              cl::sycl::mad(_reg_a[i][v1], _reg_b[j][v2], reg_res[(j+v2) * item_rows + i+v1]);
         }
       }
 
