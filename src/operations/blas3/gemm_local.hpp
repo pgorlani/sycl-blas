@@ -210,7 +210,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
    */
   PORTBLAS_INLINE index_t
   get_num_workgroup_cluster(index_t compute_units) const noexcept {
-    return ((32 /*4*/  * compute_units - 1) / get_workgroup_cluster() + 1);
+    return ((/*32*/ 4  * compute_units - 1) / get_workgroup_cluster() + 1);
   }
 
   /*!
@@ -335,14 +335,14 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         scratch +
         (trans_b ? item_id_ofs / block_cols + (item_id_ofs % block_cols) * ldsb
                  : item_id_ofs % cl_elems + (item_id_ofs / cl_elems) * ldsb);
-    auto s2 = scratch; //+ (item_id / wg_rows) * item_cols * ldsb;
+    auto s2 = scratch + (item_id / wg_rows) * item_cols * ldsb;
     index_t ofs = (double_buffer + 1) * block_cols * ldsb;
     auto s3 =
         scratch + ofs +
         (trans_a
              ? /*row*/ item_id_ofs / cl_elems   + /*col*/ (item_id_ofs % cl_elems) * ldsa
              : /*row*/ item_id_ofs % block_rows + /*col*/ (item_id_ofs / block_rows) * ldsa);
-    auto s4 = scratch;//+ ofs + (item_id % wg_rows * vector_offset);
+    auto s4 = scratch + ofs + (item_id % wg_rows * vector_offset);
 
     if (internal) {
       compute_panel_gemm<double_buffer, false, false>(
@@ -462,7 +462,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range);
         // s1, s3 -> s2, s4
-//        id.barrier(cl::sycl::access::fence_space::local_space);
+        id.barrier(cl::sycl::access::fence_space::local_space);
         compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
                                                          reg_b, reg_res);
         A += cl_elems * (trans_a ? 1 : lda);
@@ -483,8 +483,8 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
           }
         }
 */
-//        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
-//                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
+        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
+                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
         k -= cl_elems;
       }
 
@@ -509,12 +509,12 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         extract_input_blocks<check_m_limit, check_n_limit, true, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range);
-//        id.barrier(cl::sycl::access::fence_space::local_space);
+        id.barrier(cl::sycl::access::fence_space::local_space);
         compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
                                                          reg_b, reg_res);
 
-//        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
-//                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
+        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
+                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
       }
 
       // store the output
@@ -786,28 +786,26 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     }
 #else
 
-    cl::sycl::float4 /*element_t*/ _reg_a[item_rows/4];
-    cl::sycl::float4 /*element_t*/ _reg_b[item_cols/4];
+    element_t _reg_a[item_rows];
+    element_t _reg_b[item_cols];
 
-//#pragma unroll
+#pragma unroll
     for (index_t k = 0; k < cl_elems; ++k) {
 
 #pragma unroll
-      for (index_t i = 0; i < item_rows/4 ; ++i)
-        _reg_a[i] = *(((cl::sycl::float4*) (A.get())) + (ldsa/4)*k + i); //*(A + (i * wg_rows) + ldsa*k);
+      for (index_t i = 0; i < item_rows ; ++i)
+        _reg_a[i] = *(A + (i * wg_rows) + ldsa*k);
 
 #pragma unroll
-      for (index_t j = 0; j < item_cols/4; ++j)
-        _reg_b[j] = *(((cl::sycl::float4*)(B.get())) + (ldsb/4)*k + j); //*(B + j * ldsb + k);
+      for (index_t j = 0; j < item_cols; ++j)
+        _reg_b[j] = *(B + j * ldsb + k);
 
 #pragma unroll
-      for (index_t i = 0; i < item_rows/4; ++i) {
+      for (index_t i = 0; i < item_rows; ++i) {
 #pragma unroll
-        for (index_t j = 0; j < item_cols/4; ++j) {
-          for (index_t v1 = 0; v1 < 4; ++v1)
-          for (index_t v2 = 0; v2 < 4; ++v2)
-          reg_res[(j+v2) * item_rows + i + v1] =
-              cl::sycl::mad(_reg_a[i][v1], _reg_b[j][v2], reg_res[(j+v2) * item_rows + i+v1]);
+        for (index_t j = 0; j < item_cols; ++j) {
+          reg_res[j * item_rows + i] =
+              cl::sycl::mad(_reg_a[i], _reg_b[j], reg_res[j * item_rows + i]);
         }
       }
 
