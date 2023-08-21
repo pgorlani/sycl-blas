@@ -462,7 +462,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range);
         // s1, s3 -> s2, s4
-        id.barrier(cl::sycl::access::fence_space::local_space);
+//        id.barrier(cl::sycl::access::fence_space::local_space);
         compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
                                                          reg_b, reg_res);
         A += cl_elems * (trans_a ? 1 : lda);
@@ -483,8 +483,8 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
           }
         }
 */
-        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
-                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
+//        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
+//                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
         k -= cl_elems;
       }
 
@@ -509,12 +509,12 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         extract_input_blocks<check_m_limit, check_n_limit, true, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range);
-        id.barrier(cl::sycl::access::fence_space::local_space);
+//        id.barrier(cl::sycl::access::fence_space::local_space);
         compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
                                                          reg_b, reg_res);
 
-        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
-                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
+//        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
+//                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
       }
 
       // store the output
@@ -789,7 +789,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     cl::sycl::float4 /*element_t*/ _reg_a[item_rows/4];
     cl::sycl::float4 /*element_t*/ _reg_b[item_cols/4];
 
-#pragma unroll
+//#pragma unroll
     for (index_t k = 0; k < cl_elems; ++k) {
 
 #pragma unroll
