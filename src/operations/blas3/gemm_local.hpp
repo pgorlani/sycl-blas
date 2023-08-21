@@ -210,7 +210,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
    */
   SYCL_BLAS_INLINE index_t
   get_num_workgroup_cluster(index_t compute_units) const noexcept {
-    return ((/*32*/ 4  * compute_units - 1) / get_workgroup_cluster() + 1);
+    return ((32 /*4*/  * compute_units - 1) / get_workgroup_cluster() + 1);
   }
 
   /*!
@@ -335,14 +335,14 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         scratch +
         (trans_b ? item_id_ofs / block_cols + (item_id_ofs % block_cols) * ldsb
                  : item_id_ofs % cl_elems + (item_id_ofs / cl_elems) * ldsb);
-    auto s2 = scratch + (item_id / wg_rows) * item_cols * ldsb;
+    auto s2 = scratch; //+ (item_id / wg_rows) * item_cols * ldsb;
     index_t ofs = (double_buffer + 1) * block_cols * ldsb;
     auto s3 =
         scratch + ofs +
         (trans_a
              ? /*row*/ item_id_ofs / cl_elems   + /*col*/ (item_id_ofs % cl_elems) * ldsa
              : /*row*/ item_id_ofs % block_rows + /*col*/ (item_id_ofs / block_rows) * ldsa);
-    auto s4 = scratch + ofs + (item_id % wg_rows * vector_offset);
+    auto s4 = scratch;//+ ofs + (item_id % wg_rows * vector_offset);
 
     if (internal) {
       compute_panel_gemm<double_buffer, false, false>(
@@ -794,11 +794,11 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
 
 #pragma unroll
       for (index_t i = 0; i < item_rows/4 ; ++i)
-        _reg_a[i] = *((cl::sycl::float4*) (A.get() + ldsa*k + i)); //*(A + (i * wg_rows) + ldsa*k);
+        _reg_a[i] = *(((cl::sycl::float4*) (A.get())) + (ldsa/4)*k + i); //*(A + (i * wg_rows) + ldsa*k);
 
 #pragma unroll
       for (index_t j = 0; j < item_cols/4; ++j)
-        _reg_b[j] = *((cl::sycl::float4*) (B.get() + ldsb*k + j)); //*(B + j * ldsb + k);
+        _reg_b[j] = *(((cl::sycl::float4*)(B.get())) + (ldsb/4)*k + j); //*(B + j * ldsb + k);
 
 #pragma unroll
       for (index_t i = 0; i < item_rows/4; ++i) {
