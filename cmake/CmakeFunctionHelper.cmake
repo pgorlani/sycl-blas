@@ -648,7 +648,7 @@ if(${TUNING_TARGET} STREQUAL "INTEL_GPU")
 #      64 4 4 4 4 1 1 1 1 4 4 1 1 1 float float "no_local" "standard" "full" 4 "interleaved" "false")
 #
     add_gemm_configuration(
-      "${data}" 64 "false" "false" "false"
+      "${data}" 64 "true" "false" "false"
       64 8 4 16 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 1 "strided" "false")
   endforeach()
 elseif(${TUNING_TARGET} STREQUAL "POWER_VR" AND NOT IMGDNN_DIR)
