@@ -661,6 +661,8 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
    * @param in_col  a predicate which checks whether a col index is within
    *                matrix bounds
    */
+
+#if 0
   template <bool internal, bool check_row_limit, bool check_col_limit,
             bool trans, bool symm, bool left_side, index_t rows, index_t cols,
             index_t lds, typename InputPointerType, typename ScratchPointerType,
@@ -734,7 +736,69 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       }
     }
   }
+#else
+// this is mine
+  template <bool internal, bool check_row_limit, bool check_col_limit,
+            bool trans, bool symm, bool left_side, index_t rows, index_t cols,
+            index_t lds, typename InputPointerType, typename ScratchPointerType,
+            typename RowPredicate, typename ColPredicate>
+  SYCL_BLAS_INLINE typename std::enable_if<!trans>::type extract_block(
+      index_t item_id, index_t row, index_t col, InputPointerType ptr,
+      index_t ld, ScratchPointerType scratch, RowPredicate in_row,
+      ColPredicate in_col) {
+    constexpr index_t bs = rows * cols;
+    constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
+#pragma unroll
+    for (index_t i = 0; i < (bs - 1) / (wg_size * multiplier) + 1; ++i) {
+      if (!do_check<((bs % (wg_size * multiplier)) != 0)>(
+              item_id + i * (wg_size * multiplier) < bs))
+        continue;
+      const index_t col_ofs = i * ((wg_size * multiplier) / rows);
+      const bool in_range =
+          do_check<check_row_limit>(
+              in_row(((item_id * multiplier) % rows), multiplier - 1)) &&
+          do_check<check_col_limit>(
+              in_col((item_id * multiplier / rows), col_ofs));
 
+      const auto edge_in_range = [&](const index_t &ofs) {
+        return in_row((item_id * multiplier) % rows, ofs) &&
+               in_col((item_id * multiplier) / rows, col_ofs);
+      };
+
+      *(scratch + col_ofs * lds) = (in_range && edge_in_range(0)) ? *(ptr + (col_ofs * ld)) : 0;
+    }
+  }
+  template <bool internal, bool check_row_limit, bool check_col_limit,
+            bool trans, bool symm, bool left_side, index_t rows, index_t cols,
+            index_t lds, typename InputPointerType, typename ScratchPointerType,
+            typename RowPredicate, typename ColPredicate>
+  SYCL_BLAS_INLINE typename std::enable_if<trans>::type extract_block(
+      index_t item_id, index_t row, index_t col, InputPointerType ptr,
+      index_t ld, ScratchPointerType scratch, RowPredicate in_row,
+      ColPredicate in_col) {
+    const index_t bs = rows * cols;
+    constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
+#pragma unroll // this get unrolled by the nvidia backend
+    for (index_t i = 0; i < (bs - 1) / (wg_size * multiplier) + 1; ++i) {
+      if (!do_check<((bs % (wg_size * multiplier)) != 0)>(
+              item_id + i * (wg_size * multiplier) < bs))
+        continue;
+      const index_t row_ofs = i * ((wg_size * multiplier) / cols);
+      const bool in_range = do_check<check_row_limit>(in_row(
+                                (item_id * multiplier) / cols, row_ofs)) &&
+                            do_check<check_col_limit>(in_col(
+                                (item_id * multiplier) % cols, multiplier - 1));
+
+      auto edge_in_range = [&](const index_t &ofs) SYCL_BLAS_ALWAYS_INLINE {
+        return in_col((item_id * multiplier) % cols, ofs) &&
+               in_row((item_id * multiplier) / cols, row_ofs);
+      };
+      *(scratch + row_ofs) = (in_range && edge_in_range(0)) ? *(ptr + (row_ofs * ld)) : 0;
+    }
+  }
+
+
+#endif
   /*!
    * @brief Compute a small matrix-matrix product `reg_res += A*B`.
    *
