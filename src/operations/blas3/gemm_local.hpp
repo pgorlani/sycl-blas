@@ -456,14 +456,13 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       element_t reg_res[item_rows * item_cols]; // private memory containing the item_tile of the solution
       scaling_c<check_m_limit, check_n_limit>(reg_res, C, mc, nc, ldc,
                                               out_of_range);
-      // READ A and B and put them in the local memory
-      extract_input_blocks<check_m_limit, check_n_limit, false, symm_a,
+      while (k >= cl_elems) {
+        // READ A and B and put them in the local memory
+        extract_input_blocks<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range);
-      // s1, s3 -> s2, s4
-      id.barrier(cl::sycl::access::fence_space::local_space);
-
-      while (k >= cl_elems) {
+        // s1, s3 -> s2, s4
+        id.barrier(cl::sycl::access::fence_space::local_space);
         compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
                                                          reg_b, reg_res);
         A += cl_elems * (trans_a ? 1 : lda);
@@ -487,14 +486,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
                   ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
         k -= cl_elems;
-
-        // READ A and B and put them in the local memory
-        extract_input_blocks<check_m_limit, check_n_limit, false, symm_a,
-                             symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
-                                     B, ldb, s1, s3, out_of_range);
-        // s1, s3 -> s2, s4
-        id.barrier(cl::sycl::access::fence_space::local_space);
-       }
+      }
 
       // this is for the left-over
       if (k > 0) {
