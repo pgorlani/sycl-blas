@@ -462,23 +462,28 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         extract_input_blocks<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range);
-#else
-        element_t valA(0), valB(0);
+        // s1, s3 -> s2, s4
+        id.barrier(cl::sycl::access::fence_space::local_space);
+        compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
+                                                         reg_b, reg_res);
+ #else
+        element_t valA[(block_rows*cl_elems - 1) / (wg_size) + 1];
+        element_t valB[(cl_elems*block_cols - 1) / (wg_size) + 1];
+
+        //read from global memory
         extract_input_blocks_read<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range, valA, valB);
+
         compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
                                                          reg_b, reg_res);
-         extract_input_blocks_write<check_m_limit, check_n_limit, false, symm_a,
+
+        extract_input_blocks_write<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range, valA, valB);
 #endif
-        // s1, s3 -> s2, s4
-//        id.barrier(cl::sycl::access::fence_space::local_space);
-//        compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
-//                                                         reg_b, reg_res);
-        A += cl_elems * (trans_a ? 1 : lda);
-        B += cl_elems * (trans_b ? ldb : 1);
+       A += cl_elems * (trans_a ? 1 : lda);
+       B += cl_elems * (trans_b ? ldb : 1);
 /*
         if constexpr (symm_a) {
           if constexpr (trans_a) {
@@ -647,7 +652,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       index_t col_a, index_t row_b, index_t col_b, InputPointerType A,
       index_t lda, InputPointerType B, index_t ldb, ScratchPointerType sB,
       ScratchPointerType sA, const bool out_of_range,
-      element_t & valA, element_t & valB) noexcept {
+      element_t * valA, element_t * valB) noexcept {
     if (out_of_range) {
       return;
     }
@@ -677,19 +682,27 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       index_t col_a, index_t row_b, index_t col_b, InputPointerType A,
       index_t lda, InputPointerType B, index_t ldb, ScratchPointerType sB,
       ScratchPointerType sA, const bool out_of_range,
-      const element_t & valA, const element_t & valB) noexcept {
+      element_t * valA, element_t * valB) noexcept {
     if (out_of_range) {
       return;
     }
+
     extract_block_write<!check_m_limit && !check_n_limit, check_m_limit,
                   check_k_limit, trans_a, symm_a, true, block_rows, cl_elems,
-                  ldsa>(item_id, sA, valA); 
+                  ldsa>(
+        item_id, row_a, col_a, A, lda, sA,
+        [&](index_t, index_t cr) SYCL_BLAS_ALWAYS_INLINE { return cr < m; },
+        [&](index_t ic, index_t cc)
+            SYCL_BLAS_ALWAYS_INLINE { return cc < k - ic; }, valA);
     extract_block_write<!check_m_limit && !check_n_limit, check_k_limit,
                   check_n_limit, trans_b, symm_b, false, cl_elems, block_cols,
-                  ldsb>(item_id, sB, valB);
+                  ldsb>(
+        item_id, row_b, col_b, B, ldb, sB,
+        [&](index_t ir, index_t cr)
+            SYCL_BLAS_ALWAYS_INLINE { return cr < k - ir; },
+        [&](index_t, index_t cc) SYCL_BLAS_ALWAYS_INLINE { return cc < n; },
+        valB);
   }
-
-
 
   /*!
    * @brief Extract a block of a matrix from global to shared memory, and
@@ -807,7 +820,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
   SYCL_BLAS_INLINE typename std::enable_if<!trans>::type extract_block_read(
       index_t item_id, index_t row, index_t col, InputPointerType ptr,
       index_t ld, ScratchPointerType scratch, RowPredicate in_row,
-      ColPredicate in_col, element_t & val) {
+      ColPredicate in_col, element_t * val) {
     constexpr index_t bs = rows * cols;
     constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
 #pragma unroll
@@ -827,7 +840,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                in_col((item_id * multiplier) / rows, col_ofs);
       };
 
-      val = (in_range && edge_in_range(0)) ? *(ptr + (col_ofs * ld)) : 0;
+      /**(scratch + col_ofs * lds) =*/ val[i] = (in_range && edge_in_range(0)) ? *(ptr + (col_ofs * ld)) : 0;
     }
   }
   template <bool internal, bool check_row_limit, bool check_col_limit,
@@ -837,7 +850,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
   SYCL_BLAS_INLINE typename std::enable_if<trans>::type extract_block_read(
       index_t item_id, index_t row, index_t col, InputPointerType ptr,
       index_t ld, ScratchPointerType scratch, RowPredicate in_row,
-      ColPredicate in_col, element_t & val) {
+      ColPredicate in_col, element_t * val) {
     const index_t bs = rows * cols;
     constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
 #pragma unroll // this get unrolled by the nvidia backend
@@ -855,16 +868,18 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         return in_col((item_id * multiplier) % cols, ofs) &&
                in_row((item_id * multiplier) / cols, row_ofs);
       };
-      val = (in_range && edge_in_range(0)) ? *(ptr + (row_ofs * ld)) : 0;
+      /**(scratch + row_ofs) =*/ val[i] = (in_range && edge_in_range(0)) ? *(ptr + (row_ofs * ld)) : 0;
     }
   }
 
-// this is mine
   template <bool internal, bool check_row_limit, bool check_col_limit,
             bool trans, bool symm, bool left_side, index_t rows, index_t cols,
-            index_t lds, typename ScratchPointerType>
+            index_t lds, typename InputPointerType, typename ScratchPointerType,
+            typename RowPredicate, typename ColPredicate>
   SYCL_BLAS_INLINE typename std::enable_if<!trans>::type extract_block_write(
-      index_t item_id, ScratchPointerType scratch, const element_t & val) {
+      index_t item_id, index_t row, index_t col, InputPointerType ptr,
+      index_t ld, ScratchPointerType scratch, RowPredicate in_row,
+      ColPredicate in_col, element_t * val) {
     constexpr index_t bs = rows * cols;
     constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
 #pragma unroll
@@ -873,23 +888,46 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
               item_id + i * (wg_size * multiplier) < bs))
         continue;
       const index_t col_ofs = i * ((wg_size * multiplier) / rows);
-      *(scratch + col_ofs * lds) = val;
+      const bool in_range =
+          do_check<check_row_limit>(
+              in_row(((item_id * multiplier) % rows), multiplier - 1)) &&
+          do_check<check_col_limit>(
+              in_col((item_id * multiplier / rows), col_ofs));
+
+      const auto edge_in_range = [&](const index_t &ofs) {
+        return in_row((item_id * multiplier) % rows, ofs) &&
+               in_col((item_id * multiplier) / rows, col_ofs);
+      };
+
+      *(scratch + col_ofs * lds) = val[i];//= (in_range && edge_in_range(0)) ? *(ptr + (col_ofs * ld)) : 0;
     }
   }
   template <bool internal, bool check_row_limit, bool check_col_limit,
             bool trans, bool symm, bool left_side, index_t rows, index_t cols,
-            index_t lds, typename ScratchPointerType>
+            index_t lds, typename InputPointerType, typename ScratchPointerType,
+            typename RowPredicate, typename ColPredicate>
   SYCL_BLAS_INLINE typename std::enable_if<trans>::type extract_block_write(
-      index_t item_id, ScratchPointerType scratch, const element_t & val) {
+      index_t item_id, index_t row, index_t col, InputPointerType ptr,
+      index_t ld, ScratchPointerType scratch, RowPredicate in_row,
+      ColPredicate in_col, element_t * val) {
     const index_t bs = rows * cols;
     constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
-#pragma unroll 
+#pragma unroll // this get unrolled by the nvidia backend
     for (index_t i = 0; i < (bs - 1) / (wg_size * multiplier) + 1; ++i) {
       if (!do_check<((bs % (wg_size * multiplier)) != 0)>(
               item_id + i * (wg_size * multiplier) < bs))
         continue;
       const index_t row_ofs = i * ((wg_size * multiplier) / cols);
-      *(scratch + row_ofs) = val;
+      const bool in_range = do_check<check_row_limit>(in_row(
+                                (item_id * multiplier) / cols, row_ofs)) &&
+                            do_check<check_col_limit>(in_col(
+                                (item_id * multiplier) % cols, multiplier - 1));
+
+      auto edge_in_range = [&](const index_t &ofs) SYCL_BLAS_ALWAYS_INLINE {
+        return in_col((item_id * multiplier) % cols, ofs) &&
+               in_row((item_id * multiplier) / cols, row_ofs);
+      };
+      *(scratch + row_ofs) = val[i];//= (in_range && edge_in_range(0)) ? *(ptr + (row_ofs * ld)) : 0;
     }
   }
 
