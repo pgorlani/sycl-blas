@@ -444,6 +444,9 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       const bool out_of_range, index_t batch_stride, index_t wg_batch_id,
       index_t batch_size) noexcept {
     index_t ofs = 1;
+    element_t valA[(block_rows*cl_elems - 1) / (wg_size) + 1];              
+    element_t valB[(cl_elems*block_cols - 1) / (wg_size) + 1]; 
+
     do {                                      // for each matrix in the batch
       auto A = orig_A;
       auto B = orig_B;
@@ -456,77 +459,47 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       element_t reg_res[item_rows * item_cols]; // private memory containing the item_tile of the solution
       scaling_c<check_m_limit, check_n_limit>(reg_res, C, mc, nc, ldc,
                                               out_of_range);
-      while (k >= cl_elems) {
-#if 0
-        // READ A and B and put them in the local memory
-        extract_input_blocks<check_m_limit, check_n_limit, false, symm_a,
+
+      // READ A and B and put them in the local memory
+      extract_input_blocks<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range);
-        // s1, s3 -> s2, s4
-        id.barrier(cl::sycl::access::fence_space::local_space);
-        compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
-                                                         reg_b, reg_res);
- #else
-        element_t valA[(block_rows*cl_elems - 1) / (wg_size) + 1];
-        element_t valB[(cl_elems*block_cols - 1) / (wg_size) + 1];
+      // s1, s3 -> s2, s4
+      id.barrier(cl::sycl::access::fence_space::local_space);
 
-        //read from global memory
+      while (k >= cl_elems) {
+        A += cl_elems * (trans_a ? 1 : lda);
+        B += cl_elems * (trans_b ? ldb : 1);
+        k -= cl_elems;
+
+        if (k >= cl_elems)
         extract_input_blocks_read<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
-                                     B, ldb, s1, s3, out_of_range, valA, valB);
+                                     B, ldb, nullptr, nullptr, out_of_range,
+                                     valA, valB);
+        else
+        extract_input_blocks_read<check_m_limit, check_n_limit, true, symm_a,
+                             symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
+                                     B, ldb, nullptr, nullptr, out_of_range,
+                                     valA, valB);
 
         compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
                                                          reg_b, reg_res);
+ 
+        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
+                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
 
+        // write to local memory
         extract_input_blocks_write<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range, valA, valB);
-#endif
-       A += cl_elems * (trans_a ? 1 : lda);
-       B += cl_elems * (trans_b ? ldb : 1);
-/*
-        if constexpr (symm_a) {
-          if constexpr (trans_a) {
-            ra += cl_elems;
-          } else {
-            ca += cl_elems;
-          }
-        }
-        if constexpr (symm_b) {
-          if constexpr (trans_b) {
-            cb += cl_elems;
-          } else {
-            rb += cl_elems;
-          }
-        }
-*/
-        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
-                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
-        k -= cl_elems;
-      }
+         // s1, s3 -> s2, s4
+        id.barrier(cl::sycl::access::fence_space::local_space);
+       }
 
       // this is for the left-over
       if (k > 0) {
-/*
-        if constexpr (symm_a) {
-          if constexpr (trans_a) {
-            ra = row_a + (orig_k - k);
-          } else {
-            ca = col_a + (orig_k - k);
-          }
-        }
-        if constexpr (symm_b) {
-          if constexpr (trans_b) {
-            cb = col_b + (orig_k - k);
-          } else {
-            rb = row_b + (orig_k - k);
-          }
-        }
-*/
-        extract_input_blocks<check_m_limit, check_n_limit, true, symm_a,
-                             symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
-                                     B, ldb, s1, s3, out_of_range);
-        id.barrier(cl::sycl::access::fence_space::local_space);
+
         compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
                                                          reg_b, reg_res);
 
