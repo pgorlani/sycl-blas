@@ -38,7 +38,6 @@ typename sb_handle_t::event_t _gemm(
     container_1_t _b, index_t _ldb, index_t _strideb, element_t _beta,
     container_2_t _c, index_t _ldc, index_t _stridec, index_t batch_size,
     gemm_batch_type_t batch_type) {
-#if 0
   if (batch_type == gemm_batch_type_t::interleaved) {
     return blas::Gemm_Launcher<
         64, false, false, false, 64, Tile<4, 4, 4, 4, 1, 1, 1, 1, 4, 4>, _t_a,
@@ -50,6 +49,7 @@ typename sb_handle_t::event_t _gemm(
                               _b, _ldb, _strideb, _beta, _c, _ldc, _stridec,
                               batch_size);
   }
+#if 0
 #ifdef GEMM_TALL_SKINNY_SUPPORT
   if (!s_a && !s_b) {
     /* Tall & Skinny matrices. */

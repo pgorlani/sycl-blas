@@ -643,10 +643,10 @@ if(${TUNING_TARGET} STREQUAL "INTEL_GPU")
 #      "${data}" 32 "true" "true" "true"
 #      64 2 2 8 4 1 1 1 1 1 1 1 1 1 float float "local" "tall_skinny" "none" 4 "strided" "false")
 #
-#    add_gemm_configuration(
-#      "${data}" 64 "false" "false" "false"
-#      64 4 4 4 4 1 1 1 1 4 4 1 1 1 float float "no_local" "standard" "full" 4 "interleaved" "false")
-#
+    add_gemm_configuration(
+      "${data}" 64 "false" "false" "false"
+      64 4 4 4 4 1 1 1 1 4 4 1 1 1 float float "no_local" "standard" "full" 4 "interleaved" "false")
+
     add_gemm_configuration(
       "${data}" 64 "true" "false" "false"
       64 8 4 16 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 1 "strided" "false")
