@@ -620,7 +620,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
   template <bool check_m_limit, bool check_n_limit, bool check_k_limit,
             bool symm_a, bool symm_b, typename InputPointerType,
             typename ScratchPointerType>
-  SYCL_BLAS_INLINE void extract_input_blocks_read(
+  PORTBLAS_INLINE void extract_input_blocks_read(
       index_t item_id, index_t m, index_t n, index_t k, index_t row_a,
       index_t col_a, index_t row_b, index_t col_b, InputPointerType A,
       index_t lda, InputPointerType B, index_t ldb, ScratchPointerType sB,
@@ -634,23 +634,23 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                   check_k_limit, trans_a, symm_a, true, block_rows, cl_elems,
                   ldsa>(
         item_id, row_a, col_a, A, lda, sA,
-        [&](index_t, index_t cr) SYCL_BLAS_ALWAYS_INLINE { return cr < m; },
+        [&](index_t, index_t cr) PORTBLAS_ALWAYS_INLINE { return cr < m; },
         [&](index_t ic, index_t cc)
-            SYCL_BLAS_ALWAYS_INLINE { return cc < k - ic; }, valA);
+            PORTBLAS_ALWAYS_INLINE { return cc < k - ic; }, valA);
     extract_block_read<!check_m_limit && !check_n_limit, check_k_limit,
                   check_n_limit, trans_b, symm_b, false, cl_elems, block_cols,
                   ldsb>(
         item_id, row_b, col_b, B, ldb, sB,
         [&](index_t ir, index_t cr)
-            SYCL_BLAS_ALWAYS_INLINE { return cr < k - ir; },
-        [&](index_t, index_t cc) SYCL_BLAS_ALWAYS_INLINE { return cc < n; },
+            PORTBLAS_ALWAYS_INLINE { return cr < k - ir; },
+        [&](index_t, index_t cc) PORTBLAS_ALWAYS_INLINE { return cc < n; },
         valB);
   }
 
   template <bool check_m_limit, bool check_n_limit, bool check_k_limit,
             bool symm_a, bool symm_b, typename InputPointerType,
             typename ScratchPointerType>
-  SYCL_BLAS_INLINE void extract_input_blocks_write(
+  PORTBLAS_INLINE void extract_input_blocks_write(
       index_t item_id, index_t m, index_t n, index_t k, index_t row_a,
       index_t col_a, index_t row_b, index_t col_b, InputPointerType A,
       index_t lda, InputPointerType B, index_t ldb, ScratchPointerType sB,
@@ -664,16 +664,16 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                   check_k_limit, trans_a, symm_a, true, block_rows, cl_elems,
                   ldsa>(
         item_id, row_a, col_a, A, lda, sA,
-        [&](index_t, index_t cr) SYCL_BLAS_ALWAYS_INLINE { return cr < m; },
+        [&](index_t, index_t cr) PORTBLAS_ALWAYS_INLINE { return cr < m; },
         [&](index_t ic, index_t cc)
-            SYCL_BLAS_ALWAYS_INLINE { return cc < k - ic; }, valA);
+            PORTBLAS_ALWAYS_INLINE { return cc < k - ic; }, valA);
     extract_block_write<!check_m_limit && !check_n_limit, check_k_limit,
                   check_n_limit, trans_b, symm_b, false, cl_elems, block_cols,
                   ldsb>(
         item_id, row_b, col_b, B, ldb, sB,
         [&](index_t ir, index_t cr)
-            SYCL_BLAS_ALWAYS_INLINE { return cr < k - ir; },
-        [&](index_t, index_t cc) SYCL_BLAS_ALWAYS_INLINE { return cc < n; },
+            PORTBLAS_ALWAYS_INLINE { return cr < k - ir; },
+        [&](index_t, index_t cc) PORTBLAS_ALWAYS_INLINE { return cc < n; },
         valB);
   }
 
@@ -790,7 +790,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
             bool trans, bool symm, bool left_side, index_t rows, index_t cols,
             index_t lds, typename InputPointerType, typename ScratchPointerType,
             typename RowPredicate, typename ColPredicate>
-  SYCL_BLAS_INLINE typename std::enable_if<!trans>::type extract_block_read(
+  PORTBLAS_INLINE typename std::enable_if<!trans>::type extract_block_read(
       index_t item_id, index_t row, index_t col, InputPointerType ptr,
       index_t ld, ScratchPointerType scratch, RowPredicate in_row,
       ColPredicate in_col, element_t * val) {
@@ -820,7 +820,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
             bool trans, bool symm, bool left_side, index_t rows, index_t cols,
             index_t lds, typename InputPointerType, typename ScratchPointerType,
             typename RowPredicate, typename ColPredicate>
-  SYCL_BLAS_INLINE typename std::enable_if<trans>::type extract_block_read(
+  PORTBLAS_INLINE typename std::enable_if<trans>::type extract_block_read(
       index_t item_id, index_t row, index_t col, InputPointerType ptr,
       index_t ld, ScratchPointerType scratch, RowPredicate in_row,
       ColPredicate in_col, element_t * val) {
@@ -837,7 +837,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                             do_check<check_col_limit>(in_col(
                                 (item_id * multiplier) % cols, multiplier - 1));
 
-      auto edge_in_range = [&](const index_t &ofs) SYCL_BLAS_ALWAYS_INLINE {
+      auto edge_in_range = [&](const index_t &ofs) PORTBLAS_ALWAYS_INLINE {
         return in_col((item_id * multiplier) % cols, ofs) &&
                in_row((item_id * multiplier) / cols, row_ofs);
       };
@@ -849,7 +849,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
             bool trans, bool symm, bool left_side, index_t rows, index_t cols,
             index_t lds, typename InputPointerType, typename ScratchPointerType,
             typename RowPredicate, typename ColPredicate>
-  SYCL_BLAS_INLINE typename std::enable_if<!trans>::type extract_block_write(
+  PORTBLAS_INLINE typename std::enable_if<!trans>::type extract_block_write(
       index_t item_id, index_t row, index_t col, InputPointerType ptr,
       index_t ld, ScratchPointerType scratch, RowPredicate in_row,
       ColPredicate in_col, element_t * val) {
@@ -879,7 +879,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
             bool trans, bool symm, bool left_side, index_t rows, index_t cols,
             index_t lds, typename InputPointerType, typename ScratchPointerType,
             typename RowPredicate, typename ColPredicate>
-  SYCL_BLAS_INLINE typename std::enable_if<trans>::type extract_block_write(
+  PORTBLAS_INLINE typename std::enable_if<trans>::type extract_block_write(
       index_t item_id, index_t row, index_t col, InputPointerType ptr,
       index_t ld, ScratchPointerType scratch, RowPredicate in_row,
       ColPredicate in_col, element_t * val) {
@@ -896,7 +896,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                             do_check<check_col_limit>(in_col(
                                 (item_id * multiplier) % cols, multiplier - 1));
 
-      auto edge_in_range = [&](const index_t &ofs) SYCL_BLAS_ALWAYS_INLINE {
+      auto edge_in_range = [&](const index_t &ofs) PORTBLAS_ALWAYS_INLINE {
         return in_col((item_id * multiplier) % cols, ofs) &&
                in_row((item_id * multiplier) / cols, row_ofs);
       };
