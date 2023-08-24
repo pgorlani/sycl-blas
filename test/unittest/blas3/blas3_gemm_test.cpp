@@ -26,14 +26,14 @@
 #include "blas3_gemm_common.hpp"
 #include "blas_test.hpp"
 
-#if 0
+#if 1
 template <typename scalar_t>
 const auto mytest = ::testing::Combine(
     ::testing::Values(0),                          // offset
     ::testing::Values(1),                          // batch
-    ::testing::Values(128),                 // m
-    ::testing::Values(128),                 // n
-    ::testing::Values(128),                     // k
+    ::testing::Values(8192),                 // m
+    ::testing::Values(8192),                 // n
+    ::testing::Values(8192),                     // k
     ::testing::Values('n'),                   // transa
     ::testing::Values('n'),                   // transb
     ::testing::Values<scalar_t>(1),              // alpha

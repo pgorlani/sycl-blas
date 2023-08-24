@@ -763,7 +763,12 @@ elseif(${TUNING_TARGET} STREQUAL "NVIDIA_GPU")
     add_gemm_configuration(
         "${data}" 128 "false" "true" "true"
       128 2 2 16 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 1 "strided" "false")
-     endforeach()
+
+    add_gemm_configuration(
+        "${data}" 512 "true" "true" "true"
+      64 4 8 32 16 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 1 "strided" "false")
+
+    endforeach()
 else() # default cpu backend
   set(supported_types
     "float"
