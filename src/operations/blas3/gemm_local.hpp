@@ -136,10 +136,6 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                 "of the number of columns in a block\n"
                 " --- this is ensured iff: item_cols | wg_rows");
 
-  static_assert(big_tile_rows == big_tile_cols,
-                "Big tile level dimensions should be square, i.e. tl_rows * "
-                "block_rows == tl_cols * block_cols");
-
   static_assert(item_rows % packetize_t::packet_size == 0,
                 "Item rows must be a multiple of the vector packet size");
 
@@ -289,7 +285,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     const index_t tile_row = (tile_id % tiles_per_col) * tl_rows;
     const index_t tile_col = (tile_id / tiles_per_col) * tl_cols;
     const index_t wg_row = (tile_row + tile_local_id % tl_rows) * block_rows;
-    const index_t wg_col = (tile_col + tile_local_id / tl_rows) * block_rows;
+    const index_t wg_col = (tile_col + tile_local_id / tl_rows) * block_cols;
     const bool out_of_range = (wg_row >= m || wg_col >= n);
     const bool internal = m - wg_row >= block_rows && n - wg_col >= block_cols;
     const index_t vector_offset = internal ? packetize_t::packet_size : 1;
