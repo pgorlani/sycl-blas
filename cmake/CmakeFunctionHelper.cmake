@@ -469,7 +469,11 @@ elseif(${TUNING_TARGET} STREQUAL "NVIDIA_GPU")
       add_gemm_configuration(
           "float" 256 "false" "true" "true"
           128 8 8 16 16 16 2 1 1 1 1 16 16 16 cl::sycl::half float "local" "standard" "none" 1 "strided" "true")
+      add_gemm_configuration(
+        "${data}"  64 "false" "false" "true"
+          64 8 8 8 8 1 1 2 2 1 1 1 1 1 float float "local" "standard" "full" 1 "strided" "false")
     endif()
+
     # Non-Joint Matrix specific GEMM Configurations
     add_gemm_configuration(
       "${data}" 64 "false" "false" "false"

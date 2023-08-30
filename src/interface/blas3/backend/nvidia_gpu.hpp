@@ -56,6 +56,7 @@ typename sb_handle_t::event_t _gemm(
 #ifdef SB_ENABLE_JOINT_MATRIX
   const char* en_joint_matrix = std::getenv("SB_ENABLE_JOINT_MATRIX");
   if (en_joint_matrix != NULL && *en_joint_matrix == '1') {
+   std::cerr<<"joint on"<<std::endl;
     if (_M > 1024 && _N > 1024) {
       return blas::Gemm_Launcher<
           container_0_t, container_1_t, container_2_t, 256, false, true, true,
@@ -101,6 +102,7 @@ typename sb_handle_t::event_t _gemm(
                                        _dependencies);
     }
   } else {
+   std::cerr<<"joint off"<<std::endl;
     return blas::Gemm_Launcher<
         container_0_t, container_1_t, container_2_t, 64, false, false, true, 64,
         Tile<8, 8, 8, 8, 1, 1, 2, 2, 1, 1, 1, 1, 1, float, float>, _t_a, _t_b,
@@ -110,7 +112,7 @@ typename sb_handle_t::event_t _gemm(
         static_cast<int>(gemm_batch_type_t::strided),
         false>::template _select_gemm(sb_handle, _M, _N, _K, _alpha, _a, _lda,
                                       _stridea, _b, _ldb, _strideb, _beta, _c,
-                                      _ldc, _stridec, batch_size);
+                                      _ldc, _stridec, batch_size, _dependencies);
   }
 
 #else  // SB_ENABLE_JOINT_MATRIX
