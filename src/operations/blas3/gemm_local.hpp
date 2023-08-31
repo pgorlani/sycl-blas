@@ -369,15 +369,12 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     }
     constexpr index_t offset =
         (!check_m_limit && !check_n_limit) ? packetize_t::packet_size : 1;
-#pragma unroll
     for (index_t i = 0; i < item_cols; ++i) {
-#pragma unroll
       for (index_t j = 0; j < item_rows / offset; ++j) {
         const bool in_range =
             do_check<check_m_limit>(j * wg_rows * offset < mc) &&
             do_check<check_n_limit>(i < nc);
         if (in_range) {
-#pragma unroll
           for (index_t l = 0; l < offset; ++l) {
             reg_res[i * item_rows + j * offset + l] =
                 beta_ * *(C + j * (wg_rows * offset) + l);
@@ -393,7 +390,6 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
   PORTBLAS_INLINE typename std::enable_if<beta_zero>::type scaling_c(
       element_t *reg_res, InputPointerType, const index_t &, const index_t &,
       const index_t &, const bool) {
-#pragma unroll
     for (index_t i = 0; i < item_cols * item_rows; ++i) {
       reg_res[i] = 0;
     }
@@ -556,9 +552,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     }
     constexpr index_t offset =
         (!check_m_limit && !check_n_limit) ? packetize_t::packet_size : 1;
-#pragma unroll
     for (index_t i = 0; i < item_cols; ++i) {
-#pragma unroll
       for (index_t j = 0; j < item_rows / offset; j++) {
         const bool in_range =
             do_check<check_m_limit>(j * wg_rows * offset < mc) &&
@@ -740,6 +734,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     //       resulting from loop unrollment.
     constexpr index_t work_per_load =
         !check_m_limit && !check_n_limit ? packetize_t::packet_size : 1;
+#pragma unroll
     for (index_t i = 0; i < cl_elems; ++i) {
 #pragma unroll
       for (index_t j = 0; j < item_rows / work_per_load; ++j) {
