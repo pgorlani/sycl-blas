@@ -1,72 +1,8 @@
 {"local":[
      {
         "cache_line_size":[128,64],
-        "work_item_sizes":[[2,2]],
-        "work_group_sizes":[[16,8]],
-        "vectorization_size":[1],
-        "block_level_tiles":[[1, 1]],
-        "double_buffer":[false],
-        "no_bank_conflict_a":[false],
-        "no_bank_conflict_b":[false]
-    },
-     {
-        "cache_line_size":[128,64],
-        "work_item_sizes":[[2,2]],
-        "work_group_sizes":[[8,16]],
-        "vectorization_size":[1],
-        "block_level_tiles":[[1, 1]],
-        "double_buffer":[false],
-        "no_bank_conflict_a":[false],
-        "no_bank_conflict_b":[false]
-    },
-
-     {
-        "cache_line_size":[128,64],
-        "work_item_sizes":[[4,4]],
-        "work_group_sizes":[[8,16]],
-        "vectorization_size":[1],
-        "block_level_tiles":[[1, 1]],
-        "double_buffer":[false],
-        "no_bank_conflict_a":[false],
-        "no_bank_conflict_b":[false]
-    },
-    {
-        "cache_line_size":[128,64],
-        "work_item_sizes":[[4,4]],
-        "work_group_sizes":[[16,8]],
-        "vectorization_size":[1],
-        "block_level_tiles":[[1, 1]],
-        "double_buffer":[false],
-        "no_bank_conflict_a":[false],
-        "no_bank_conflict_b":[false]
-    },
-
-
-
-    {
-        "cache_line_size":[128,64],
-        "work_item_sizes":[[8,8]],
-        "work_group_sizes":[[16,8]],
-        "vectorization_size":[1],
-        "block_level_tiles":[[1, 1]],
-        "double_buffer":[false],
-        "no_bank_conflict_a":[false],
-        "no_bank_conflict_b":[false]
-    },
-    {
-        "cache_line_size":[128,64],
-        "work_item_sizes":[[8,8]],
-        "work_group_sizes":[[8,16]],
-        "vectorization_size":[1],
-        "block_level_tiles":[[1, 1]],
-        "double_buffer":[false],
-        "no_bank_conflict_a":[false],
-        "no_bank_conflict_b":[false]
-    },
-    {
-        "cache_line_size":[128,64],
-        "work_item_sizes":[[8,8]],
-        "work_group_sizes":[[8,8]],
+        "work_item_sizes":[[2,2],[4,2],[2,4],[4,4],[4,8],[8,8]],
+        "work_group_sizes":[[4,4],[8,4],[4,8],[8,8],[16,8],[8,16],[16,16]],
         "vectorization_size":[1],
         "block_level_tiles":[[1, 1]],
         "double_buffer":[false],
