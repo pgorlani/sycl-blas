@@ -43,7 +43,7 @@ inline portblas_handle_t make_portblas_handle() {
     } catch (cl::sycl::exception &e) {
       throw std::runtime_error(e.what());
     }
-  });
+  }, {cl::sycl::property::queue::in_order()});
   std::cout << "\nDevice: "
             << q.get_device().get_info<cl::sycl::info::device::name>()
             << std::endl;
