@@ -89,7 +89,8 @@ static void run_tune(int rep, double flop_cnt, TestResultEntry &result,
   Seconds runtime_secs;
   // warmup
   try {
-    op();
+    for (int i = 0; i < 10; ++i)
+      op();
     auto start = std::chrono::steady_clock::now();
     for (int i = 0; i < rep; ++i) {
       op();
