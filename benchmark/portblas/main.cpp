@@ -58,10 +58,10 @@ int main(int argc, char** argv) {
     // googlebench, as otherwise we may not be able to delete the queue before
     // we exit (if Initialise calls exit(0)), and dump some information about it
     q = cl::sycl::queue(*cdsp.get(),
-                        {cl::sycl::property::queue::enable_profiling(),cl::sycl::property::queue::in_order});
+                        {cl::sycl::property::queue::enable_profiling(),cl::sycl::property::queue::in_order()});
   } else {
     q = cl::sycl::queue(cl::sycl::default_selector(),
-                        {cl::sycl::property::queue::enable_profiling(),cl::sycl::property::queue::in_order}});
+                        {cl::sycl::property::queue::enable_profiling(),cl::sycl::property::queue::in_order()}});
   }
 
   utils::print_queue_information(q);
