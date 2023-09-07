@@ -61,7 +61,7 @@ int main(int argc, char** argv) {
                         {cl::sycl::property::queue::enable_profiling(),cl::sycl::property::queue::in_order()});
   } else {
     q = cl::sycl::queue(cl::sycl::default_selector(),
-                        {cl::sycl::property::queue::enable_profiling(),cl::sycl::property::queue::in_order()}});
+                        {cl::sycl::property::queue::enable_profiling(),cl::sycl::property::queue::in_order()});
   }
 
   utils::print_queue_information(q);
