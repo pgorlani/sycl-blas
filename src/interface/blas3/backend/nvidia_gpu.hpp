@@ -130,7 +130,7 @@ typename sb_handle_t::event_t _gemm(
                                       _ldc, _stridec, batch_size,
                                       _dependencies);
 
-  } else if (_M <= 384 && _N <= 384) {
+/*  } else if (_M <= 384 && _N <= 384) {
     return blas::Gemm_Launcher<
         container_0_t, container_1_t, container_2_t, 128, false, true, true,
         128, Tile<2, 4, 16, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, float, float>, _t_a,
@@ -141,11 +141,11 @@ typename sb_handle_t::event_t _gemm(
         false>::template _select_gemm(sb_handle, _M, _N, _K, _alpha, _a, _lda,
                                       _stridea, _b, _ldb, _strideb, _beta, _c,
                                       _ldc, _stridec, batch_size,
-                                      _dependencies);
+                                      _dependencies);*/
   } else if (_M <= 1024 && _N <= 1024) {
     return blas::Gemm_Launcher<
         container_0_t, container_1_t, container_2_t, 128, false, true, true,
-        128, Tile<4, 4, 16, 16, 1, 1, 1, 1, 1, 1, 1, 1, 1, float, float>, _t_a,
+        128, Tile<4, 4, 16, 8, 1, 1, 1, 1, 1, 1, 1, 1, 1, float, float>, _t_a,
         _t_b, s_a, s_b, static_cast<int>(gemm_memory_t::local),
         static_cast<int>(gemm_algorithm_t::standard),
         static_cast<int>(gemm_vectorization_t::full), is_beta_zero, 1,
