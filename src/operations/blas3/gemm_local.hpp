@@ -316,16 +316,16 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     m = m - wg_row - ((trans_a ? col_a : row_a) - wg_row);
 
     auto s1 =
-        scratch +
-        (trans_b ? item_id_ofs / block_cols + (item_id_ofs % block_cols) * ldsb
-                 : item_id_ofs % cl_elems + (item_id_ofs / cl_elems) * ldsb);
+        scratch; //+
+//        (trans_b ? item_id_ofs / block_cols + (item_id_ofs % block_cols) * ldsb
+//                 : item_id_ofs % cl_elems + (item_id_ofs / cl_elems) * ldsb);
     auto s2 = scratch + (item_id / wg_rows) * item_cols * ldsb;
     index_t ofs = (double_buffer + 1) * block_cols * ldsb;
     auto s3 =
-        scratch + ofs +
-        (trans_a
-             ? item_id_ofs / cl_elems + (item_id_ofs % cl_elems) * ldsa
-             : item_id_ofs % block_rows + (item_id_ofs / block_rows) * ldsa);
+        scratch; //+ ofs +
+//        (trans_a
+//             ? item_id_ofs / cl_elems + (item_id_ofs % cl_elems) * ldsa
+//             : item_id_ofs % block_rows + (item_id_ofs / block_rows) * ldsa);
     auto s4 = scratch + ofs + (item_id % wg_rows * vector_offset);
 
     if (internal) {
@@ -427,6 +427,9 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     element_t valA[(block_rows*cl_elems - 1) / (wg_size) + 1];              
     element_t valB[(cl_elems*block_cols - 1) / (wg_size) + 1]; 
 
+    sycl::multi_ptr<float, sycl::access::address_space::global_space> ptr_A = (float*) a_.get_pointer() + (wg_batch_id * stridea_);
+    sycl::multi_ptr<float, sycl::access::address_space::global_space> ptr_B = (float*) b_.get_pointer() + (wg_batch_id * strideb_);
+
     do {                                      // for each matrix in the batch
       auto A = orig_A;
       auto B = orig_B;
@@ -452,6 +455,14 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         B += cl_elems * (trans_b ? ldb : 1);
         k -= cl_elems;
 
+        extract_input_blocks_async<check_m_limit, check_n_limit, false, symm_a,
+                             symm_b>(id, item_id, m, n, k, ra, ca, rb, cb, ptr_A, lda,
+                                     ptr_B, ldb, s1, s3, out_of_range);
+
+        compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
+                                                         reg_b, reg_res);
+
+#if 0 
         if (k >= cl_elems)
         extract_input_blocks_read<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
@@ -462,17 +473,15 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, nullptr, nullptr, out_of_range,
                                      valA, valB);
-
-        compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
-                                                         reg_b, reg_res);
- 
+#endif
         sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
                   ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
-
+#if 0
         // write to local memory
         extract_input_blocks_write<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range, valA, valB);
+#endif
          // s1, s3 -> s2, s4
         id.barrier(cl::sycl::access::fence_space::local_space);
        }
@@ -595,6 +604,37 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         [&](index_t, index_t cc) PORTBLAS_ALWAYS_INLINE { return cc < n; });
   }
 
+  // this is mine
+  template <bool check_m_limit, bool check_n_limit, bool check_k_limit,
+            bool symm_a, bool symm_b, typename InputPointerType,
+            typename ScratchPointerType>
+  PORTBLAS_INLINE void extract_input_blocks_async(
+      const cl::sycl::nd_item<1> &id,
+      index_t item_id, index_t m, index_t n, index_t k, index_t row_a,
+      index_t col_a, index_t row_b, index_t col_b, InputPointerType A,
+      index_t lda, InputPointerType B, index_t ldb, ScratchPointerType sB,
+      ScratchPointerType sA, const bool out_of_range) noexcept {
+    if (out_of_range) {
+      return;
+    }
+
+    extract_block_async<!check_m_limit && !check_n_limit, check_m_limit,
+                  check_k_limit, trans_a, symm_a, true, block_rows, cl_elems,
+                  ldsa>(
+        id, item_id, row_a, col_a, A, lda, sA,
+        [&](index_t, index_t cr) PORTBLAS_ALWAYS_INLINE { return cr < m; },
+        [&](index_t ic, index_t cc)
+            PORTBLAS_ALWAYS_INLINE { return cc < k - ic; });
+    extract_block_async<!check_m_limit && !check_n_limit, check_k_limit,
+                  check_n_limit, trans_b, symm_b, false, cl_elems, block_cols,
+                  ldsb>(
+        id, item_id, row_b, col_b, B, ldb, sB,
+        [&](index_t ir, index_t cr)
+            PORTBLAS_ALWAYS_INLINE { return cr < k - ir; },
+        [&](index_t, index_t cc) PORTBLAS_ALWAYS_INLINE { return cc < n; });
+  }
+
+  // this is mine
   template <bool check_m_limit, bool check_n_limit, bool check_k_limit,
             bool symm_a, bool symm_b, typename InputPointerType,
             typename ScratchPointerType>
@@ -751,7 +791,6 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         return in_col((item_id * multiplier) % cols, ofs) &&
                in_row((item_id * multiplier) / cols, row_ofs);
       };
-
       if constexpr (symm) {
         load_symm<trans, left_side, internal, lds>(
             row, col, row_ofs, ld, in_range, ptr + (row_ofs * ld),
@@ -760,6 +799,72 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         packetize_t::template load<trans, internal, lds>(
             in_range, ptr + (row_ofs * ld), scratch + row_ofs, edge_in_range);
       }
+    }
+  }
+
+// this is mine
+  template <bool internal, bool check_row_limit, bool check_col_limit,
+            bool trans, bool symm, bool left_side, index_t rows, index_t cols,
+            index_t lds, typename InputPointerType, typename ScratchPointerType,
+            typename RowPredicate, typename ColPredicate>
+  PORTBLAS_INLINE typename std::enable_if<!trans,int>::type extract_block_async(
+      const cl::sycl::nd_item<1> &id,
+      index_t item_id, index_t row, index_t col, InputPointerType ptr,
+      index_t ld, ScratchPointerType scratch, RowPredicate in_row,
+      ColPredicate in_col) {
+    constexpr index_t bs = rows * cols;
+    constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
+#pragma unroll
+    for (index_t i = 0; i < (bs - 1) / (wg_size * multiplier) + 1; ++i) {
+      if (!do_check<((bs % (wg_size * multiplier)) != 0)>(
+              item_id + i * (wg_size * multiplier) < bs))
+        continue;
+      const index_t col_ofs = i * ((wg_size * multiplier) / rows);
+      const bool in_range =
+          do_check<check_row_limit>(
+              in_row(((item_id * multiplier) % rows), multiplier - 1)) &&
+          do_check<check_col_limit>(
+              in_col((item_id * multiplier / rows), col_ofs));
+
+      const auto edge_in_range = [&](const index_t &ofs) {
+        return in_row((item_id * multiplier) % rows, ofs) &&
+               in_col((item_id * multiplier) / rows, col_ofs);
+      };
+
+      id.async_work_group_copy((scratch + col_ofs * lds),
+         (ptr + col_ofs * ld),
+         rows);
+      //*(scratch + col_ofs * lds) = (in_range && edge_in_range(0)) ? *(ptr + (col_ofs * ld)) : 0;
+    }
+  return 0;
+  }
+  template <bool internal, bool check_row_limit, bool check_col_limit,
+            bool trans, bool symm, bool left_side, index_t rows, index_t cols,
+            index_t lds, typename InputPointerType, typename ScratchPointerType,
+            typename RowPredicate, typename ColPredicate>
+  PORTBLAS_INLINE typename std::enable_if<trans>::type extract_block_async(
+      const cl::sycl::nd_item<1> &id,
+      index_t item_id, index_t row, index_t col, InputPointerType ptr,
+      index_t ld, ScratchPointerType scratch, RowPredicate in_row,
+      ColPredicate in_col) {
+    const index_t bs = rows * cols;
+    constexpr index_t multiplier = internal ? packetize_t::packet_size : 1;
+#pragma unroll
+    for (index_t i = 0; i < (bs - 1) / (wg_size * multiplier) + 1; ++i) {
+      if (!do_check<((bs % (wg_size * multiplier)) != 0)>(
+              item_id + i * (wg_size * multiplier) < bs))
+        continue;
+      const index_t row_ofs = i * ((wg_size * multiplier) / cols);
+      const bool in_range = do_check<check_row_limit>(in_row(
+                                (item_id * multiplier) / cols, row_ofs)) &&
+                            do_check<check_col_limit>(in_col(
+                                (item_id * multiplier) % cols, multiplier - 1));
+
+      auto edge_in_range = [&](const index_t &ofs) PORTBLAS_ALWAYS_INLINE {
+        return in_col((item_id * multiplier) % cols, ofs) &&
+               in_row((item_id * multiplier) / cols, row_ofs);
+      };
+      *(scratch + row_ofs) = (in_range && edge_in_range(0)) ? *(ptr + (row_ofs * ld)) : 0;
     }
   }
 
