@@ -456,7 +456,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         if (double_buffer) id.barrier(cl::sycl::access::fence_space::local_space);
         sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
                   ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
-
+/*
         if (k >= cl_elems)
         extract_input_blocks_read<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
@@ -467,9 +467,12 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, nullptr, nullptr, out_of_range,
                                      valA, valB);
-
-        compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2_prev, s4_prev, reg_a,
-                                                         reg_b, reg_res);
+*/
+        compute_block_gemm_fused<check_m_limit, check_n_limit>(item_id, s2_prev, s4_prev, reg_a,
+                                                         reg_b, reg_res,
+                                     item_id, m, n, k, ra, ca, rb, cb, A, lda,
+                                     B, ldb, nullptr, nullptr, out_of_range,
+                                     valA, valB);
 
         // finish the read of local matrix
         if (!double_buffer) id.barrier(cl::sycl::access::fence_space::local_space);
@@ -938,6 +941,66 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       B = B + 1;
     }
   }
+
+
+  template <bool check_m_limit, bool check_n_limit, typename InputPointerType, typename InputPointerType2, typename ScratchPointerType>
+  PORTBLAS_INLINE void compute_block_gemm_fused(index_t, InputPointerType B,
+                                           InputPointerType A, element_t *reg_a,
+                                           element_t &reg_b,
+                                           element_t *reg_res,
+      index_t item_id, index_t m, index_t n, index_t _k, index_t row_a,
+      index_t col_a, index_t row_b, index_t col_b, InputPointerType2 gA,
+      index_t lda, InputPointerType2 gB, index_t ldb, ScratchPointerType sB,
+      ScratchPointerType sA, const bool out_of_range,
+      element_t * valA, element_t * valB) noexcept {
+
+    element_t _reg_a[item_rows];
+    element_t _reg_b[item_cols];
+
+#pragma unroll
+    for (index_t k = 0; k < cl_elems; ++k) {
+
+    if (k == 2){
+    extract_block_read<!check_m_limit && !check_n_limit, check_m_limit,
+                  true, trans_a, false, true, block_rows, cl_elems,
+                  ldsa>(
+        item_id, row_a, col_a, gA, lda, sA,
+        [&](index_t, index_t cr) PORTBLAS_ALWAYS_INLINE { return cr < m; },
+        [&](index_t ic, index_t cc)
+            PORTBLAS_ALWAYS_INLINE { return cc < _k - ic; }, valA);
+    }
+    if (k == 5){
+    extract_block_read<!check_m_limit && !check_n_limit, true,
+                  check_n_limit, trans_b, false, false, cl_elems, block_cols,
+                  ldsb>(
+        item_id, row_b, col_b, gB, ldb, sB,
+        [&](index_t ir, index_t cr)
+            PORTBLAS_ALWAYS_INLINE { return cr < _k - ir; },
+        [&](index_t, index_t cc) PORTBLAS_ALWAYS_INLINE { return cc < n; },
+        valB);
+    }
+
+#pragma unroll
+      for (index_t i = 0; i < item_rows ; ++i)
+        _reg_a[i] = *(A + (i * wg_rows) + ldsa*k);
+
+#pragma unroll
+      for (index_t j = 0; j < item_cols; ++j)
+        _reg_b[j] = *(B + j * ldsb + k);
+
+#pragma unroll
+      for (index_t i = 0; i < item_rows; ++i) {
+#pragma unroll
+        for (index_t j = 0; j < item_cols; ++j) {
+          reg_res[j * item_rows + i] =
+              cl::sycl::mad(_reg_a[i], _reg_b[j], reg_res[j * item_rows + i]);
+        }
+      }
+
+    }
+  }
+
+
 
   /*!
    * @brief Synchronize multiple shared memory blocks using a barrier or
