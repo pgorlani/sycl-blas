@@ -444,13 +444,18 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       extract_input_blocks<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range);
-      // s1, s3 -> s2, s4
-      id.barrier(cl::sycl::access::fence_space::local_space);
-
       while (k >= cl_elems) {
+
         A += cl_elems * (trans_a ? 1 : lda);
         B += cl_elems * (trans_b ? ldb : 1);
         k -= cl_elems;
+        auto s2_prev = s2;
+        auto s4_prev = s4;
+
+        // there must be a barrier in any case
+        if (double_buffer) id.barrier(cl::sycl::access::fence_space::local_space);
+        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
+                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
 
         if (k >= cl_elems)
         extract_input_blocks_read<check_m_limit, check_n_limit, false, symm_a,
@@ -463,28 +468,30 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
                                      B, ldb, nullptr, nullptr, out_of_range,
                                      valA, valB);
 
-        compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
+        compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2_prev, s4_prev, reg_a,
                                                          reg_b, reg_res);
- 
-        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
-                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
 
+        // finish the read of local matrix
+        if (!double_buffer) id.barrier(cl::sycl::access::fence_space::local_space);
+ 
         // write to local memory
         extract_input_blocks_write<check_m_limit, check_n_limit, false, symm_a,
                              symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
                                      B, ldb, s1, s3, out_of_range, valA, valB);
-         // s1, s3 -> s2, s4
-        id.barrier(cl::sycl::access::fence_space::local_space);
+
        }
 
-      // this is for the left-over
       if (k > 0) {
-
+//        extract_input_blocks<check_m_limit, check_n_limit, true, symm_a,
+//                             symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
+//                                     B, ldb, s1, s3, out_of_range);
+        id.barrier(cl::sycl::access::fence_space::local_space);
+ 
         compute_block_gemm<check_m_limit, check_n_limit>(item_id, s2, s4, reg_a,
                                                          reg_b, reg_res);
 
-        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
-                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
+//        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
+//                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
       }
 
       // store the output
