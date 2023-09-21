@@ -326,6 +326,11 @@ if(${TUNING_TARGET} STREQUAL "INTEL_GPU")
     "half"
   )
   foreach(data ${supported_types})
+
+    add_gemm_configuration(
+       "${data}" 64 "true" "false" "false"
+      64 8 4 16 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 1 "strided" "false")
+
     add_gemm_configuration(
       "${data}" 64 "true" "false" "false"
       64 4 4 8 8 1 1 1 1 1 1 1 1 1 float float "local" "standard" "full" 4 "strided" "false")
