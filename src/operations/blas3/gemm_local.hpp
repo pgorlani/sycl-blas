@@ -960,26 +960,6 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
 #pragma unroll
     for (index_t k = 0; k < cl_elems; ++k) {
 
-    if (k == 2){
-    extract_block_read<!check_m_limit && !check_n_limit, check_m_limit,
-                  true, trans_a, false, true, block_rows, cl_elems,
-                  ldsa>(
-        item_id, row_a, col_a, gA, lda, sA,
-        [&](index_t, index_t cr) PORTBLAS_ALWAYS_INLINE { return cr < m; },
-        [&](index_t ic, index_t cc)
-            PORTBLAS_ALWAYS_INLINE { return cc < _k - ic; }, valA);
-    }
-    if (k == 5){
-    extract_block_read<!check_m_limit && !check_n_limit, true,
-                  check_n_limit, trans_b, false, false, cl_elems, block_cols,
-                  ldsb>(
-        item_id, row_b, col_b, gB, ldb, sB,
-        [&](index_t ir, index_t cr)
-            PORTBLAS_ALWAYS_INLINE { return cr < _k - ir; },
-        [&](index_t, index_t cc) PORTBLAS_ALWAYS_INLINE { return cc < n; },
-        valB);
-    }
-
 #pragma unroll
       for (index_t i = 0; i < item_rows ; ++i)
         _reg_a[i] = *(A + (i * wg_rows) + ldsa*k);
@@ -996,6 +976,27 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
               cl::sycl::mad(_reg_a[i], _reg_b[j], reg_res[j * item_rows + i]);
         }
       }
+
+    if (k == 7){
+    extract_block_read<!check_m_limit && !check_n_limit, check_m_limit,
+                  true, trans_a, false, true, block_rows, cl_elems,
+                  ldsa>(
+        item_id, row_a, col_a, gA, lda, sA,
+        [&](index_t, index_t cr) PORTBLAS_ALWAYS_INLINE { return cr < m; },
+        [&](index_t ic, index_t cc)
+            PORTBLAS_ALWAYS_INLINE { return cc < _k - ic; }, valA);
+    }
+    if (k == 15){
+    extract_block_read<!check_m_limit && !check_n_limit, true,
+                  check_n_limit, trans_b, false, false, cl_elems, block_cols,
+                  ldsb>(
+        item_id, row_b, col_b, gB, ldb, sB,
+        [&](index_t ir, index_t cr)
+            PORTBLAS_ALWAYS_INLINE { return cr < _k - ir; },
+        [&](index_t, index_t cc) PORTBLAS_ALWAYS_INLINE { return cc < n; },
+        valB);
+    }
+
 
     }
   }
