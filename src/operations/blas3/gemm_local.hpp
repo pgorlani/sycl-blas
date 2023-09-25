@@ -453,9 +453,9 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         auto s4_prev = s4;
 
         // there must be a barrier in any case
-        if (double_buffer) id.barrier(cl::sycl::access::fence_space::local_space);
-        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
-                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
+//        if (double_buffer) id.barrier(cl::sycl::access::fence_space::local_space);
+//        sync_smem<double_buffer, block_cols * ldsb, block_cols * ldsb,
+//                  ldsa * cl_elems, ldsa * cl_elems>(id, ofs, s1, s2, s3, s4);
 /*
         if (k >= cl_elems)
         extract_input_blocks_read<check_m_limit, check_n_limit, false, symm_a,
@@ -471,16 +471,16 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
         compute_block_gemm_fused<check_m_limit, check_n_limit>(item_id, s2_prev, s4_prev, reg_a,
                                                          reg_b, reg_res,
                                      item_id, m, n, k, ra, ca, rb, cb, A, lda,
-                                     B, ldb, nullptr, nullptr, out_of_range,
+                                     B, ldb, /*nullptr*/s1, s3/*nullptr*/, out_of_range,
                                      valA, valB);
 
         // finish the read of local matrix
-        if (!double_buffer) id.barrier(cl::sycl::access::fence_space::local_space);
+//        if (!double_buffer) id.barrier(cl::sycl::access::fence_space::local_space);
  
         // write to local memory
-        extract_input_blocks_write<check_m_limit, check_n_limit, false, symm_a,
-                             symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
-                                     B, ldb, s1, s3, out_of_range, valA, valB);
+//        extract_input_blocks_write<check_m_limit, check_n_limit, false, symm_a,
+//                             symm_b>(item_id, m, n, k, ra, ca, rb, cb, A, lda,
+//                                     B, ldb, s1, s3, out_of_range, valA, valB);
 
        }
 
@@ -715,7 +715,7 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
               item_id + i * (wg_size * multiplier) < bs))
         continue;
       const index_t col_ofs = i * ((wg_size * multiplier) / rows);
-      const bool in_range =
+      const bool in_range = 
           do_check<check_row_limit>(
               in_row(((item_id * multiplier) % rows), multiplier - 1)) &&
           do_check<check_col_limit>(
@@ -978,23 +978,23 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
       }
 
     if (k == 7){
-    extract_block_read<!check_m_limit && !check_n_limit, check_m_limit,
+    extract_block<!check_m_limit && !check_n_limit, check_m_limit,
                   true, trans_a, false, true, block_rows, cl_elems,
                   ldsa>(
         item_id, row_a, col_a, gA, lda, sA,
         [&](index_t, index_t cr) PORTBLAS_ALWAYS_INLINE { return cr < m; },
         [&](index_t ic, index_t cc)
-            PORTBLAS_ALWAYS_INLINE { return cc < _k - ic; }, valA);
+            PORTBLAS_ALWAYS_INLINE { return cc < _k - ic; }/*, valA*/);
     }
     if (k == 15){
-    extract_block_read<!check_m_limit && !check_n_limit, true,
+    extract_block<!check_m_limit && !check_n_limit, true,
                   check_n_limit, trans_b, false, false, cl_elems, block_cols,
                   ldsb>(
         item_id, row_b, col_b, gB, ldb, sB,
         [&](index_t ir, index_t cr)
             PORTBLAS_ALWAYS_INLINE { return cr < _k - ir; },
-        [&](index_t, index_t cc) PORTBLAS_ALWAYS_INLINE { return cc < n; },
-        valB);
+        [&](index_t, index_t cc) PORTBLAS_ALWAYS_INLINE { return cc < n; }/*,
+        valB*/);
     }
 
 
