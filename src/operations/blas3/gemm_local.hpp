@@ -736,7 +736,9 @@ class Gemm<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, TileType,
     //       resulting from loop unrollment.
     constexpr index_t work_per_load =
         !check_m_limit && !check_n_limit ? packetize_t::packet_size : 1;
+#if defined NVIDIA_GPU
 #pragma unroll
+#endif
     for (index_t i = 0; i < cl_elems; ++i) {
 #pragma unroll
       for (index_t j = 0; j < item_rows / work_per_load; ++j) {
