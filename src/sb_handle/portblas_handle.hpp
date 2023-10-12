@@ -258,6 +258,7 @@ inline typename SB_Handle::event_t SB_Handle::execute(
       GemmMemoryType>::get_ideal_cube_depth(SB_Handle::get_num_compute_units(),
                                             rows, cols, gemm_wrapper.k_);
 
+
   /* In some cases, use the tsgemm kernel as a normal gemm operation */
   if (depth == 1 || gemm_wrapper.k_ <= 2048) {
     GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, tile_type,
@@ -266,6 +267,7 @@ inline typename SB_Handle::event_t SB_Handle::execute(
                      gemm_wrapper.alpha_, gemm_wrapper.beta_, 1);
     auto events = execute(gemm_partial, dependencies);
 
+   std::cerr<<__FILE__<<" "<<__LINE__<<std::endl; 
     return events;
   }
   /* Else use the tall and skinny algorithm */

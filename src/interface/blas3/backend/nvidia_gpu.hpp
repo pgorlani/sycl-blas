@@ -40,6 +40,7 @@ typename sb_handle_t::event_t _gemm(
     container_2_t _c, index_t _ldc, index_t _stridec, index_t batch_size,
     gemm_batch_type_t batch_type,
     const typename sb_handle_t::event_t& _dependencies) {
+#if 0
   if (batch_type == gemm_batch_type_t::interleaved) {
     return blas::Gemm_Launcher<
         container_0_t, container_1_t, container_2_t, 64, false, false, false,
@@ -166,6 +167,18 @@ typename sb_handle_t::event_t _gemm(
       false>::template _select_gemm(sb_handle, _M, _N, _K, _alpha, _a, _lda,
                                     _stridea, _b, _ldb, _strideb, _beta, _c,
                                     _ldc, _stridec, batch_size, _dependencies);
+#endif
+  return blas::Gemm_Launcher<
+      container_0_t, container_1_t, container_2_t, 64, false, false, true, 64,
+      Tile<8, 8, 8, 8, 1, 1, 2, 2, 1, 1, 1, 1, 1, float, float>, _t_a, _t_b,
+      s_a, s_b, static_cast<int>(gemm_memory_t::local),
+      static_cast<int>(gemm_algorithm_t::tall_skinny),
+      static_cast<int>(gemm_vectorization_t::none), is_beta_zero, 1,
+      static_cast<int>(gemm_batch_type_t::strided),
+      false>::template _select_gemm(sb_handle, _M, _N, _K, _alpha, _a, _lda,
+                                    _stridea, _b, _ldb, _strideb, _beta, _c,
+                                    _ldc, _stridec, batch_size, _dependencies);
+
 }
 }  // namespace backend
 }  // namespace gemm
