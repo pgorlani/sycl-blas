@@ -195,7 +195,7 @@ class GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize,
         ((m - 1) / tile_size_dim_m + 1) * ((n - 1) / tile_size_dim_n + 1);
     /* The depth of the cube buffer is calculated so that each compute unit
      * will compute 4 work groups. This value is empirical */
-    return (4 * compute_units - 1) / group_count_mn + 1;
+    return (/*4 */ compute_units - 1) / group_count_mn + 1;
   }
 
   /*!
@@ -293,7 +293,7 @@ class GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize,
           (DoubleBuffer * (tile_id & 1) * lhs_tile_mem_size) + m_local_id;
       index_t rhs_offset =
           (DoubleBuffer * (tile_id & 1) * rhs_tile_mem_size) + n_local_id;
-
+#pragma unroll
       /* Loop over the values of a single tile */
       for (index_t k = 0; k < tile_size_dim_k; k++) {
         index_t idx = 0;
@@ -301,13 +301,13 @@ class GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize,
 #pragma unroll
         for (index_t wLPTN = 0; wLPTN < tile_type::item_cols; wLPTN++) {
           // load a RHS element from the scratch buffer
-          const value_t privateRhs = rhs_scratch_ptr[rhs_index + rhs_offset];
+          const value_t privateRhs = /*value_t(rhs_index);*/rhs_scratch_ptr[rhs_index + rhs_offset];
 
           index_t lhs_index = 0;
 #pragma unroll
           for (index_t wLPTM = 0; wLPTM < tile_type::item_rows; wLPTM++) {
             // load a LHS element from the scratch buffer
-            const value_t privateLhs = scratch_ptr[lhs_index + lhs_offset];
+            const value_t privateLhs = /*value_t(lhs_index)*0.01f;*/scratch_ptr[lhs_index + lhs_offset];
 
             private_res[wLPTM + idx] =
                 cl::sycl::mad(privateLhs, privateRhs, private_res[wLPTM + idx]);

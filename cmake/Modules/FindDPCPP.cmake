@@ -42,7 +42,7 @@ find_library(DPCPP_LIB_DIR NAMES sycl sycl6 PATHS "${DPCPP_BIN_DIR}/../lib")
 
 add_library(DPCPP::DPCPP INTERFACE IMPORTED)
 
-set(DPCPP_FLAGS "-fsycl;-fsycl-targets=${DPCPP_SYCL_TARGET};${DPCPP_USER_FLAGS}")
+set(DPCPP_FLAGS "-g;-fsycl;-fsycl-targets=${DPCPP_SYCL_TARGET};${DPCPP_USER_FLAGS}")
 if(NOT "${DPCPP_SYCL_ARCH}" STREQUAL "")
   if("${DPCPP_SYCL_TARGET}" STREQUAL "amdgcn-amd-amdhsa")
     list(APPEND DPCPP_FLAGS "-Xsycl-target-backend")

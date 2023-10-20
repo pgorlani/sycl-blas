@@ -251,23 +251,24 @@ inline typename SB_Handle::event_t SB_Handle::execute(
   const index_t cols = gemm_wrapper.n_;
   const index_t ldc = gemm_wrapper.ldc_;
 
+//  std::cerr<<__FILE__<<" "<<__LINE__<<" rows="<<rows<<" cols="<<cols<<" gemm_wrapper.k_="<<gemm_wrapper.k_<<std::endl; 
+
   /* Depth of the cube buffer */
   const index_t depth = GemmPartial<
       input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, tile_type, TransA,
       TransB, false, is_beta_zero, element_t,
       GemmMemoryType>::get_ideal_cube_depth(SB_Handle::get_num_compute_units(),
                                             rows, cols, gemm_wrapper.k_);
-
+//  std::cerr<<__FILE__<<" "<<__LINE__<<" depth="<<depth<<std::endl; 
 
   /* In some cases, use the tsgemm kernel as a normal gemm operation */
   if (depth == 1 || gemm_wrapper.k_ <= 2048) {
     GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, tile_type,
                 TransA, TransB, true, is_beta_zero, element_t, GemmMemoryType>
         gemm_partial(gemm_wrapper.a_, gemm_wrapper.b_, gemm_wrapper.c_,
-                     gemm_wrapper.alpha_, gemm_wrapper.beta_, 1);
+                     gemm_wrapper.alpha_, gemm_wrapper.beta_, 1); //<----------
     auto events = execute(gemm_partial, dependencies);
 
-   std::cerr<<__FILE__<<" "<<__LINE__<<std::endl; 
     return events;
   }
   /* Else use the tall and skinny algorithm */
@@ -288,7 +289,7 @@ inline typename SB_Handle::event_t SB_Handle::execute(
   GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, tile_type,
               TransA, TransB, false, true, element_t, GemmMemoryType>
       gemm_partial(gemm_wrapper.a_, gemm_wrapper.b_, cube_gemm,
-                   gemm_wrapper.alpha_, gemm_wrapper.beta_, depth);
+                   gemm_wrapper.alpha_, gemm_wrapper.beta_, depth); //<--------
   auto events = execute(gemm_partial, dependencies);
 
   /* Create a second view used for the reduction */
