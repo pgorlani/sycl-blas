@@ -39,6 +39,23 @@
 
 namespace blas {
 
+#ifdef SB_ENABLE_USM
+template <helper::AllocType alloc, typename value_t>
+typename std::enable_if<alloc == helper::AllocType::usm,
+                        typename helper::AllocHelper<value_t, alloc>::type>::type
+SB_Handle::allocate(int size) {
+  return reinterpret_cast<value_t *>(cl::sycl::malloc_device<int>(size, q_));
+}
+#endif
+
+template <helper::AllocType alloc, typename value_t>
+typename std::enable_if<alloc == helper::AllocType::buffer,
+                        typename helper::AllocHelper<value_t, alloc>::type>::type
+SB_Handle::allocate(int size) {
+  cl::sycl::buffer<int, 1> buff{cl::sycl::range<1>(size)};
+  return blas::BufferIterator<value_t>{buff.reinterpret<value_t>()};
+}
+
 /*!
  * @brief Executes the tree without defining required shared memory.
  */
@@ -276,9 +293,15 @@ inline typename SB_Handle::event_t SB_Handle::execute(
 
   /* First step: partial gemm */
   /* Create the cube buffer that will hold the output of the partial gemm */
+#if 0
   auto cube_buffer = helper::allocate < is_usm ? helper::AllocType::usm
                                                : helper::AllocType::buffer,
        element_t > (rows * cols * depth, q_);
+#else
+  auto cube_buffer = allocate < is_usm ? helper::AllocType::usm
+                                               : helper::AllocType::buffer,
+       element_t > (rows * cols * depth);
+#endif
 
   /* Create a first matrix view used for the partial gemm */
   auto cube_gemm =

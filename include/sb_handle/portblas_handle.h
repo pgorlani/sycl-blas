@@ -52,6 +52,18 @@ class SB_Handle {
         localMemorySupport_(helper::has_local_memory(q)),
         computeUnits_(helper::get_num_compute_units(q)) {}
 
+#ifdef SB_ENABLE_USM
+  template <helper::AllocType alloc, typename value_t>
+  typename std::enable_if<alloc == helper::AllocType::usm,
+                          typename helper::AllocHelper<value_t, alloc>::type>::type
+  allocate(int size);
+#endif
+
+  template <helper::AllocType alloc, typename value_t>
+  typename std::enable_if<alloc == helper::AllocType::buffer,
+                          typename helper::AllocHelper<value_t, alloc>::type>::type
+  allocate(int size);
+
   template <typename expression_tree_t>
   event_t execute(expression_tree_t tree, const event_t& dependencies = {});
 
