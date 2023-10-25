@@ -25,6 +25,7 @@
 
 #ifndef PORTBLAS_HANDLE_H
 #define PORTBLAS_HANDLE_H
+#include <map>
 #include "blas_meta.h"
 #include "operations/blas1_trees.h"
 #include "operations/blas2_trees.h"
@@ -52,6 +53,17 @@ class SB_Handle {
         localMemorySupport_(helper::has_local_memory(q)),
         computeUnits_(helper::get_num_compute_units(q)) {}
 
+  ~SB_Handle(){
+#ifdef SB_ENABLE_USM
+  // synchronize with the host, just at the end
+  q_.wait();
+  for(auto e : temp_usm_map){
+  std::cerr<<"destroying"<<std::endl;
+    cl::sycl::free(e.second, q_);
+  }
+#endif
+  }
+
 #ifdef SB_ENABLE_USM
   template <helper::AllocType alloc, typename value_t>
   typename std::enable_if<alloc == helper::AllocType::usm,
@@ -63,6 +75,21 @@ class SB_Handle {
   typename std::enable_if<alloc == helper::AllocType::buffer,
                           typename helper::AllocHelper<value_t, alloc>::type>::type
   allocate(int size);
+
+#ifdef SB_ENABLE_USM
+  template <typename container_t>
+  typename std::enable_if<std::is_same<
+      container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
+                                        helper::AllocType::usm>::type>::value>::type
+  enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem, int size);
+#endif
+
+  template <typename container_t>
+  typename std::enable_if<std::is_same<
+      container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
+                                        helper::AllocType::buffer>::type>::value>::type
+  enqueue_deallocate(std::vector<cl::sycl::event>, const container_t & mem, int size);
+
 
   template <typename expression_tree_t>
   event_t execute(expression_tree_t tree, const event_t& dependencies = {});
@@ -163,6 +190,10 @@ class SB_Handle {
   const size_t workGroupSize_;
   const bool localMemorySupport_;
   const size_t computeUnits_;
+#ifdef SB_ENABLE_USM
+  std::map<size_t, int *> temp_usm_map;
+#endif
+  std::map<size_t, cl::sycl::buffer<int, 1>> temp_buff_map;
 };
 
 }  // namespace blas

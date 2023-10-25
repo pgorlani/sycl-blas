@@ -44,7 +44,14 @@ template <helper::AllocType alloc, typename value_t>
 typename std::enable_if<alloc == helper::AllocType::usm,
                         typename helper::AllocHelper<value_t, alloc>::type>::type
 SB_Handle::allocate(int size) {
-  return reinterpret_cast<value_t *>(cl::sycl::malloc_device<int>(size, q_));
+  auto found = temp_usm_map.lower_bound(size); 
+  if (found != temp_usm_map.end()) {
+    temp_usm_map.extract(found);
+    return reinterpret_cast<value_t *>(found->second);
+  } else {
+    int * tmp = cl::sycl::malloc_device<int>(size, q_);
+    return reinterpret_cast<value_t *>(tmp);
+  }
 }
 #endif
 
@@ -52,9 +59,48 @@ template <helper::AllocType alloc, typename value_t>
 typename std::enable_if<alloc == helper::AllocType::buffer,
                         typename helper::AllocHelper<value_t, alloc>::type>::type
 SB_Handle::allocate(int size) {
-  cl::sycl::buffer<int, 1> buff{cl::sycl::range<1>(size)};
-  return blas::BufferIterator<value_t>{buff.reinterpret<value_t>()};
+  auto found = temp_buff_map.lower_bound(size); 
+  if (found != temp_buff_map.end()) {
+    //temp_buff_map.extract(found);
+    return blas::BufferIterator<value_t>(found->second.reinterpret<value_t>());
+  } else {
+    cl::sycl::buffer<int, 1> buff{cl::sycl::range<1>(size)};
+    return blas::BufferIterator<value_t>{buff.reinterpret<value_t>()};
+  }
 }
+
+#ifdef SB_ENABLE_USM
+template <typename container_t>
+typename std::enable_if<std::is_same<
+    container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
+                                      helper::AllocType::usm>::type>::value>::type
+SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem, int size) {
+  auto event = q_.submit([&](cl::sycl::handler &cgh) {
+    cgh.depends_on(dependencies);
+    if (temp_usm_map.find(size) != temp_usm_map.end()) {
+      cl::sycl::free(mem, q_);
+    } else { 
+      temp_usm_map[size] = reinterpret_cast<int *>(mem); 
+    }
+  });
+  return;
+}
+#endif
+
+template <typename container_t>
+typename std::enable_if<std::is_same<
+    container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
+                                      helper::AllocType::buffer>::type>::value>::type
+SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem, int size) {
+  auto event = q_.submit([&](cl::sycl::handler &cgh) {
+    cgh.depends_on(dependencies);
+    if (temp_buff_map.find(size) == temp_buff_map.end()) {
+      temp_buff_map.emplace(size, mem.get_buffer(). template reinterpret<int>()); 
+    }
+  });
+  return;
+}
+
 
 /*!
  * @brief Executes the tree without defining required shared memory.
@@ -279,15 +325,15 @@ inline typename SB_Handle::event_t SB_Handle::execute(
 //  std::cerr<<__FILE__<<" "<<__LINE__<<" depth="<<depth<<std::endl; 
 
   /* In some cases, use the tsgemm kernel as a normal gemm operation */
-  if (depth == 1 || gemm_wrapper.k_ <= 2048) {
-    GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, tile_type,
-                TransA, TransB, true, is_beta_zero, element_t, GemmMemoryType>
-        gemm_partial(gemm_wrapper.a_, gemm_wrapper.b_, gemm_wrapper.c_,
-                     gemm_wrapper.alpha_, gemm_wrapper.beta_, 1); //<----------
-    auto events = execute(gemm_partial, dependencies);
-
-    return events;
-  }
+//  if (depth == 1 || gemm_wrapper.k_ <= 2048) {
+//    GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, tile_type,
+//                TransA, TransB, true, is_beta_zero, element_t, GemmMemoryType>
+//        gemm_partial(gemm_wrapper.a_, gemm_wrapper.b_, gemm_wrapper.c_,
+//                     gemm_wrapper.alpha_, gemm_wrapper.beta_, 1); //<----------
+//    auto events = execute(gemm_partial, dependencies);
+//
+//    return events;
+//  }
   /* Else use the tall and skinny algorithm */
   constexpr bool is_usm = std::is_pointer<typename input_t::container_t>::value;
 
@@ -314,7 +360,7 @@ inline typename SB_Handle::event_t SB_Handle::execute(
       gemm_partial(gemm_wrapper.a_, gemm_wrapper.b_, cube_gemm,
                    gemm_wrapper.alpha_, gemm_wrapper.beta_, depth); //<--------
   auto events = execute(gemm_partial, dependencies);
-
+  
   /* Create a second view used for the reduction */
   auto cube_reduction =
       make_matrix_view<col_major>(cube_buffer, rows * cols, depth, rows * cols);
@@ -362,7 +408,8 @@ inline typename SB_Handle::event_t SB_Handle::execute(
     helper::enqueue_deallocate(events, temp_buffer, q_);
   }
 
-  helper::enqueue_deallocate(events, cube_buffer, q_);
+  enqueue_deallocate(events, cube_buffer, rows * cols * depth);
+  //helper::enqueue_deallocate(events, cube_buffer, q_);
 
   return events;
 }
