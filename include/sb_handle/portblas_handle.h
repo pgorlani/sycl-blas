@@ -26,6 +26,7 @@
 #ifndef PORTBLAS_HANDLE_H
 #define PORTBLAS_HANDLE_H
 #include <map>
+#include <mutex>
 #include "blas_meta.h"
 #include "operations/blas1_trees.h"
 #include "operations/blas2_trees.h"
@@ -51,7 +52,7 @@ class SB_Handle {
       : q_(q),
         workGroupSize_(helper::get_work_group_size(q)),
         localMemorySupport_(helper::has_local_memory(q)),
-        computeUnits_(helper::get_num_compute_units(q)) {}
+        computeUnits_(helper::get_num_compute_units(q)), totalAllocBytes(0) {}
 
   ~SB_Handle(){
 #ifdef SB_ENABLE_USM
@@ -81,14 +82,14 @@ class SB_Handle {
   typename std::enable_if<std::is_same<
       container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
                                         helper::AllocType::usm>::type>::value>::type
-  enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem, int size);
+  enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem);
 #endif
 
   template <typename container_t>
   typename std::enable_if<std::is_same<
       container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
                                         helper::AllocType::buffer>::type>::value>::type
-  enqueue_deallocate(std::vector<cl::sycl::event>, const container_t & mem, int size);
+  enqueue_deallocate(std::vector<cl::sycl::event>, const container_t & mem);
 
 
   template <typename expression_tree_t>
@@ -186,14 +187,21 @@ class SB_Handle {
   }
 
  private:
+  using UsmMapType = std::map<size_t, void *>;
+  using UsmAllocMapType = std::map<void *, size_t>;
+  using BufferMapType = std::map<size_t, cl::sycl::buffer<int, 1>>;
   queue_t q_;
   const size_t workGroupSize_;
   const bool localMemorySupport_;
   const size_t computeUnits_;
+  std::mutex mapMutex;
 #ifdef SB_ENABLE_USM
-  std::map<size_t, int *> temp_usm_map;
+  UsmMapType temp_usm_map;
+  UsmAllocMapType usm_alloc_size;
 #endif
-  std::map<size_t, cl::sycl::buffer<int, 1>> temp_buff_map;
+  BufferMapType temp_buff_map;
+  size_t totalAllocBytes;
+  const size_t maxAllocBytes = 1e9;
 };
 
 }  // namespace blas

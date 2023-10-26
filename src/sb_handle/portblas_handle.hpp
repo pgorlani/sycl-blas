@@ -44,13 +44,21 @@ template <helper::AllocType alloc, typename value_t>
 typename std::enable_if<alloc == helper::AllocType::usm,
                         typename helper::AllocHelper<value_t, alloc>::type>::type
 SB_Handle::allocate(int size) {
-  auto found = temp_usm_map.lower_bound(size); 
+  const size_t byteSize = size * sizeof(value_t);
+  mapMutex.lock();
+  auto found = temp_usm_map.lower_bound(byteSize); 
   if (found != temp_usm_map.end()) {
     temp_usm_map.extract(found);
+    totalAllocBytes -= byteSize;  
+    mapMutex.unlock();
     return reinterpret_cast<value_t *>(found->second);
   } else {
-    int * tmp = cl::sycl::malloc_device<int>(size, q_);
-    return reinterpret_cast<value_t *>(tmp);
+    mapMutex.unlock();
+    value_t * tmp = cl::sycl::malloc_device<value_t>(size, q_);
+    mapMutex.lock();
+    usm_alloc_size.emplace(reinterpret_cast<UsmAllocMapType::key_type>(tmp), byteSize); 
+    mapMutex.unlock();
+    return tmp;
   }
 }
 #endif
@@ -59,13 +67,18 @@ template <helper::AllocType alloc, typename value_t>
 typename std::enable_if<alloc == helper::AllocType::buffer,
                         typename helper::AllocHelper<value_t, alloc>::type>::type
 SB_Handle::allocate(int size) {
-  auto found = temp_buff_map.lower_bound(size); 
+  const size_t byteSize = size * sizeof(value_t);
+  mapMutex.lock();
+  auto found = temp_buff_map.lower_bound(byteSize); 
   if (found != temp_buff_map.end()) {
-    //temp_buff_map.extract(found);
-    return blas::BufferIterator<value_t>(found->second.reinterpret<value_t>());
-  } else {
-    cl::sycl::buffer<int, 1> buff{cl::sycl::range<1>(size)};
+    cl::sycl::buffer<int, 1> buff = found->second;
+    temp_buff_map.extract(found);
+    totalAllocBytes -= byteSize;  
+    mapMutex.unlock();
     return blas::BufferIterator<value_t>{buff.reinterpret<value_t>()};
+  } else {
+    mapMutex.unlock();
+    return make_sycl_iterator_buffer<value_t>(size);
   }
 }
 
@@ -74,13 +87,20 @@ template <typename container_t>
 typename std::enable_if<std::is_same<
     container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
                                       helper::AllocType::usm>::type>::value>::type
-SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem, int size) {
+SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem) {
   auto event = q_.submit([&](cl::sycl::handler &cgh) {
     cgh.depends_on(dependencies);
-    if (temp_usm_map.find(size) != temp_usm_map.end()) {
+    mapMutex.lock();
+    auto found = usm_alloc_size.find(reinterpret_cast<UsmAllocMapType::key_type>(mem));
+    const size_t byteSize = found->second;
+    if ((temp_usm_map.find(byteSize) != temp_usm_map.end()) || (totalAllocBytes + byteSize > maxAllocBytes)) {
+      usm_alloc_size.erase(found);
+      mapMutex.unlock();
       cl::sycl::free(mem, q_);
-    } else { 
-      temp_usm_map[size] = reinterpret_cast<int *>(mem); 
+    } else {
+      totalAllocBytes += byteSize;  
+      temp_usm_map.emplace(byteSize, reinterpret_cast<UsmMapType::mapped_type>(mem)); 
+      mapMutex.unlock();
     }
   });
   return;
@@ -91,12 +111,16 @@ template <typename container_t>
 typename std::enable_if<std::is_same<
     container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
                                       helper::AllocType::buffer>::type>::value>::type
-SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem, int size) {
+SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem) {
   auto event = q_.submit([&](cl::sycl::handler &cgh) {
     cgh.depends_on(dependencies);
-    if (temp_buff_map.find(size) == temp_buff_map.end()) {
-      temp_buff_map.emplace(size, mem.get_buffer(). template reinterpret<int>()); 
+    const size_t byteSize = mem.get_buffer().byte_size();
+    mapMutex.lock();
+    if (temp_buff_map.find(byteSize) == temp_buff_map.end() && (totalAllocBytes + byteSize <= maxAllocBytes)){
+      totalAllocBytes += byteSize;  
+      temp_buff_map.emplace(byteSize, mem.get_buffer(). template reinterpret<BufferMapType::mapped_type::value_type>()); 
     }
+    mapMutex.unlock();
   });
   return;
 }
@@ -408,7 +432,7 @@ inline typename SB_Handle::event_t SB_Handle::execute(
     helper::enqueue_deallocate(events, temp_buffer, q_);
   }
 
-  enqueue_deallocate(events, cube_buffer, rows * cols * depth);
+  enqueue_deallocate(events, cube_buffer);
   //helper::enqueue_deallocate(events, cube_buffer, q_);
 
   return events;
