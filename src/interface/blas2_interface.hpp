@@ -93,10 +93,10 @@ typename sb_handle_t::event_t _gemv_impl(
     const auto ld = is_transposed ? _N : _M;
     constexpr index_t one = 1;
 
-    auto dot_products_buffer = blas::helper::allocate < is_usm
+    auto dot_products_buffer = /*blas::helper::*/sb_handle.template allocate < is_usm
                                    ? helper::AllocType::usm
                                    : helper::AllocType::buffer,
-         element_t > (ld, sb_handle.get_queue());
+         element_t > (ld/*, sb_handle.get_queue()*/);
     auto dot_products_matrix =
         make_matrix_view<col_major>(dot_products_buffer, ld, one, ld);
 
@@ -136,8 +136,8 @@ typename sb_handle_t::event_t _gemv_impl(
           gemvEvent, sb_handle.execute(assignOp, local_range, gemvEvent));
     }
 
-    blas::helper::enqueue_deallocate(ret, dot_products_buffer,
-                                     sb_handle.get_queue());
+    /*blas::helper::*/sb_handle.template enqueue_deallocate(ret, dot_products_buffer/*,
+                                     sb_handle.get_queue()*/);
   } else  // Local memory kernel
   {
     // Calculate number of work groups per each dimension based on the local
@@ -159,10 +159,10 @@ typename sb_handle_t::event_t _gemv_impl(
     const auto dot_products_buffer_size = ld * WGs_per_C;
 
     // Create the dot products buffer and matrix view
-    auto dot_products_buffer = blas::helper::allocate < is_usm
+    auto dot_products_buffer = /*blas::helper::*/sb_handle.template allocate < is_usm
                                    ? helper::AllocType::usm
                                    : helper::AllocType::buffer,
-         element_t > (dot_products_buffer_size, sb_handle.get_queue());
+         element_t > (dot_products_buffer_size/*, sb_handle.get_queue()*/);
     auto dot_products_matrix =
         make_matrix_view<col_major>(dot_products_buffer, ld, WGs_per_C, ld);
 
@@ -205,8 +205,8 @@ typename sb_handle_t::event_t _gemv_impl(
           gemvEvent, sb_handle.execute(assignOp, local_range, gemvEvent));
     }
 
-    blas::helper::enqueue_deallocate(ret, dot_products_buffer,
-                                     sb_handle.get_queue());
+    /*blas::helper::*/sb_handle.template enqueue_deallocate(ret, dot_products_buffer/*,
+                                     sb_handle.get_queue()*/);
   }
   return ret;
 }
