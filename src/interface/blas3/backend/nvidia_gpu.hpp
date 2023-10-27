@@ -178,7 +178,6 @@ typename sb_handle_t::event_t _gemm(
       false>::template _select_gemm(sb_handle, _M, _N, _K, _alpha, _a, _lda,
                                     _stridea, _b, _ldb, _strideb, _beta, _c,
                                     _ldc, _stridec, batch_size, _dependencies);
-
 }
 }  // namespace backend
 }  // namespace gemm

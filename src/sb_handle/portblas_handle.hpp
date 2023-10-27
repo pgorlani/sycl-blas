@@ -41,25 +41,28 @@ namespace blas {
 
 #ifdef SB_ENABLE_USM
 template <helper::AllocType alloc, typename value_t>
-typename std::enable_if<alloc == helper::AllocType::usm,
-                        typename helper::AllocHelper<value_t, alloc>::type>::type
+typename std::enable_if<
+    alloc == helper::AllocType::usm,
+    typename helper::AllocHelper<value_t, alloc>::type>::type
 SB_Handle::allocate(size_t size) {
   const size_t byteSize = size * sizeof(value_t);
   map_mutex_.lock();
-  auto found = temp_usm_map_.lower_bound(byteSize); 
+  auto found = temp_usm_map_.lower_bound(byteSize);
   if (found != temp_usm_map_.end()) {
     temp_usm_map_.extract(found);
-    tot_size_temp_mem_ -= found->first;  
+    tot_size_temp_mem_ -= found->first;
     map_mutex_.unlock();
-    return reinterpret_cast<value_t *>(found->second);
+    return reinterpret_cast<value_t*>(found->second);
   } else {
     map_mutex_.unlock();
-#ifdef VERBOSE    
-    std::cout<<"Create a temporary USM allocation of "<<byteSize<<" bytes."<<std::endl;
+#ifdef VERBOSE
+    std::cout << "Create a temporary USM allocation of " << byteSize
+              << " bytes." << std::endl;
 #endif
-    value_t * tmp = cl::sycl::malloc_device<value_t>(size, q_);
+    value_t* tmp = cl::sycl::malloc_device<value_t>(size, q_);
     map_mutex_.lock();
-    temp_usm_size_map_.emplace(reinterpret_cast<temp_usm_size_map_t::key_type>(tmp), byteSize); 
+    temp_usm_size_map_.emplace(
+        reinterpret_cast<temp_usm_size_map_t::key_type>(tmp), byteSize);
     map_mutex_.unlock();
     return tmp;
   }
@@ -67,22 +70,26 @@ SB_Handle::allocate(size_t size) {
 #endif
 
 template <helper::AllocType alloc, typename value_t>
-typename std::enable_if<alloc == helper::AllocType::buffer,
-                        typename helper::AllocHelper<value_t, alloc>::type>::type
+typename std::enable_if<
+    alloc == helper::AllocType::buffer,
+    typename helper::AllocHelper<value_t, alloc>::type>::type
 SB_Handle::allocate(size_t size) {
   const size_t byteSize = size * sizeof(value_t);
   map_mutex_.lock();
-  auto found = temp_buffer_map_.lower_bound(byteSize); 
+  auto found = temp_buffer_map_.lower_bound(byteSize);
   if (found != temp_buffer_map_.end()) {
-    cl::sycl::buffer<temp_buffer_map_t::mapped_type::value_type, 1> buff = found->second;
+    cl::sycl::buffer<temp_buffer_map_t::mapped_type::value_type, 1> buff =
+        found->second;
     temp_buffer_map_.extract(found);
-    tot_size_temp_mem_ -= found->first;  
+    tot_size_temp_mem_ -= found->first;
     map_mutex_.unlock();
-    return blas::BufferIterator<value_t>{buff.reinterpret<value_t>(cl::sycl::range<1>(found->first/sizeof(value_t)))};
+    return blas::BufferIterator<value_t>{buff.reinterpret<value_t>(
+        cl::sycl::range<1>(found->first / sizeof(value_t)))};
   } else {
     map_mutex_.unlock();
-#ifdef VERBOSE    
-    std::cout<<"Create a temporary buffer of "<<byteSize<<" bytes."<<std::endl;
+#ifdef VERBOSE
+    std::cout << "Create a temporary buffer of " << byteSize << " bytes."
+              << std::endl;
 #endif
     return make_sycl_iterator_buffer<value_t>(size);
   }
@@ -91,21 +98,25 @@ SB_Handle::allocate(size_t size) {
 #ifdef SB_ENABLE_USM
 template <typename container_t>
 typename std::enable_if<std::is_same<
-    container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
-                                      helper::AllocType::usm>::type>::value>::type
-SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem) {
-  auto event = q_.submit([&](cl::sycl::handler &cgh) {
+    container_t,
+    typename helper::AllocHelper<typename ValueType<container_t>::type,
+                                 helper::AllocType::usm>::type>::value>::type
+SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
+                              const container_t& mem) {
+  auto event = q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
     map_mutex_.lock();
-    auto found = temp_usm_size_map_.find(reinterpret_cast<temp_usm_size_map_t::key_type>(mem));
+    auto found = temp_usm_size_map_.find(
+        reinterpret_cast<temp_usm_size_map_t::key_type>(mem));
     const size_t byteSize = found->second;
     if (tot_size_temp_mem_ + byteSize > max_size_temp_mem_) {
       temp_usm_size_map_.erase(found);
       map_mutex_.unlock();
       cl::sycl::free(mem, q_);
     } else {
-      tot_size_temp_mem_ += byteSize;  
-      temp_usm_map_.emplace(byteSize, reinterpret_cast<temp_usm_map_t::mapped_type>(mem)); 
+      tot_size_temp_mem_ += byteSize;
+      temp_usm_map_.emplace(byteSize,
+                            reinterpret_cast<temp_usm_map_t::mapped_type>(mem));
       map_mutex_.unlock();
     }
   });
@@ -115,22 +126,29 @@ SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const c
 
 template <typename container_t>
 typename std::enable_if<std::is_same<
-    container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
-                                      helper::AllocType::buffer>::type>::value>::type
-SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem) {
-  auto event = q_.submit([&](cl::sycl::handler &cgh) {
+    container_t,
+    typename helper::AllocHelper<typename ValueType<container_t>::type,
+                                 helper::AllocType::buffer>::type>::value>::type
+SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
+                              const container_t& mem) {
+  auto event = q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
     const size_t byteSize = mem.get_buffer().byte_size();
-    if (tot_size_temp_mem_ + byteSize <= max_size_temp_mem_){
+    if (tot_size_temp_mem_ + byteSize <= max_size_temp_mem_) {
       map_mutex_.lock();
-      tot_size_temp_mem_ += byteSize;  
-      temp_buffer_map_.emplace(byteSize, mem.get_buffer(). template reinterpret<temp_buffer_map_t::mapped_type::value_type>(cl::sycl::range<1>(byteSize/sizeof(temp_buffer_map_t::mapped_type::value_type)))); 
+      tot_size_temp_mem_ += byteSize;
+      temp_buffer_map_.emplace(
+          byteSize,
+          mem.get_buffer()
+              .template reinterpret<temp_buffer_map_t::mapped_type::value_type>(
+                  cl::sycl::range<1>(
+                      byteSize /
+                      sizeof(temp_buffer_map_t::mapped_type::value_type))));
       map_mutex_.unlock();
     }
   });
   return;
 }
-
 
 /*!
  * @brief Executes the tree without defining required shared memory.
@@ -344,7 +362,8 @@ inline typename SB_Handle::event_t SB_Handle::execute(
   const index_t cols = gemm_wrapper.n_;
   const index_t ldc = gemm_wrapper.ldc_;
 
-//  std::cerr<<__FILE__<<" "<<__LINE__<<" rows="<<rows<<" cols="<<cols<<" gemm_wrapper.k_="<<gemm_wrapper.k_<<std::endl; 
+  //  std::cerr<<__FILE__<<" "<<__LINE__<<" rows="<<rows<<" cols="<<cols<<"
+  //  gemm_wrapper.k_="<<gemm_wrapper.k_<<std::endl;
 
   /* Depth of the cube buffer */
   const index_t depth = GemmPartial<
@@ -352,18 +371,21 @@ inline typename SB_Handle::event_t SB_Handle::execute(
       TransB, false, is_beta_zero, element_t,
       GemmMemoryType>::get_ideal_cube_depth(SB_Handle::get_num_compute_units(),
                                             rows, cols, gemm_wrapper.k_);
-//  std::cerr<<__FILE__<<" "<<__LINE__<<" depth="<<depth<<std::endl; 
+  //  std::cerr<<__FILE__<<" "<<__LINE__<<" depth="<<depth<<std::endl;
 
   /* In some cases, use the tsgemm kernel as a normal gemm operation */
-//  if (depth == 1 || gemm_wrapper.k_ <= 2048) {
-//    GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, tile_type,
-//                TransA, TransB, true, is_beta_zero, element_t, GemmMemoryType>
-//        gemm_partial(gemm_wrapper.a_, gemm_wrapper.b_, gemm_wrapper.c_,
-//                     gemm_wrapper.alpha_, gemm_wrapper.beta_, 1); //<----------
-//    auto events = execute(gemm_partial, dependencies);
-//
-//    return events;
-//  }
+  //  if (depth == 1 || gemm_wrapper.k_ <= 2048) {
+  //    GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize,
+  //    tile_type,
+  //                TransA, TransB, true, is_beta_zero, element_t,
+  //                GemmMemoryType>
+  //        gemm_partial(gemm_wrapper.a_, gemm_wrapper.b_, gemm_wrapper.c_,
+  //                     gemm_wrapper.alpha_, gemm_wrapper.beta_, 1);
+  //                     //<----------
+  //    auto events = execute(gemm_partial, dependencies);
+  //
+  //    return events;
+  //  }
   /* Else use the tall and skinny algorithm */
   constexpr bool is_usm = std::is_pointer<typename input_t::container_t>::value;
 
@@ -375,7 +397,7 @@ inline typename SB_Handle::event_t SB_Handle::execute(
        element_t > (rows * cols * depth, q_);
 #else
   auto cube_buffer = allocate < is_usm ? helper::AllocType::usm
-                                               : helper::AllocType::buffer,
+                                       : helper::AllocType::buffer,
        element_t > (rows * cols * depth);
 #endif
 
@@ -388,9 +410,9 @@ inline typename SB_Handle::event_t SB_Handle::execute(
   GemmPartial<input_t, output_t, DoubleBuffer, NbcA, NbcB, ClSize, tile_type,
               TransA, TransB, false, true, element_t, GemmMemoryType>
       gemm_partial(gemm_wrapper.a_, gemm_wrapper.b_, cube_gemm,
-                   gemm_wrapper.alpha_, gemm_wrapper.beta_, depth); //<--------
+                   gemm_wrapper.alpha_, gemm_wrapper.beta_, depth);  //<--------
   auto events = execute(gemm_partial, dependencies);
-  
+
   /* Create a second view used for the reduction */
   auto cube_reduction =
       make_matrix_view<col_major>(cube_buffer, rows * cols, depth, rows * cols);
@@ -439,7 +461,7 @@ inline typename SB_Handle::event_t SB_Handle::execute(
   }
 
   enqueue_deallocate(events, cube_buffer);
-  //helper::enqueue_deallocate(events, cube_buffer, q_);
+  // helper::enqueue_deallocate(events, cube_buffer, q_);
 
   return events;
 }

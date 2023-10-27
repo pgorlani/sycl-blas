@@ -25,14 +25,14 @@
 #define VERBOSE
 #ifndef PORTBLAS_HANDLE_H
 #define PORTBLAS_HANDLE_H
-#include <map>
-#include <mutex>
 #include "blas_meta.h"
 #include "operations/blas1_trees.h"
 #include "operations/blas2_trees.h"
 #include "operations/blas3_trees.h"
 #include "operations/extension/reduction.h"
 #include "portblas_helper.h"
+#include <map>
+#include <mutex>
 namespace blas {
 
 /** SB_Handle.
@@ -55,46 +55,51 @@ class SB_Handle {
         computeUnits_(helper::get_num_compute_units(q)),
         tot_size_temp_mem_(0) {}
 
-  ~SB_Handle(){
+  ~SB_Handle() {
 #ifdef SB_ENABLE_USM
-  // synchronize with the host on destruction 
-  q_.wait();
+    // synchronize with the host on destruction
+    q_.wait();
 
 #ifdef VERBOSE
-  std::cout << "USM allocations freed on destruction: " <<temp_usm_map_.size() << std::endl;
+    std::cout << "USM allocations freed on destruction: "
+              << temp_usm_map_.size() << std::endl;
 #endif
 
-  for(const temp_usm_map_t::value_type & p : temp_usm_map_)
-    cl::sycl::free(p.second, q_);
+    for (const temp_usm_map_t::value_type& p : temp_usm_map_)
+      cl::sycl::free(p.second, q_);
 #endif
   }
 
 #ifdef SB_ENABLE_USM
   template <helper::AllocType alloc, typename value_t>
-  typename std::enable_if<alloc == helper::AllocType::usm,
-                          typename helper::AllocHelper<value_t, alloc>::type>::type
+  typename std::enable_if<
+      alloc == helper::AllocType::usm,
+      typename helper::AllocHelper<value_t, alloc>::type>::type
   allocate(size_t size);
 #endif
 
   template <helper::AllocType alloc, typename value_t>
-  typename std::enable_if<alloc == helper::AllocType::buffer,
-                          typename helper::AllocHelper<value_t, alloc>::type>::type
+  typename std::enable_if<
+      alloc == helper::AllocType::buffer,
+      typename helper::AllocHelper<value_t, alloc>::type>::type
   allocate(size_t size);
 
 #ifdef SB_ENABLE_USM
   template <typename container_t>
   typename std::enable_if<std::is_same<
-      container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
-                                        helper::AllocType::usm>::type>::value>::type
-  enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem);
+      container_t,
+      typename helper::AllocHelper<typename ValueType<container_t>::type,
+                                   helper::AllocType::usm>::type>::value>::type
+  enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
+                     const container_t& mem);
 #endif
 
   template <typename container_t>
   typename std::enable_if<std::is_same<
-      container_t, typename helper::AllocHelper<typename ValueType<container_t>::type,
-                                        helper::AllocType::buffer>::type>::value>::type
-  enqueue_deallocate(std::vector<cl::sycl::event>, const container_t & mem);
-
+      container_t, typename helper::AllocHelper<
+                       typename ValueType<container_t>::type,
+                       helper::AllocType::buffer>::type>::value>::type
+  enqueue_deallocate(std::vector<cl::sycl::event>, const container_t& mem);
 
   template <typename expression_tree_t>
   event_t execute(expression_tree_t tree, const event_t& dependencies = {});
@@ -191,8 +196,8 @@ class SB_Handle {
   }
 
  private:
-  using temp_usm_map_t = std::multimap<size_t, void *>;
-  using temp_usm_size_map_t = std::map<void *, size_t>;
+  using temp_usm_map_t = std::multimap<size_t, void*>;
+  using temp_usm_size_map_t = std::map<void*, size_t>;
   using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<long, 1>>;
 
   queue_t q_;
