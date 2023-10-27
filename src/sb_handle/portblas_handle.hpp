@@ -93,7 +93,7 @@ SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const c
     mapMutex.lock();
     auto found = usm_alloc_size.find(reinterpret_cast<UsmAllocMapType::key_type>(mem));
     const size_t byteSize = found->second;
-    if ((temp_usm_map.find(byteSize) != temp_usm_map.end()) || (totalAllocBytes + byteSize > maxAllocBytes)) {
+    if (totalAllocBytes + byteSize > maxAllocBytes) {
       usm_alloc_size.erase(found);
       mapMutex.unlock();
       cl::sycl::free(mem, q_);
@@ -116,7 +116,7 @@ SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const c
     cgh.depends_on(dependencies);
     const size_t byteSize = mem.get_buffer().byte_size();
     mapMutex.lock();
-    if (temp_buff_map.find(byteSize) == temp_buff_map.end() && (totalAllocBytes + byteSize <= maxAllocBytes)){
+    if (totalAllocBytes + byteSize <= maxAllocBytes){
       totalAllocBytes += byteSize;  
       temp_buff_map.emplace(byteSize, mem.get_buffer(). template reinterpret<BufferMapType::mapped_type::value_type>()); 
     }
