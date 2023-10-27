@@ -53,7 +53,7 @@ class SB_Handle {
         workGroupSize_(helper::get_work_group_size(q)),
         localMemorySupport_(helper::has_local_memory(q)),
         computeUnits_(helper::get_num_compute_units(q)),
-        totalAllocBytes(0) {}
+        tot_size_temp_mem_(0) {}
 
   ~SB_Handle(){
 #ifdef SB_ENABLE_USM
@@ -61,10 +61,10 @@ class SB_Handle {
   q_.wait();
 
 #ifdef VERBOSE
-  std::cout << "USM allocations freed on destruction: " <<temp_usm_map.size() << std::endl;
+  std::cout << "USM allocations freed on destruction: " <<temp_usm_map_.size() << std::endl;
 #endif
 
-  for(const UsmMapType::value_type & p : temp_usm_map)
+  for(const temp_usm_map_t::value_type & p : temp_usm_map_)
     cl::sycl::free(p.second, q_);
 #endif
   }
@@ -191,21 +191,24 @@ class SB_Handle {
   }
 
  private:
-  using UsmMapType = std::multimap<size_t, void *>;
-  using UsmAllocMapType = std::map<void *, size_t>;
-  using BufferMapType = std::multimap<size_t, cl::sycl::buffer<long, 1>>;
+  using temp_usm_map_t = std::multimap<size_t, void *>;
+  using temp_usm_size_map_t = std::map<void *, size_t>;
+  using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<long, 1>>;
+
   queue_t q_;
   const size_t workGroupSize_;
   const bool localMemorySupport_;
   const size_t computeUnits_;
-  std::mutex mapMutex;
+
+  size_t tot_size_temp_mem_;
+  const size_t max_size_temp_mem_ = 1e9;
+
+  std::mutex map_mutex_;
 #ifdef SB_ENABLE_USM
-  UsmMapType temp_usm_map;
-  UsmAllocMapType usm_alloc_size;
+  temp_usm_map_t temp_usm_map_;
+  temp_usm_size_map_t temp_usm_size_map_;
 #endif
-  BufferMapType temp_buff_map;
-  size_t totalAllocBytes;
-  const size_t maxAllocBytes = 1e9;
+  temp_buffer_map_t temp_buffer_map_;
 };
 
 }  // namespace blas

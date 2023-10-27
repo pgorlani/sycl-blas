@@ -45,22 +45,22 @@ typename std::enable_if<alloc == helper::AllocType::usm,
                         typename helper::AllocHelper<value_t, alloc>::type>::type
 SB_Handle::allocate(size_t size) {
   const size_t byteSize = size * sizeof(value_t);
-  mapMutex.lock();
-  auto found = temp_usm_map.lower_bound(byteSize); 
-  if (found != temp_usm_map.end()) {
-    temp_usm_map.extract(found);
-    totalAllocBytes -= found->first;  
-    mapMutex.unlock();
+  map_mutex_.lock();
+  auto found = temp_usm_map_.lower_bound(byteSize); 
+  if (found != temp_usm_map_.end()) {
+    temp_usm_map_.extract(found);
+    tot_size_temp_mem_ -= found->first;  
+    map_mutex_.unlock();
     return reinterpret_cast<value_t *>(found->second);
   } else {
-    mapMutex.unlock();
+    map_mutex_.unlock();
 #ifdef VERBOSE    
     std::cout<<"Create a temporary USM allocation of "<<byteSize<<" bytes."<<std::endl;
 #endif
     value_t * tmp = cl::sycl::malloc_device<value_t>(size, q_);
-    mapMutex.lock();
-    usm_alloc_size.emplace(reinterpret_cast<UsmAllocMapType::key_type>(tmp), byteSize); 
-    mapMutex.unlock();
+    map_mutex_.lock();
+    temp_usm_size_map_.emplace(reinterpret_cast<temp_usm_size_map_t::key_type>(tmp), byteSize); 
+    map_mutex_.unlock();
     return tmp;
   }
 }
@@ -71,16 +71,16 @@ typename std::enable_if<alloc == helper::AllocType::buffer,
                         typename helper::AllocHelper<value_t, alloc>::type>::type
 SB_Handle::allocate(size_t size) {
   const size_t byteSize = size * sizeof(value_t);
-  mapMutex.lock();
-  auto found = temp_buff_map.lower_bound(byteSize); 
-  if (found != temp_buff_map.end()) {
-    cl::sycl::buffer<BufferMapType::mapped_type::value_type, 1> buff = found->second;
-    temp_buff_map.extract(found);
-    totalAllocBytes -= found->first;  
-    mapMutex.unlock();
+  map_mutex_.lock();
+  auto found = temp_buffer_map_.lower_bound(byteSize); 
+  if (found != temp_buffer_map_.end()) {
+    cl::sycl::buffer<temp_buffer_map_t::mapped_type::value_type, 1> buff = found->second;
+    temp_buffer_map_.extract(found);
+    tot_size_temp_mem_ -= found->first;  
+    map_mutex_.unlock();
     return blas::BufferIterator<value_t>{buff.reinterpret<value_t>(cl::sycl::range<1>(found->first/sizeof(value_t)))};
   } else {
-    mapMutex.unlock();
+    map_mutex_.unlock();
 #ifdef VERBOSE    
     std::cout<<"Create a temporary buffer of "<<byteSize<<" bytes."<<std::endl;
 #endif
@@ -96,17 +96,17 @@ typename std::enable_if<std::is_same<
 SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const container_t & mem) {
   auto event = q_.submit([&](cl::sycl::handler &cgh) {
     cgh.depends_on(dependencies);
-    mapMutex.lock();
-    auto found = usm_alloc_size.find(reinterpret_cast<UsmAllocMapType::key_type>(mem));
+    map_mutex_.lock();
+    auto found = temp_usm_size_map_.find(reinterpret_cast<temp_usm_size_map_t::key_type>(mem));
     const size_t byteSize = found->second;
-    if (totalAllocBytes + byteSize > maxAllocBytes) {
-      usm_alloc_size.erase(found);
-      mapMutex.unlock();
+    if (tot_size_temp_mem_ + byteSize > max_size_temp_mem_) {
+      temp_usm_size_map_.erase(found);
+      map_mutex_.unlock();
       cl::sycl::free(mem, q_);
     } else {
-      totalAllocBytes += byteSize;  
-      temp_usm_map.emplace(byteSize, reinterpret_cast<UsmMapType::mapped_type>(mem)); 
-      mapMutex.unlock();
+      tot_size_temp_mem_ += byteSize;  
+      temp_usm_map_.emplace(byteSize, reinterpret_cast<temp_usm_map_t::mapped_type>(mem)); 
+      map_mutex_.unlock();
     }
   });
   return;
@@ -121,11 +121,11 @@ SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const c
   auto event = q_.submit([&](cl::sycl::handler &cgh) {
     cgh.depends_on(dependencies);
     const size_t byteSize = mem.get_buffer().byte_size();
-    if (totalAllocBytes + byteSize <= maxAllocBytes){
-      mapMutex.lock();
-      totalAllocBytes += byteSize;  
-      temp_buff_map.emplace(byteSize, mem.get_buffer(). template reinterpret<BufferMapType::mapped_type::value_type>(cl::sycl::range<1>(byteSize/sizeof(BufferMapType::mapped_type::value_type)))); 
-      mapMutex.unlock();
+    if (tot_size_temp_mem_ + byteSize <= max_size_temp_mem_){
+      map_mutex_.lock();
+      tot_size_temp_mem_ += byteSize;  
+      temp_buffer_map_.emplace(byteSize, mem.get_buffer(). template reinterpret<temp_buffer_map_t::mapped_type::value_type>(cl::sycl::range<1>(byteSize/sizeof(temp_buffer_map_t::mapped_type::value_type)))); 
+      map_mutex_.unlock();
     }
   });
   return;
