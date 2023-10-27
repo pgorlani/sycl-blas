@@ -189,7 +189,7 @@ class SB_Handle {
  private:
   using UsmMapType = std::multimap<size_t, void *>;
   using UsmAllocMapType = std::map<void *, size_t>;
-  using BufferMapType = std::multimap<size_t, cl::sycl::buffer<int, 1>>;
+  using BufferMapType = std::multimap<size_t, cl::sycl::buffer<long, 1>>;
   queue_t q_;
   const size_t workGroupSize_;
   const bool localMemorySupport_;

@@ -49,7 +49,7 @@ SB_Handle::allocate(int size) {
   auto found = temp_usm_map.lower_bound(byteSize); 
   if (found != temp_usm_map.end()) {
     temp_usm_map.extract(found);
-    totalAllocBytes -= byteSize;  
+    totalAllocBytes -= found->first;  
     mapMutex.unlock();
     return reinterpret_cast<value_t *>(found->second);
   } else {
@@ -71,11 +71,11 @@ SB_Handle::allocate(int size) {
   mapMutex.lock();
   auto found = temp_buff_map.lower_bound(byteSize); 
   if (found != temp_buff_map.end()) {
-    cl::sycl::buffer<int, 1> buff = found->second;
+    cl::sycl::buffer<BufferMapType::mapped_type::value_type, 1> buff = found->second;
     temp_buff_map.extract(found);
-    totalAllocBytes -= byteSize;  
+    totalAllocBytes -= found->first;  
     mapMutex.unlock();
-    return blas::BufferIterator<value_t>{buff.reinterpret<value_t>()};
+    return blas::BufferIterator<value_t>{buff.reinterpret<value_t>(cl::sycl::range<1>(found->first/sizeof(value_t)))};
   } else {
     mapMutex.unlock();
     return make_sycl_iterator_buffer<value_t>(size);
@@ -115,12 +115,12 @@ SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies, const c
   auto event = q_.submit([&](cl::sycl::handler &cgh) {
     cgh.depends_on(dependencies);
     const size_t byteSize = mem.get_buffer().byte_size();
-    mapMutex.lock();
     if (totalAllocBytes + byteSize <= maxAllocBytes){
+      mapMutex.lock();
       totalAllocBytes += byteSize;  
-      temp_buff_map.emplace(byteSize, mem.get_buffer(). template reinterpret<BufferMapType::mapped_type::value_type>()); 
+      temp_buff_map.emplace(byteSize, mem.get_buffer(). template reinterpret<BufferMapType::mapped_type::value_type>(cl::sycl::range<1>(byteSize/sizeof(BufferMapType::mapped_type::value_type)))); 
+      mapMutex.unlock();
     }
-    mapMutex.unlock();
   });
   return;
 }
