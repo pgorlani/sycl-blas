@@ -43,7 +43,7 @@ namespace blas {
 template <helper::AllocType alloc, typename value_t>
 typename std::enable_if<alloc == helper::AllocType::usm,
                         typename helper::AllocHelper<value_t, alloc>::type>::type
-SB_Handle::allocate(int size) {
+SB_Handle::allocate(size_t size) {
   const size_t byteSize = size * sizeof(value_t);
   mapMutex.lock();
   auto found = temp_usm_map.lower_bound(byteSize); 
@@ -54,6 +54,9 @@ SB_Handle::allocate(int size) {
     return reinterpret_cast<value_t *>(found->second);
   } else {
     mapMutex.unlock();
+#ifdef VERBOSE    
+    std::cout<<"Create a temporary USM allocation of "<<byteSize<<" bytes."<<std::endl;
+#endif
     value_t * tmp = cl::sycl::malloc_device<value_t>(size, q_);
     mapMutex.lock();
     usm_alloc_size.emplace(reinterpret_cast<UsmAllocMapType::key_type>(tmp), byteSize); 
@@ -66,7 +69,7 @@ SB_Handle::allocate(int size) {
 template <helper::AllocType alloc, typename value_t>
 typename std::enable_if<alloc == helper::AllocType::buffer,
                         typename helper::AllocHelper<value_t, alloc>::type>::type
-SB_Handle::allocate(int size) {
+SB_Handle::allocate(size_t size) {
   const size_t byteSize = size * sizeof(value_t);
   mapMutex.lock();
   auto found = temp_buff_map.lower_bound(byteSize); 
@@ -78,6 +81,9 @@ SB_Handle::allocate(int size) {
     return blas::BufferIterator<value_t>{buff.reinterpret<value_t>(cl::sycl::range<1>(found->first/sizeof(value_t)))};
   } else {
     mapMutex.unlock();
+#ifdef VERBOSE    
+    std::cout<<"Create a temporary buffer of "<<byteSize<<" bytes."<<std::endl;
+#endif
     return make_sycl_iterator_buffer<value_t>(size);
   }
 }

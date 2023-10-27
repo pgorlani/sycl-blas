@@ -22,7 +22,7 @@
  *  @filename portblas_handle.h
  *
  **************************************************************************/
-
+#define VERBOSE
 #ifndef PORTBLAS_HANDLE_H
 #define PORTBLAS_HANDLE_H
 #include <map>
@@ -52,16 +52,20 @@ class SB_Handle {
       : q_(q),
         workGroupSize_(helper::get_work_group_size(q)),
         localMemorySupport_(helper::has_local_memory(q)),
-        computeUnits_(helper::get_num_compute_units(q)), totalAllocBytes(0) {}
+        computeUnits_(helper::get_num_compute_units(q)),
+        totalAllocBytes(0) {}
 
   ~SB_Handle(){
 #ifdef SB_ENABLE_USM
-  // synchronize with the host, just at the end
+  // synchronize with the host on destruction 
   q_.wait();
-  for(auto e : temp_usm_map){
-  std::cerr<<"destroying"<<std::endl;
-    cl::sycl::free(e.second, q_);
-  }
+
+#ifdef VERBOSE
+  std::cout << "USM allocations freed on destruction: " <<temp_usm_map.size() << std::endl;
+#endif
+
+  for(const UsmMapType::value_type & p : temp_usm_map)
+    cl::sycl::free(p.second, q_);
 #endif
   }
 
@@ -69,13 +73,13 @@ class SB_Handle {
   template <helper::AllocType alloc, typename value_t>
   typename std::enable_if<alloc == helper::AllocType::usm,
                           typename helper::AllocHelper<value_t, alloc>::type>::type
-  allocate(int size);
+  allocate(size_t size);
 #endif
 
   template <helper::AllocType alloc, typename value_t>
   typename std::enable_if<alloc == helper::AllocType::buffer,
                           typename helper::AllocHelper<value_t, alloc>::type>::type
-  allocate(int size);
+  allocate(size_t size);
 
 #ifdef SB_ENABLE_USM
   template <typename container_t>
