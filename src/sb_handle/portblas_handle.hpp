@@ -100,10 +100,10 @@ template <typename container_t>
 typename std::enable_if<std::is_same<
     container_t,
     typename helper::AllocHelper<typename ValueType<container_t>::type,
-                                 helper::AllocType::usm>::type>::value>::type
+                                 helper::AllocType::usm>::type>::value, cl::sycl::event>::type
 SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
                               const container_t& mem) {
-  auto event = q_.submit([&](cl::sycl::handler& cgh) {
+  return q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
     map_mutex_.lock();
     auto found = temp_usm_size_map_.find(
@@ -120,7 +120,6 @@ SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
       map_mutex_.unlock();
     }
   });
-  return;
 }
 #endif
 
@@ -128,10 +127,10 @@ template <typename container_t>
 typename std::enable_if<std::is_same<
     container_t,
     typename helper::AllocHelper<typename ValueType<container_t>::type,
-                                 helper::AllocType::buffer>::type>::value>::type
+                                 helper::AllocType::buffer>::type>::value, cl::sycl::event>::type
 SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
                               const container_t& mem) {
-  auto event = q_.submit([&](cl::sycl::handler& cgh) {
+  return q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
     const size_t byteSize = mem.get_buffer().byte_size();
     if (tot_size_temp_mem_ + byteSize <= max_size_temp_mem_) {
@@ -147,7 +146,6 @@ SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
       map_mutex_.unlock();
     }
   });
-  return;
 }
 
 /*!
