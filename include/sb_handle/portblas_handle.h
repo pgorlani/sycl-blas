@@ -56,7 +56,6 @@ class SB_Handle {
         tot_size_temp_mem_(0) {}
 
   ~SB_Handle() {
-
 #ifdef VERBOSE
     std::cout << "Buffers destroyed on SB_Handle destruction: "
               << temp_buffer_map_.size() << std::endl;
@@ -95,7 +94,7 @@ class SB_Handle {
   typename std::enable_if<std::is_same<
       container_t,
       typename helper::AllocHelper<typename ValueType<container_t>::type,
-                                   helper::AllocType::usm>::type>::value>::type
+                                   helper::AllocType::usm>::type>::value, cl::sycl::event>::type
   enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
                      const container_t& mem);
 #endif
@@ -104,7 +103,7 @@ class SB_Handle {
   typename std::enable_if<std::is_same<
       container_t, typename helper::AllocHelper<
                        typename ValueType<container_t>::type,
-                       helper::AllocType::buffer>::type>::value>::type
+                       helper::AllocType::buffer>::type>::value, cl::sycl::event>::type
   enqueue_deallocate(std::vector<cl::sycl::event>, const container_t& mem);
 
   template <typename expression_tree_t>
@@ -205,7 +204,7 @@ class SB_Handle {
   using temp_usm_map_t = std::multimap<size_t, void*>;
   using temp_usm_size_map_t = std::map<void*, size_t>;
   using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<int8_t, 1>>;
-  static_assert(sizeof(temp_buffer_map_t::mapped_type::value_type) == 1); 
+  static_assert(sizeof(temp_buffer_map_t::mapped_type::value_type) == 1);
 
   queue_t q_;
   const size_t workGroupSize_;
