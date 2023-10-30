@@ -56,12 +56,18 @@ class SB_Handle {
         tot_size_temp_mem_(0) {}
 
   ~SB_Handle() {
+
+#ifdef VERBOSE
+    std::cout << "Buffers destroyed on SB_Handle destruction: "
+              << temp_buffer_map_.size() << std::endl;
+#endif
+
 #ifdef SB_ENABLE_USM
     // synchronize with the host on destruction
     q_.wait();
 
 #ifdef VERBOSE
-    std::cout << "USM allocations freed on destruction: "
+    std::cout << "USM allocations freed on SB_Handle destruction: "
               << temp_usm_map_.size() << std::endl;
 #endif
 
@@ -198,7 +204,8 @@ class SB_Handle {
  private:
   using temp_usm_map_t = std::multimap<size_t, void*>;
   using temp_usm_size_map_t = std::map<void*, size_t>;
-  using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<long, 1>>;
+  using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<int8_t, 1>>;
+  static_assert(sizeof(temp_buffer_map_t::mapped_type::value_type) == 1); 
 
   queue_t q_;
   const size_t workGroupSize_;
@@ -206,7 +213,7 @@ class SB_Handle {
   const size_t computeUnits_;
 
   size_t tot_size_temp_mem_;
-  const size_t max_size_temp_mem_ = 1e9;
+  static constexpr size_t max_size_temp_mem_ = 1e9;
 
   std::mutex map_mutex_;
 #ifdef SB_ENABLE_USM
