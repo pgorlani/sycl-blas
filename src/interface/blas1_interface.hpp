@@ -652,17 +652,13 @@ template <typename sb_handle_t, typename scalar_t,
 void _rotg(sb_handle_t &sb_handle, scalar_t &a, scalar_t &b, scalar_t &c,
            scalar_t &s, const typename sb_handle_t::event_t &_dependencies) {
   auto device_a =
-      sb_handle.template allocate<blas::helper::AllocType::buffer, scalar_t>(
-          1);
+      sb_handle.template allocate<blas::helper::AllocType::buffer, scalar_t>(1);
   auto device_b =
-      sb_handle.template allocate<blas::helper::AllocType::buffer, scalar_t>(
-          1);
+      sb_handle.template allocate<blas::helper::AllocType::buffer, scalar_t>(1);
   auto device_c =
-      sb_handle.template allocate<blas::helper::AllocType::buffer, scalar_t>(
-          1);
+      sb_handle.template allocate<blas::helper::AllocType::buffer, scalar_t>(1);
   auto device_s =
-      sb_handle.template allocate<blas::helper::AllocType::buffer, scalar_t>(
-          1);
+      sb_handle.template allocate<blas::helper::AllocType::buffer, scalar_t>(1);
   auto copy_a =
       blas::helper::copy_to_device(sb_handle.get_queue(), &a, device_a, 1);
   auto copy_b =
@@ -692,7 +688,7 @@ void _rotg(sb_handle_t &sb_handle, scalar_t &a, scalar_t &b, scalar_t &c,
   sb_handle.template enqueue_deallocate({event4}, device_b);
   sb_handle.template enqueue_deallocate({event1}, device_c);
   sb_handle.template enqueue_deallocate({event2}, device_s);
- 
+
   sb_handle.wait({event1, event2, event3, event4});
 }
 
@@ -724,8 +720,9 @@ typename ValueType<container_0_t>::type _dot(
   constexpr bool is_usm = std::is_pointer<container_0_t>::value;
   using element_t = typename ValueType<container_0_t>::type;
   auto res = std::vector<element_t>(1);
-  auto gpu_res = sb_handle.template allocate < is_usm ? helper::AllocType::usm
-                                           : helper::AllocType::buffer,
+  auto gpu_res = sb_handle.template allocate < is_usm
+                     ? helper::AllocType::usm
+                     : helper::AllocType::buffer,
        element_t > (static_cast<index_t>(1));
   auto dot_event = internal::_dot(sb_handle, _N, _vx, _incx, _vy, _incy,
                                   gpu_res, _dependencies);
@@ -768,8 +765,9 @@ typename ValueType<container_0_t>::type _sdsdot(
   constexpr bool is_usm = std::is_pointer<container_0_t>::value;
   using element_t = typename ValueType<container_0_t>::type;
   element_t res{};
-  auto gpu_res = sb_handle.template allocate < is_usm ? helper::AllocType::usm
-                                                 : helper::AllocType::buffer,
+  auto gpu_res = sb_handle.template allocate < is_usm
+                     ? helper::AllocType::usm
+                     : helper::AllocType::buffer,
        element_t > (static_cast<index_t>(1));
   auto event1 = blas::internal::_sdsdot(sb_handle, _N, sb, _vx, _incx, _vy,
                                         _incy, gpu_res, _dependencies);
@@ -797,8 +795,9 @@ index_t _iamax(sb_handle_t &sb_handle, index_t _N, container_t _vx,
   using element_t = typename ValueType<container_t>::type;
   using IndValTuple = IndexValueTuple<index_t, element_t>;
   std::vector<IndValTuple> rsT(1, IndValTuple(index_t(-1), element_t(-1)));
-  auto gpu_res = sb_handle.template allocate < is_usm ? helper::AllocType::usm
-                                                 : helper::AllocType::buffer,
+  auto gpu_res = sb_handle.template allocate < is_usm
+                     ? helper::AllocType::usm
+                     : helper::AllocType::buffer,
        IndValTuple > (static_cast<index_t>(1));
   auto iamax_event =
       blas::internal::_iamax(sb_handle, _N, _vx, _incx, gpu_res, _dependencies);
@@ -825,8 +824,9 @@ index_t _iamin(sb_handle_t &sb_handle, index_t _N, container_t _vx,
   using element_t = typename ValueType<container_t>::type;
   using IndValTuple = IndexValueTuple<index_t, element_t>;
   std::vector<IndValTuple> rsT(1, IndValTuple(index_t(-1), element_t(-1)));
-  auto gpu_res = sb_handle.template allocate < is_usm ? helper::AllocType::usm
-                                                 : helper::AllocType::buffer,
+  auto gpu_res = sb_handle.template allocate < is_usm
+                     ? helper::AllocType::usm
+                     : helper::AllocType::buffer,
        IndValTuple > (static_cast<index_t>(1));
   auto iamin_event =
       blas::internal::_iamin(sb_handle, _N, _vx, _incx, gpu_res, _dependencies);
@@ -854,8 +854,9 @@ typename ValueType<container_t>::type _asum(
   constexpr bool is_usm = std::is_pointer<container_t>::value;
   using element_t = typename ValueType<container_t>::type;
   auto res = std::vector<element_t>(1, element_t(0));
-  auto gpu_res = sb_handle.template allocate < is_usm ? helper::AllocType::usm
-                                                 : helper::AllocType::buffer,
+  auto gpu_res = sb_handle.template allocate < is_usm
+                     ? helper::AllocType::usm
+                     : helper::AllocType::buffer,
        element_t > (static_cast<index_t>(1));
   const typename sb_handle_t::event_t init_res_event = {
       blas::helper::copy_to_device(sb_handle.get_queue(), res.data(), gpu_res,
@@ -887,8 +888,9 @@ typename ValueType<container_t>::type _nrm2(
   constexpr bool is_usm = std::is_pointer<container_t>::value;
   using element_t = typename ValueType<container_t>::type;
   auto res = std::vector<element_t>(1, element_t(0));
-  auto gpu_res = sb_handle.template allocate < is_usm ? helper::AllocType::usm
-                                                 : helper::AllocType::buffer,
+  auto gpu_res = sb_handle.template allocate < is_usm
+                     ? helper::AllocType::usm
+                     : helper::AllocType::buffer,
        element_t > (static_cast<index_t>(1));
   typename sb_handle_t::event_t copy_init_val = {blas::helper::copy_to_device(
       sb_handle.get_queue(), res.data(), gpu_res, 1)};

@@ -97,10 +97,11 @@ SB_Handle::allocate(size_t size) {
 
 #ifdef SB_ENABLE_USM
 template <typename container_t>
-typename std::enable_if<std::is_same<
-    container_t,
-    typename helper::AllocHelper<typename ValueType<container_t>::type,
-                                 helper::AllocType::usm>::type>::value, cl::sycl::event>::type
+typename std::enable_if<
+    std::is_same<container_t, typename helper::AllocHelper<
+                                  typename ValueType<container_t>::type,
+                                  helper::AllocType::usm>::type>::value,
+    cl::sycl::event>::type
 SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
                               const container_t& mem) {
   return q_.submit([&](cl::sycl::handler& cgh) {
@@ -124,10 +125,11 @@ SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
 #endif
 
 template <typename container_t>
-typename std::enable_if<std::is_same<
-    container_t,
-    typename helper::AllocHelper<typename ValueType<container_t>::type,
-                                 helper::AllocType::buffer>::type>::value, cl::sycl::event>::type
+typename std::enable_if<
+    std::is_same<container_t, typename helper::AllocHelper<
+                                  typename ValueType<container_t>::type,
+                                  helper::AllocType::buffer>::type>::value,
+    cl::sycl::event>::type
 SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
                               const container_t& mem) {
   return q_.submit([&](cl::sycl::handler& cgh) {
