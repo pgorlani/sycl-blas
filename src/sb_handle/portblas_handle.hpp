@@ -225,12 +225,12 @@ inline typename SB_Handle::event_t SB_Handle::execute(
   // Two accessors to local memory
   auto sharedSize = ((nWG < localSize) ? localSize : nWG);
   constexpr bool is_usm = std::is_pointer<typename lhs_t::container_t>::value;
-  auto shMem1 = blas::helper::allocate < is_usm ? helper::AllocType::usm
-                                                : helper::AllocType::buffer,
-       typename lhs_t::value_t > (sharedSize, q_);
-  auto shMem2 = blas::helper::allocate < is_usm ? helper::AllocType::usm
-                                                : helper::AllocType::buffer,
-       typename lhs_t::value_t > (sharedSize, q_);
+  auto shMem1 = allocate < is_usm ? helper::AllocType::usm
+                                  : helper::AllocType::buffer,
+       typename lhs_t::value_t > (sharedSize);
+  auto shMem2 = allocate < is_usm ? helper::AllocType::usm
+                                  : helper::AllocType::buffer,
+       typename lhs_t::value_t > (sharedSize);
 
   auto opShMem1 =
       make_vector_view(shMem1, typename lhs_t::increment_t(1), sharedSize);
@@ -261,9 +261,9 @@ inline typename SB_Handle::event_t SB_Handle::execute(
     even = !even;
   } while (_N > 1);
 
-  blas::helper::enqueue_deallocate(event, shMem1, q_);
+  enqueue_deallocate(event, shMem1);
 
-  blas::helper::enqueue_deallocate(event, shMem2, q_);
+  enqueue_deallocate(event, shMem2);
 
   return event;
 }
@@ -433,9 +433,9 @@ inline typename SB_Handle::event_t SB_Handle::execute(
   /* Otherwise we reduce to a temporary buffer */
   else {
     /* Create a temporary buffer to hold alpha * A * B */
-    auto temp_buffer = helper::allocate < is_usm ? helper::AllocType::usm
-                                                 : helper::AllocType::buffer,
-         element_t > (rows * cols, q_);
+    auto temp_buffer = allocate < is_usm ? helper::AllocType::usm
+                                         : helper::AllocType::buffer,
+         element_t > (rows * cols);
     auto temp = make_matrix_view<col_major>(temp_buffer, rows, cols, rows);
 
     /* Execute the reduction */
@@ -457,7 +457,7 @@ inline typename SB_Handle::event_t SB_Handle::execute(
       events = concatenate_vectors(events, execute(assignOp, events));
     }
 
-    helper::enqueue_deallocate(events, temp_buffer, q_);
+    enqueue_deallocate(events, temp_buffer);
   }
 
   enqueue_deallocate(events, cube_buffer);
