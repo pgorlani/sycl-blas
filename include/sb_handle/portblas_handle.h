@@ -22,7 +22,6 @@
  *  @filename portblas_handle.h
  *
  **************************************************************************/
-#define VERBOSE
 #ifndef PORTBLAS_HANDLE_H
 #define PORTBLAS_HANDLE_H
 #include "blas_meta.h"
@@ -33,6 +32,7 @@
 #include "portblas_helper.h"
 #include <map>
 #include <mutex>
+#define VERBOSE
 namespace blas {
 
 /** SB_Handle.
@@ -225,5 +225,5 @@ class SB_Handle {
 };
 
 }  // namespace blas
-
+#undef VERBOSE
 #endif  // PORTBLAS_HANDLE_H

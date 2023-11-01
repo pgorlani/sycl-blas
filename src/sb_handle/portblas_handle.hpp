@@ -38,7 +38,7 @@
 #include "views/view.h"
 
 namespace blas {
-
+#define VERBOSE
 #ifdef SB_ENABLE_USM
 template <helper::AllocType alloc, typename value_t>
 typename std::enable_if<
@@ -123,7 +123,7 @@ SB_Handle::enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
   });
 }
 #endif
-
+#undef VERBOSE
 template <typename container_t>
 typename std::enable_if<
     std::is_same<container_t, typename helper::AllocHelper<
