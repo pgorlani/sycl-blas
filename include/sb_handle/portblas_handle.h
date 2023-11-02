@@ -80,14 +80,14 @@ class SB_Handle {
   typename std::enable_if<
       alloc == helper::AllocType::usm,
       typename helper::AllocHelper<value_t, alloc>::type>::type
-  allocate(size_t size);
+  acquire_temp_mem(size_t size);
 #endif
 
   template <helper::AllocType alloc, typename value_t>
   typename std::enable_if<
       alloc == helper::AllocType::buffer,
       typename helper::AllocHelper<value_t, alloc>::type>::type
-  allocate(size_t size);
+  acquire_temp_mem(size_t size);
 
 #ifdef SB_ENABLE_USM
   template <typename container_t>
@@ -96,8 +96,8 @@ class SB_Handle {
                                     typename ValueType<container_t>::type,
                                     helper::AllocType::usm>::type>::value,
       cl::sycl::event>::type
-  enqueue_deallocate(std::vector<cl::sycl::event> dependencies,
-                     const container_t& mem);
+  release_temp_mem(std::vector<cl::sycl::event> dependencies,
+                   const container_t& mem);
 #endif
 
   template <typename container_t>
@@ -106,7 +106,7 @@ class SB_Handle {
                                     typename ValueType<container_t>::type,
                                     helper::AllocType::buffer>::type>::value,
       cl::sycl::event>::type
-  enqueue_deallocate(std::vector<cl::sycl::event>, const container_t& mem);
+  release_temp_mem(std::vector<cl::sycl::event>, const container_t& mem);
 
   template <typename expression_tree_t>
   event_t execute(expression_tree_t tree, const event_t& dependencies = {});

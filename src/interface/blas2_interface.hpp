@@ -93,7 +93,7 @@ typename sb_handle_t::event_t _gemv_impl(
     const auto ld = is_transposed ? _N : _M;
     constexpr index_t one = 1;
 
-    auto dot_products_buffer = sb_handle.template allocate < is_usm
+    auto dot_products_buffer = sb_handle.template acquire_temp_mem < is_usm
                                    ? helper::AllocType::usm
                                    : helper::AllocType::buffer,
          element_t > (ld);
@@ -136,7 +136,7 @@ typename sb_handle_t::event_t _gemv_impl(
           gemvEvent, sb_handle.execute(assignOp, local_range, gemvEvent));
     }
 
-    sb_handle.template enqueue_deallocate(ret, dot_products_buffer);
+    sb_handle.template release_temp_mem(ret, dot_products_buffer);
 
   } else  // Local memory kernel
   {
@@ -159,7 +159,7 @@ typename sb_handle_t::event_t _gemv_impl(
     const auto dot_products_buffer_size = ld * WGs_per_C;
 
     // Create the dot products buffer and matrix view
-    auto dot_products_buffer = sb_handle.template allocate < is_usm
+    auto dot_products_buffer = sb_handle.template acquire_temp_mem < is_usm
                                    ? helper::AllocType::usm
                                    : helper::AllocType::buffer,
          element_t > (dot_products_buffer_size);
@@ -205,7 +205,7 @@ typename sb_handle_t::event_t _gemv_impl(
           gemvEvent, sb_handle.execute(assignOp, local_range, gemvEvent));
     }
 
-    sb_handle.template enqueue_deallocate(ret, dot_products_buffer);
+    sb_handle.template release_temp_mem(ret, dot_products_buffer);
   }
   return ret;
 }
@@ -262,8 +262,9 @@ typename sb_handle_t::event_t _trmv_impl(
 
   using element_t = typename ValueType<container_t0>::type;
   constexpr bool is_usm = std::is_pointer<container_t0>::value;
-  auto valT1 = sb_handle.template allocate < is_usm ? helper::AllocType::usm
-                                                    : helper::AllocType::buffer,
+  auto valT1 = sb_handle.template acquire_temp_mem < is_usm
+                   ? helper::AllocType::usm
+                   : helper::AllocType::buffer,
        element_t > (N * scratchSize);
   auto mat1 = make_matrix_view<row_major>(valT1, N, scratchSize, scratchSize);
 
@@ -332,7 +333,7 @@ typename sb_handle_t::event_t _trmv_impl(
   auto assignOp = make_op<Assign>(vx, addMOp);
   ret = concatenate_vectors(ret, sb_handle.execute(assignOp, localSize, ret));
 
-  sb_handle.template enqueue_deallocate(ret, valT1);
+  sb_handle.template release_temp_mem(ret, valT1);
 
   return ret;
 }
@@ -372,7 +373,7 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
 
   auto queue = sb_handle.get_queue();
   constexpr bool is_usm = std::is_pointer<container_t0>::value;
-  auto sync_buffer = sb_handle.template allocate < is_usm
+  auto sync_buffer = sb_handle.template acquire_temp_mem < is_usm
                          ? blas::helper::AllocType::usm
                          : blas::helper::AllocType::buffer,
        int32_t > (sync_vec.size());
@@ -393,7 +394,7 @@ typename sb_handle_t::event_t _trsv_impl(sb_handle_t& sb_handle, index_t _N,
       roundUp<index_t>(sub_num * _N, sub_num * subgroup_size),
       static_cast<index_t>(subgroup_size * (subgroup_size + 2 + sub_num)), _dependencies);
 
-  sb_handle.template enqueue_deallocate(ret, sync_buffer);
+  sb_handle.template release_temp_mem(ret, sync_buffer);
 
   return ret;
 #endif
@@ -463,16 +464,18 @@ typename sb_handle_t::event_t _symv_impl(
       ((scratchPadSize == 0) ? std::min(N, localSize) : 1) * nWGPerCol_R;
 
   constexpr bool is_usm = std::is_pointer<container_t0>::value;
-  auto valTR = sb_handle.template allocate < is_usm ? helper::AllocType::usm
-                                                    : helper::AllocType::buffer,
+  auto valTR = sb_handle.template acquire_temp_mem < is_usm
+                   ? helper::AllocType::usm
+                   : helper::AllocType::buffer,
        element_t > (N * scratchSize_R);
   auto matR =
       make_matrix_view<row_major>(valTR, N, scratchSize_R, scratchSize_R);
 
   const index_t scratchSize_C = nWGPerCol_C;
 
-  auto valTC = sb_handle.template allocate < is_usm ? helper::AllocType::usm
-                                                    : helper::AllocType::buffer,
+  auto valTC = sb_handle.template acquire_temp_mem < is_usm
+                   ? helper::AllocType::usm
+                   : helper::AllocType::buffer,
        element_t > (N * scratchSize_C);
   auto matC =
       make_matrix_view<row_major>(valTC, N, scratchSize_C, scratchSize_C);
@@ -510,8 +513,8 @@ typename sb_handle_t::event_t _symv_impl(
   auto assignOp = make_op<Assign>(vy, addOp);
   ret = concatenate_vectors(ret, sb_handle.execute(assignOp, localSize, ret));
 
-  sb_handle.template enqueue_deallocate(ret, valTR);
-  sb_handle.template enqueue_deallocate(ret, valTC);
+  sb_handle.template release_temp_mem(ret, valTR);
+  sb_handle.template release_temp_mem(ret, valTC);
 
   return ret;
 }
@@ -644,7 +647,7 @@ typename sb_handle_t::event_t _tbmv_impl(
   constexpr bool is_usm = std::is_pointer<container_t0>::value;
   using element_t = typename ValueType<container_t0>::type;
   auto x_vector_size = _N;
-  auto res_buffer = sb_handle.template allocate < is_usm
+  auto res_buffer = sb_handle.template acquire_temp_mem < is_usm
                         ? helper::AllocType::usm
                         : helper::AllocType::buffer,
        element_t > (x_vector_size);
@@ -665,7 +668,7 @@ typename sb_handle_t::event_t _tbmv_impl(
   auto assignEvent = sb_handle.execute(assignOp, local_range, tbmvEvent);
   auto ret = concatenate_vectors(tbmvEvent, assignEvent);
 
-  sb_handle.template enqueue_deallocate(ret, res_buffer);
+  sb_handle.template release_temp_mem(ret, res_buffer);
 
   return ret;
 }
@@ -691,7 +694,7 @@ typename sb_handle_t::event_t _tpmv_impl(
   using element_t = typename ValueType<container_t0>::type;
   constexpr bool is_usm = std::is_pointer<container_t0>::value;
 
-  auto res_buffer = sb_handle.template allocate < is_usm
+  auto res_buffer = sb_handle.template acquire_temp_mem < is_usm
                         ? helper::AllocType::usm
                         : helper::AllocType::buffer,
        element_t > (vector_size);
@@ -719,7 +722,7 @@ typename sb_handle_t::event_t _tpmv_impl(
   auto ret =
       concatenate_vectors(tpmvEvent, sb_handle.execute(assignOp, tpmvEvent));
 
-  sb_handle.template enqueue_deallocate(ret, res_buffer);
+  sb_handle.template release_temp_mem(ret, res_buffer);
 
   return ret;
 }
@@ -763,7 +766,7 @@ typename sb_handle_t::event_t _tbsv_impl(sb_handle_t& sb_handle, index_t _N,
   constexpr bool is_usm = std::is_pointer<container_t0>::value;
   auto queue = sb_handle.get_queue();
 
-  auto sync_buffer = sb_handle.template allocate < is_usm
+  auto sync_buffer = sb_handle.template acquire_temp_mem < is_usm
                          ? blas::helper::AllocType::usm
                          : blas::helper::AllocType::buffer,
        int32_t > (sync_vec.size());
@@ -783,7 +786,7 @@ typename sb_handle_t::event_t _tbsv_impl(sb_handle_t& sb_handle, index_t _N,
       roundUp<index_t>(sub_num * _N, sub_num * subgroup_size),
       static_cast<index_t>(subgroup_size * (subgroup_size + 2 + sub_num)), _dependencies);
 
-  sb_handle.template enqueue_deallocate(ret, sync_buffer);
+  sb_handle.template release_temp_mem(ret, sync_buffer);
 
   return ret;
 #endif
@@ -826,7 +829,7 @@ typename sb_handle_t::event_t _tpsv_impl(sb_handle_t& sb_handle, index_t _N,
 
   auto queue = sb_handle.get_queue();
   constexpr bool is_usm = std::is_pointer<container_t0>::value;
-  auto sync_buffer = sb_handle.template allocate < is_usm
+  auto sync_buffer = sb_handle.template acquire_temp_mem < is_usm
                          ? blas::helper::AllocType::usm
                          : blas::helper::AllocType::buffer,
        int32_t > (sync_vec.size());
@@ -849,7 +852,7 @@ typename sb_handle_t::event_t _tpsv_impl(sb_handle_t& sb_handle, index_t _N,
       static_cast<index_t>(subgroup_size * (subgroup_size + 2 + sub_num)),
       _dependencies);
 
-  sb_handle.template enqueue_deallocate(ret, sync_buffer);
+  sb_handle.template release_temp_mem(ret, sync_buffer);
 
   return ret;
 #endif
