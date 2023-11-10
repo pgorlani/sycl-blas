@@ -54,7 +54,13 @@ class SB_Handle {
         localMemorySupport_(helper::has_local_memory(q)),
         computeUnits_(helper::get_num_compute_units(q)),
         tot_size_temp_mem_(0) {}
-  SB_Handle(SB_Handle&) = delete;
+  SB_Handle(const SB_Handle& h)
+      : q_(h.q_),
+        workGroupSize_(helper::get_work_group_size(q_)),
+        localMemorySupport_(helper::has_local_memory(q_)),
+        computeUnits_(helper::get_num_compute_units(q_)),
+        tot_size_temp_mem_(max_size_temp_mem_) {}
+
   SB_Handle operator=(SB_Handle) = delete;
 
   ~SB_Handle() {
@@ -64,7 +70,7 @@ class SB_Handle {
 #endif
 
 #ifdef SB_ENABLE_USM
-    q_.wait();
+    if (temp_usm_map_.size() > 0) q_.wait();
 
 #ifdef VERBOSE
     std::cout << "USM allocations freed on SB_Handle destruction: "
