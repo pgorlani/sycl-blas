@@ -66,8 +66,10 @@ int main(int argc, char** argv) {
 
   utils::print_queue_information(q);
 
+  std::unique_ptr<blas::Temp_Mem_Pool> mp =
+      std::make_unique<blas::Temp_Mem_Pool>(q);
   // Create a portBLAS sb_handle from the queue
-  blas::SB_Handle sb_handle(q);
+  blas::SB_Handle sb_handle(mp.get());
 
   // This will be set to false by a failing benchmark
   bool success = true;

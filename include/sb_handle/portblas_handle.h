@@ -34,36 +34,19 @@
 #include <mutex>
 
 namespace blas {
-
-/** SB_Handle.
- * @brief Primary template for the SB_Handle specializations.
- * The SB_Handle represents the object that executes a tree on
- * a specific backend.
- * SB_Handle have state, and they must be instantiated
- * before using them.
- * Only one method is mandatory, the Execute method.
- */
-class SB_Handle {
-  using queue_t = cl::sycl::queue;
-
+#define VERBOSE
+class Temp_Mem_Pool {
  public:
-  using event_t = std::vector<cl::sycl::event>;
-  inline SB_Handle(queue_t q)
-      : q_(q),
-        workGroupSize_(helper::get_work_group_size(q)),
-        localMemorySupport_(helper::has_local_memory(q)),
-        computeUnits_(helper::get_num_compute_units(q)),
-        tot_size_temp_mem_(0) {}
-  SB_Handle(const SB_Handle& h)
-      : q_(h.q_),
-        workGroupSize_(helper::get_work_group_size(q_)),
-        localMemorySupport_(helper::has_local_memory(q_)),
-        computeUnits_(helper::get_num_compute_units(q_)),
-        tot_size_temp_mem_(max_size_temp_mem_) {}
+  using queue_t = cl::sycl::queue;
+  using temp_usm_map_t = std::multimap<size_t, void*>;
+  using temp_usm_size_map_t = std::map<void*, size_t>;
+  using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<int8_t, 1>>;
 
-  SB_Handle operator=(SB_Handle) = delete;
+  Temp_Mem_Pool(queue_t q) : q_(q), tot_size_temp_mem_(0) {}
+  Temp_Mem_Pool(const Temp_Mem_Pool& h) = delete;
+  Temp_Mem_Pool operator=(Temp_Mem_Pool) = delete;
 
-  ~SB_Handle() {
+  ~Temp_Mem_Pool() {
 #ifdef VERBOSE
     std::cout << "Buffers destroyed on SB_Handle destruction: "
               << temp_buffer_map_.size() << std::endl;
@@ -81,6 +64,70 @@ class SB_Handle {
       cl::sycl::free(p.second, q_);
 #endif
   }
+
+  inline queue_t get_queue() const { return q_; }
+
+#ifdef SB_ENABLE_USM
+  template <typename value_t>
+  typename helper::AllocHelper<value_t, helper::AllocType::usm>::type
+  acquire_usm_mem(size_t size);
+#endif
+
+  template <typename value_t>
+  typename helper::AllocHelper<value_t, helper::AllocType::buffer>::type
+  acquire_buff_mem(size_t size);
+
+#ifdef SB_ENABLE_USM
+  template <typename container_t>
+  cl::sycl::event release_usm_mem(std::vector<cl::sycl::event> dependencies,
+                                  const container_t& mem);
+#endif
+
+  template <typename container_t>
+  cl::sycl::event release_buff_mem(std::vector<cl::sycl::event> dependencies,
+                                   const container_t& mem);
+
+ private:
+  static_assert(sizeof(temp_buffer_map_t::mapped_type::value_type) == 1);
+
+  queue_t q_;
+  size_t tot_size_temp_mem_;
+  static constexpr size_t max_size_temp_mem_ = 1e9;
+
+  std::mutex map_mutex_;
+#ifdef SB_ENABLE_USM
+  temp_usm_map_t temp_usm_map_;
+  temp_usm_size_map_t temp_usm_size_map_;
+#endif
+  temp_buffer_map_t temp_buffer_map_;
+};
+#undef VERBOSE
+/** SB_Handle.
+ * @brief Primary template for the SB_Handle specializations.
+ * The SB_Handle represents the object that executes a tree on
+ * a specific backend.
+ * SB_Handle have state, and they must be instantiated
+ * before using them.
+ * Only one method is mandatory, the Execute method.
+ */
+class SB_Handle {
+  using queue_t = cl::sycl::queue;
+
+ public:
+  using event_t = std::vector<cl::sycl::event>;
+  inline SB_Handle(queue_t q)
+      : tempMemPool_(NULL),
+        q_(q),
+        workGroupSize_(helper::get_work_group_size(q)),
+        localMemorySupport_(helper::has_local_memory(q)),
+        computeUnits_(helper::get_num_compute_units(q)) {}
+
+  inline SB_Handle(Temp_Mem_Pool* tmp)
+      : tempMemPool_(tmp),
+        q_(tmp->get_queue()),
+        workGroupSize_(helper::get_work_group_size(q_)),
+        localMemorySupport_(helper::has_local_memory(q_)),
+        computeUnits_(helper::get_num_compute_units(q_)) {}
 
 #ifdef SB_ENABLE_USM
   template <helper::AllocType alloc, typename value_t>
@@ -210,25 +257,11 @@ class SB_Handle {
   }
 
  private:
-  using temp_usm_map_t = std::multimap<size_t, void*>;
-  using temp_usm_size_map_t = std::map<void*, size_t>;
-  using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<int8_t, 1>>;
-  static_assert(sizeof(temp_buffer_map_t::mapped_type::value_type) == 1);
-
   queue_t q_;
   const size_t workGroupSize_;
   const bool localMemorySupport_;
   const size_t computeUnits_;
-
-  size_t tot_size_temp_mem_;
-  static constexpr size_t max_size_temp_mem_ = 1e9;
-
-  std::mutex map_mutex_;
-#ifdef SB_ENABLE_USM
-  temp_usm_map_t temp_usm_map_;
-  temp_usm_size_map_t temp_usm_size_map_;
-#endif
-  temp_buffer_map_t temp_buffer_map_;
+  Temp_Mem_Pool* tempMemPool_;
 };
 
 }  // namespace blas

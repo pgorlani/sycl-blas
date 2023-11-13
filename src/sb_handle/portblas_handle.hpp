@@ -36,14 +36,12 @@
 #include "sb_handle/portblas_handle.h"
 #include "portblas_helper.h"
 #include "views/view.h"
-
+#define VERBOSE
 namespace blas {
 #ifdef SB_ENABLE_USM
-template <helper::AllocType alloc, typename value_t>
-typename std::enable_if<
-    alloc == helper::AllocType::usm,
-    typename helper::AllocHelper<value_t, alloc>::type>::type
-SB_Handle::acquire_temp_mem(size_t size) {
+template <typename value_t>
+typename helper::AllocHelper<value_t, helper::AllocType::usm>::type
+Temp_Mem_Pool::acquire_usm_mem(size_t size) {
   const size_t byteSize = size * sizeof(value_t);
   map_mutex_.lock();
   auto found = temp_usm_map_.lower_bound(byteSize);
@@ -66,13 +64,22 @@ SB_Handle::acquire_temp_mem(size_t size) {
     return tmp;
   }
 }
-#endif
 
 template <helper::AllocType alloc, typename value_t>
 typename std::enable_if<
-    alloc == helper::AllocType::buffer,
+    alloc == helper::AllocType::usm,
     typename helper::AllocHelper<value_t, alloc>::type>::type
 SB_Handle::acquire_temp_mem(size_t size) {
+  if (tempMemPool_ != NULL)
+    return tempMemPool_->acquire_usm_mem<value_t>(size);
+  else
+    return cl::sycl::malloc_device<value_t>(size, q_);
+}
+#endif
+
+template <typename value_t>
+typename helper::AllocHelper<value_t, helper::AllocType::buffer>::type
+Temp_Mem_Pool::acquire_buff_mem(size_t size) {
   const size_t byteSize = size * sizeof(value_t);
   map_mutex_.lock();
   auto found = temp_buffer_map_.lower_bound(byteSize);
@@ -94,15 +101,21 @@ SB_Handle::acquire_temp_mem(size_t size) {
   }
 }
 
+template <helper::AllocType alloc, typename value_t>
+typename std::enable_if<
+    alloc == helper::AllocType::buffer,
+    typename helper::AllocHelper<value_t, alloc>::type>::type
+SB_Handle::acquire_temp_mem(size_t size) {
+  if (tempMemPool_ != NULL)
+    return tempMemPool_->acquire_buff_mem<value_t>(size);
+  else
+    return make_sycl_iterator_buffer<value_t>(size);
+}
+
 #ifdef SB_ENABLE_USM
 template <typename container_t>
-typename std::enable_if<
-    std::is_same<container_t, typename helper::AllocHelper<
-                                  typename ValueType<container_t>::type,
-                                  helper::AllocType::usm>::type>::value,
-    cl::sycl::event>::type
-SB_Handle::release_temp_mem(std::vector<cl::sycl::event> dependencies,
-                            const container_t& mem) {
+cl::sycl::event Temp_Mem_Pool::release_usm_mem(
+    std::vector<cl::sycl::event> dependencies, const container_t& mem) {
   return q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
     map_mutex_.lock();
@@ -121,16 +134,27 @@ SB_Handle::release_temp_mem(std::vector<cl::sycl::event> dependencies,
     }
   });
 }
-#endif
-#undef VERBOSE
 template <typename container_t>
 typename std::enable_if<
     std::is_same<container_t, typename helper::AllocHelper<
                                   typename ValueType<container_t>::type,
-                                  helper::AllocType::buffer>::type>::value,
+                                  helper::AllocType::usm>::type>::value,
     cl::sycl::event>::type
 SB_Handle::release_temp_mem(std::vector<cl::sycl::event> dependencies,
                             const container_t& mem) {
+  if (tempMemPool_ != NULL)
+    return tempMemPool_->release_usm_mem(dependencies, mem);
+  else
+    return q_.submit([&](cl::sycl::handler& cgh) {
+      cgh.depends_on(dependencies);
+      cl::sycl::free(mem, q_);
+    });
+}
+#endif
+#undef VERBOSE
+template <typename container_t>
+cl::sycl::event Temp_Mem_Pool::release_buff_mem(
+    std::vector<cl::sycl::event> dependencies, const container_t& mem) {
   return q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
     const size_t byteSize = mem.get_buffer().byte_size();
@@ -147,6 +171,19 @@ SB_Handle::release_temp_mem(std::vector<cl::sycl::event> dependencies,
       map_mutex_.unlock();
     }
   });
+}
+template <typename container_t>
+typename std::enable_if<
+    std::is_same<container_t, typename helper::AllocHelper<
+                                  typename ValueType<container_t>::type,
+                                  helper::AllocType::buffer>::type>::value,
+    cl::sycl::event>::type
+SB_Handle::release_temp_mem(std::vector<cl::sycl::event> dependencies,
+                            const container_t& mem) {
+  if (tempMemPool_ != NULL)
+    return tempMemPool_->release_buff_mem(dependencies, mem);
+  else
+    return cl::sycl::event();
 }
 
 /*!
