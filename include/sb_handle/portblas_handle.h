@@ -30,78 +30,9 @@
 #include "operations/blas3_trees.h"
 #include "operations/extension/reduction.h"
 #include "portblas_helper.h"
-#include <map>
-#include <mutex>
+#include "temp_memory_pool.h"
 
 namespace blas {
-#define VERBOSE
-class Temp_Mem_Pool {
- public:
-  using queue_t = cl::sycl::queue;
-  using temp_usm_map_t = std::multimap<size_t, void*>;
-  using temp_usm_size_map_t = std::map<void*, size_t>;
-  using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<int8_t, 1>>;
-
-  Temp_Mem_Pool(queue_t q) : q_(q), tot_size_temp_mem_(0) {}
-  Temp_Mem_Pool(const Temp_Mem_Pool& h) = delete;
-  Temp_Mem_Pool operator=(Temp_Mem_Pool) = delete;
-
-  ~Temp_Mem_Pool() {
-#ifdef VERBOSE
-    std::cout << "Buffers destroyed on SB_Handle destruction: "
-              << temp_buffer_map_.size() << std::endl;
-#endif
-
-#ifdef SB_ENABLE_USM
-    if (temp_usm_map_.size() > 0) q_.wait();
-
-#ifdef VERBOSE
-    std::cout << "USM allocations freed on SB_Handle destruction: "
-              << temp_usm_map_.size() << std::endl;
-#endif
-
-    for (const temp_usm_map_t::value_type& p : temp_usm_map_)
-      cl::sycl::free(p.second, q_);
-#endif
-  }
-
-  inline queue_t get_queue() const { return q_; }
-
-#ifdef SB_ENABLE_USM
-  template <typename value_t>
-  typename helper::AllocHelper<value_t, helper::AllocType::usm>::type
-  acquire_usm_mem(size_t size);
-#endif
-
-  template <typename value_t>
-  typename helper::AllocHelper<value_t, helper::AllocType::buffer>::type
-  acquire_buff_mem(size_t size);
-
-#ifdef SB_ENABLE_USM
-  template <typename container_t>
-  cl::sycl::event release_usm_mem(std::vector<cl::sycl::event> dependencies,
-                                  const container_t& mem);
-#endif
-
-  template <typename container_t>
-  cl::sycl::event release_buff_mem(std::vector<cl::sycl::event> dependencies,
-                                   const container_t& mem);
-
- private:
-  static_assert(sizeof(temp_buffer_map_t::mapped_type::value_type) == 1);
-
-  queue_t q_;
-  size_t tot_size_temp_mem_;
-  static constexpr size_t max_size_temp_mem_ = 1e9;
-
-  std::mutex map_mutex_;
-#ifdef SB_ENABLE_USM
-  temp_usm_map_t temp_usm_map_;
-  temp_usm_size_map_t temp_usm_size_map_;
-#endif
-  temp_buffer_map_t temp_buffer_map_;
-};
-#undef VERBOSE
 /** SB_Handle.
  * @brief Primary template for the SB_Handle specializations.
  * The SB_Handle represents the object that executes a tree on
@@ -265,5 +196,4 @@ class SB_Handle {
 };
 
 }  // namespace blas
-#undef VERBOSE
 #endif  // PORTBLAS_HANDLE_H
