@@ -22,6 +22,7 @@
  *  @filename portblas_handle.h
  *
  **************************************************************************/
+
 #ifndef PORTBLAS_HANDLE_H
 #define PORTBLAS_HANDLE_H
 #include "blas_meta.h"
@@ -33,6 +34,7 @@
 #include "temp_memory_pool.h"
 
 namespace blas {
+
 /** SB_Handle.
  * @brief Primary template for the SB_Handle specializations.
  * The SB_Handle represents the object that executes a tree on
@@ -196,4 +198,5 @@ class SB_Handle {
 };
 
 }  // namespace blas
+
 #endif  // PORTBLAS_HANDLE_H
