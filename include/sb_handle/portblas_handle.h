@@ -62,21 +62,27 @@ class SB_Handle {
         localMemorySupport_(helper::has_local_memory(q_)),
         computeUnits_(helper::get_num_compute_units(q_)) {}
 
-#ifdef SB_ENABLE_USM
-  template <helper::AllocType alloc, typename value_t>
-  typename std::enable_if<
-      alloc == helper::AllocType::usm,
-      typename helper::AllocHelper<value_t, alloc>::type>::type
-  acquire_temp_mem(size_t size);
-#endif
-
   template <helper::AllocType alloc, typename value_t>
   typename std::enable_if<
       alloc == helper::AllocType::buffer,
       typename helper::AllocHelper<value_t, alloc>::type>::type
   acquire_temp_mem(size_t size);
 
+  template <typename container_t>
+  typename std::enable_if<
+      std::is_same<container_t, typename helper::AllocHelper<
+                                    typename ValueType<container_t>::type,
+                                    helper::AllocType::buffer>::type>::value,
+      cl::sycl::event>::type
+  release_temp_mem(std::vector<cl::sycl::event>, const container_t& mem);
+
 #ifdef SB_ENABLE_USM
+  template <helper::AllocType alloc, typename value_t>
+  typename std::enable_if<
+      alloc == helper::AllocType::usm,
+      typename helper::AllocHelper<value_t, alloc>::type>::type
+  acquire_temp_mem(size_t size);
+
   template <typename container_t>
   typename std::enable_if<
       std::is_same<container_t, typename helper::AllocHelper<
@@ -86,14 +92,6 @@ class SB_Handle {
   release_temp_mem(std::vector<cl::sycl::event> dependencies,
                    const container_t& mem);
 #endif
-
-  template <typename container_t>
-  typename std::enable_if<
-      std::is_same<container_t, typename helper::AllocHelper<
-                                    typename ValueType<container_t>::type,
-                                    helper::AllocType::buffer>::type>::value,
-      cl::sycl::event>::type
-  release_temp_mem(std::vector<cl::sycl::event>, const container_t& mem);
 
   template <typename expression_tree_t>
   event_t execute(expression_tree_t tree, const event_t& dependencies = {});
