@@ -57,7 +57,7 @@ typename std::enable_if<
                                   helper::AllocType::buffer>::type>::value,
     cl::sycl::event>::type
 SB_Handle::release_temp_mem(std::vector<cl::sycl::event> dependencies,
-                            const container_t& mem) {
+                            container_t mem) {
   if (tempMemPool_ != NULL)
     return tempMemPool_->release_buff_mem(dependencies, mem);
   else
@@ -83,14 +83,15 @@ typename std::enable_if<
                                   helper::AllocType::usm>::type>::value,
     cl::sycl::event>::type
 SB_Handle::release_temp_mem(std::vector<cl::sycl::event> dependencies,
-                            const container_t& mem) {
+                            container_t mem) {
   if (tempMemPool_ != NULL)
     return tempMemPool_->release_usm_mem(dependencies, mem);
-  else
+  else {
     return q_.submit([&](cl::sycl::handler& cgh) {
       cgh.depends_on(dependencies);
-      cl::sycl::free(mem, q_);
+      cgh.host_task([=]() { cl::sycl::free(mem, q_); });
     });
+  }
 }
 #endif
 
