@@ -770,11 +770,11 @@ typename ValueType<container_0_t>::type _dot(
     const typename sb_handle_t::event_t &_dependencies) {
   constexpr bool is_usm = std::is_pointer<container_0_t>::value;
   using element_t = typename ValueType<container_0_t>::type;
-<<<<<<< HEAD
   element_t res{0};
-  auto gpu_res = helper::allocate < is_usm ? helper::AllocType::usm
-                                           : helper::AllocType::buffer,
-       element_t > (static_cast<index_t>(1), sb_handle.get_queue());
+  auto gpu_res = sb_handle.template acquire_temp_mem < is_usm
+                     ? helper::AllocType::usm
+                     : helper::AllocType::buffer,
+       element_t > (static_cast<index_t>(1));
   auto copyTodD =
       blas::helper::copy_to_device(sb_handle.get_queue(), &res, gpu_res, 1);
   typename sb_handle_t::event_t all_deps = concatenate_vectors(
@@ -787,26 +787,8 @@ typename ValueType<container_0_t>::type _dot(
   auto copyToH = helper::copy_to_host(sb_handle.get_queue(), gpu_res, &res, 1);
   sb_handle.wait(copyToH);
 
-  helper::deallocate<is_usm ? helper::AllocType::usm
-                            : helper::AllocType::buffer>(gpu_res,
-                                                         sb_handle.get_queue());
+  sb_handle.template release_temp_mem({copyToH}, gpu_res);
   return res;
-=======
-  auto res = std::vector<element_t>(1);
-  auto gpu_res = sb_handle.template acquire_temp_mem < is_usm
-                     ? helper::AllocType::usm
-                     : helper::AllocType::buffer,
-       element_t > (static_cast<index_t>(1));
-  auto dot_event = internal::_dot(sb_handle, _N, _vx, _incx, _vy, _incy,
-                                  gpu_res, _dependencies);
-  sb_handle.wait(dot_event);
-  auto event =
-      helper::copy_to_host(sb_handle.get_queue(), gpu_res, res.data(), 1);
-  sb_handle.wait(event);
-
-  sb_handle.template release_temp_mem({event}, gpu_res);
-  return res[0];
->>>>>>> 8c6689d6 (Store temporary memory allocations)
 }
 
 /**
@@ -837,11 +819,11 @@ typename ValueType<container_0_t>::type _sdsdot(
     const typename sb_handle_t::event_t &_dependencies) {
   constexpr bool is_usm = std::is_pointer<container_0_t>::value;
   using element_t = typename ValueType<container_0_t>::type;
-<<<<<<< HEAD
   element_t res{0};
-  auto gpu_res = blas::helper::allocate < is_usm ? helper::AllocType::usm
-                                                 : helper::AllocType::buffer,
-       element_t > (static_cast<index_t>(1), sb_handle.get_queue());
+  auto gpu_res = sb_handle.template acquire_temp_mem < is_usm
+                     ? helper::AllocType::usm
+                     : helper::AllocType::buffer,
+       element_t > (static_cast<index_t>(1));
   auto copyTodD =
       blas::helper::copy_to_device(sb_handle.get_queue(), &res, gpu_res, 1);
   typename sb_handle_t::event_t all_deps = concatenate_vectors(
@@ -851,21 +833,10 @@ typename ValueType<container_0_t>::type _sdsdot(
                                               _vy, _incy, gpu_res, all_deps);
   sb_handle.wait(sdsdot_event);
   auto copyToH =
-=======
-  element_t res{};
-  auto gpu_res = sb_handle.template acquire_temp_mem < is_usm
-                     ? helper::AllocType::usm
-                     : helper::AllocType::buffer,
-       element_t > (static_cast<index_t>(1));
-  auto event1 = blas::internal::_sdsdot(sb_handle, _N, sb, _vx, _incx, _vy,
-                                        _incy, gpu_res, _dependencies);
-  sb_handle.wait(event1);
-  auto event2 =
->>>>>>> 8c6689d6 (Store temporary memory allocations)
       blas::helper::copy_to_host(sb_handle.get_queue(), gpu_res, &res, 1);
   sb_handle.wait(copyToH);
 
-  sb_handle.template release_temp_mem({event2}, gpu_res);
+  sb_handle.template release_temp_mem({copyToH}, gpu_res);
   return res;
 }
 
