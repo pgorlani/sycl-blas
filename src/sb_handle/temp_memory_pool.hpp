@@ -32,9 +32,9 @@ Temp_Mem_Pool::acquire_buff_mem(size_t size) {
 template <typename container_t>
 cl::sycl::event Temp_Mem_Pool::release_buff_mem(
     std::vector<cl::sycl::event> dependencies, container_t mem) {
-  return q_.submit([&](cl::sycl::handler& cgh) {
+  return q_.submit([&, mem](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
-    cgh.host_task([&]() {
+    cgh.host_task([&, mem]() {
       const size_t byteSize = mem.get_buffer().byte_size();
       if (tot_size_temp_mem_ + byteSize <= max_size_temp_mem_) {
         map_mutex_.lock();
