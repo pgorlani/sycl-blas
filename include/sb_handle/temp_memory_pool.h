@@ -68,8 +68,8 @@ class Temp_Mem_Pool {
   acquire_buff_mem(size_t size);
 
   template <typename container_t>
-  cl::sycl::event release_buff_mem(const typename Temp_Mem_Pool::event_t&,
-                                   const container_t&);
+  typename Temp_Mem_Pool::event_t release_buff_mem(
+      const typename Temp_Mem_Pool::event_t&, const container_t&);
 
 #ifdef SB_ENABLE_USM
   template <typename value_t>
@@ -77,8 +77,8 @@ class Temp_Mem_Pool {
   acquire_usm_mem(size_t size);
 
   template <typename container_t>
-  cl::sycl::event release_usm_mem(const typename Temp_Mem_Pool::event_t&,
-                                  const container_t&);
+  typename Temp_Mem_Pool::event_t release_usm_mem(
+      const typename Temp_Mem_Pool::event_t&, const container_t&);
 #endif
 
  private:

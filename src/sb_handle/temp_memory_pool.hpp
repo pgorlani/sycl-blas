@@ -30,10 +30,10 @@ Temp_Mem_Pool::acquire_buff_mem(size_t size) {
 }
 
 template <typename container_t>
-cl::sycl::event Temp_Mem_Pool::release_buff_mem(
+typename Temp_Mem_Pool::event_t Temp_Mem_Pool::release_buff_mem(
     const typename Temp_Mem_Pool::event_t& dependencies,
     const container_t& mem) {
-  return q_.submit([&, mem](cl::sycl::handler& cgh) {
+  return {q_.submit([&, mem](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
     cgh.host_task([&, mem]() {
       const size_t byteSize = mem.get_buffer().byte_size();
@@ -51,7 +51,7 @@ cl::sycl::event Temp_Mem_Pool::release_buff_mem(
         map_mutex_.unlock();
       }
     });
-  });
+  })};
 }
 
 #ifdef SB_ENABLE_USM
@@ -82,11 +82,11 @@ Temp_Mem_Pool::acquire_usm_mem(size_t size) {
 }
 
 template <typename container_t>
-cl::sycl::event Temp_Mem_Pool::release_usm_mem(
+typename Temp_Mem_Pool::event_t Temp_Mem_Pool::release_usm_mem(
     const typename Temp_Mem_Pool::event_t& dependencies,
     const container_t& mem) {
   cl::sycl::context context = q_.get_context();
-  return q_.submit([&](cl::sycl::handler& cgh) {
+  return {q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
     cgh.host_task([&, mem, context]() {
       map_mutex_.lock();
@@ -104,7 +104,7 @@ cl::sycl::event Temp_Mem_Pool::release_usm_mem(
         map_mutex_.unlock();
       }
     });
-  });
+  })};
 }
 }
 #endif

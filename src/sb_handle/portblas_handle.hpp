@@ -55,13 +55,13 @@ typename std::enable_if<
     std::is_same<container_t, typename helper::AllocHelper<
                                   typename ValueType<container_t>::type,
                                   helper::AllocType::buffer>::type>::value,
-    cl::sycl::event>::type
+    typename SB_Handle::event_t>::type
 SB_Handle::release_temp_mem(const typename SB_Handle::event_t& dependencies,
                             const container_t& mem) {
   if (tempMemPool_ != NULL)
     return tempMemPool_->release_buff_mem(dependencies, mem);
   else
-    return cl::sycl::event();
+    return {};
 }
 
 #ifdef SB_ENABLE_USM
@@ -81,17 +81,17 @@ typename std::enable_if<
     std::is_same<container_t, typename helper::AllocHelper<
                                   typename ValueType<container_t>::type,
                                   helper::AllocType::usm>::type>::value,
-    cl::sycl::event>::type
+    typename SB_Handle::event_t>::type
 SB_Handle::release_temp_mem(const typename SB_Handle::event_t& dependencies,
                             const container_t& mem) {
   if (tempMemPool_ != NULL)
     return tempMemPool_->release_usm_mem(dependencies, mem);
   else {
     cl::sycl::context context = q_.get_context();
-    return q_.submit([&](cl::sycl::handler& cgh) {
+    return {q_.submit([&](cl::sycl::handler& cgh) {
       cgh.depends_on(dependencies);
       cgh.host_task([=]() { cl::sycl::free(mem, context); });
-    });
+    })};
   }
 }
 #endif

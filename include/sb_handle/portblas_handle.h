@@ -73,7 +73,7 @@ class SB_Handle {
       std::is_same<container_t, typename helper::AllocHelper<
                                     typename ValueType<container_t>::type,
                                     helper::AllocType::buffer>::type>::value,
-      cl::sycl::event>::type
+      typename SB_Handle::event_t>::type
   release_temp_mem(const typename SB_Handle::event_t&, const container_t&);
 
 #ifdef SB_ENABLE_USM
@@ -88,7 +88,7 @@ class SB_Handle {
       std::is_same<container_t, typename helper::AllocHelper<
                                     typename ValueType<container_t>::type,
                                     helper::AllocType::usm>::type>::value,
-      cl::sycl::event>::type
+      typename SB_Handle::event_t>::type
   release_temp_mem(const typename SB_Handle::event_t&, const container_t&);
 #endif
 
