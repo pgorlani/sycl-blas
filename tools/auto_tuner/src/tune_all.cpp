@@ -54,7 +54,8 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  portblas_handle_t sb_handle(make_sycl_queue());
+  Temp_Mem_Pool mem_pool(make_sycl_queue());
+  portblas_handle_t sb_handle(&mem_pool);
 
   std::cout << "======= testing nn ======" << std::endl;
   run_tune_gemm<false, false, float>(sb_handle, seed, m, k, n, batch_size, rep,
