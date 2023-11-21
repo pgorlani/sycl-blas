@@ -62,8 +62,6 @@ class SB_Handle {
         localMemorySupport_(helper::has_local_memory(q_)),
         computeUnits_(helper::get_num_compute_units(q_)) {}
 
-  ~SB_Handle() { q_.wait();}
-
   template <helper::AllocType alloc, typename value_t>
   typename std::enable_if<
       alloc == helper::AllocType::buffer,

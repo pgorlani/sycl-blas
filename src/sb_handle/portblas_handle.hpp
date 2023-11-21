@@ -87,9 +87,10 @@ SB_Handle::release_temp_mem(std::vector<cl::sycl::event> dependencies,
   if (tempMemPool_ != NULL)
     return tempMemPool_->release_usm_mem(dependencies, mem);
   else {
+    cl::sycl::context context = q_.get_context();
     return q_.submit([&](cl::sycl::handler& cgh) {
       cgh.depends_on(dependencies);
-      cgh.host_task([=]() { cl::sycl::free(mem, q_); });
+      cgh.host_task([=]() { cl::sycl::free(mem, context); });
     });
   }
 }
