@@ -85,23 +85,23 @@ cl::sycl::event Temp_Mem_Pool::release_usm_mem(
     std::vector<cl::sycl::event> dependencies, container_t mem) {
   return q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
-    cgh.host_task([&]() {
-      map_mutex_.lock();
-      auto found = temp_usm_size_map_.find(
-          reinterpret_cast<temp_usm_size_map_t::key_type>(mem));
-      const size_t byteSize = found->second;
-      if (tot_size_temp_mem_ + byteSize > max_size_temp_mem_) {
-        temp_usm_size_map_.erase(found);
-        map_mutex_.unlock();
-        cl::sycl::free(mem, q_);
-      } else {
-        tot_size_temp_mem_ += byteSize;
-        temp_usm_map_.emplace(
-            byteSize, reinterpret_cast<temp_usm_map_t::mapped_type>(mem));
-        map_mutex_.unlock();
-      }
-    });
-  });
+    cgh.host_task([&, mem]() {
+    map_mutex_.lock();
+    auto found = temp_usm_size_map_.find(
+        reinterpret_cast<temp_usm_size_map_t::key_type>(mem));
+    const size_t byteSize = found->second;
+    if (tot_size_temp_mem_ + byteSize > max_size_temp_mem_) {
+      temp_usm_size_map_.erase(found);
+      map_mutex_.unlock();
+      cl::sycl::free(mem, q_);
+    } else {
+      tot_size_temp_mem_ += byteSize;
+      temp_usm_map_.emplace(byteSize,
+                            reinterpret_cast<temp_usm_map_t::mapped_type>(mem));
+      map_mutex_.unlock();
+    }
+});
+});
 }
 }
 #endif
