@@ -74,7 +74,7 @@ class SB_Handle {
                                     typename ValueType<container_t>::type,
                                     helper::AllocType::buffer>::type>::value,
       cl::sycl::event>::type
-  release_temp_mem(std::vector<cl::sycl::event>, container_t mem);
+  release_temp_mem(const typename SB_Handle::event_t&, const container_t&);
 
 #ifdef SB_ENABLE_USM
   template <helper::AllocType alloc, typename value_t>
@@ -89,7 +89,7 @@ class SB_Handle {
                                     typename ValueType<container_t>::type,
                                     helper::AllocType::usm>::type>::value,
       cl::sycl::event>::type
-  release_temp_mem(std::vector<cl::sycl::event> dependencies, container_t mem);
+  release_temp_mem(const typename SB_Handle::event_t&, const container_t&);
 #endif
 
   template <typename expression_tree_t>

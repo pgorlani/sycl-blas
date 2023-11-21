@@ -31,7 +31,8 @@ Temp_Mem_Pool::acquire_buff_mem(size_t size) {
 
 template <typename container_t>
 cl::sycl::event Temp_Mem_Pool::release_buff_mem(
-    std::vector<cl::sycl::event> dependencies, container_t mem) {
+    const typename Temp_Mem_Pool::event_t& dependencies,
+    const container_t& mem) {
   return q_.submit([&, mem](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
     cgh.host_task([&, mem]() {
@@ -82,7 +83,8 @@ Temp_Mem_Pool::acquire_usm_mem(size_t size) {
 
 template <typename container_t>
 cl::sycl::event Temp_Mem_Pool::release_usm_mem(
-    std::vector<cl::sycl::event> dependencies, container_t mem) {
+    const typename Temp_Mem_Pool::event_t& dependencies,
+    const container_t& mem) {
   cl::sycl::context context = q_.get_context();
   return q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);

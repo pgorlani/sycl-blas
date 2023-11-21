@@ -56,8 +56,8 @@ typename std::enable_if<
                                   typename ValueType<container_t>::type,
                                   helper::AllocType::buffer>::type>::value,
     cl::sycl::event>::type
-SB_Handle::release_temp_mem(std::vector<cl::sycl::event> dependencies,
-                            container_t mem) {
+SB_Handle::release_temp_mem(const typename SB_Handle::event_t& dependencies,
+                            const container_t& mem) {
   if (tempMemPool_ != NULL)
     return tempMemPool_->release_buff_mem(dependencies, mem);
   else
@@ -82,8 +82,8 @@ typename std::enable_if<
                                   typename ValueType<container_t>::type,
                                   helper::AllocType::usm>::type>::value,
     cl::sycl::event>::type
-SB_Handle::release_temp_mem(std::vector<cl::sycl::event> dependencies,
-                            container_t mem) {
+SB_Handle::release_temp_mem(const typename SB_Handle::event_t& dependencies,
+                            const container_t& mem) {
   if (tempMemPool_ != NULL)
     return tempMemPool_->release_usm_mem(dependencies, mem);
   else {

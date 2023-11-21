@@ -33,6 +33,7 @@ namespace blas {
 class Temp_Mem_Pool {
  public:
   using queue_t = cl::sycl::queue;
+  using event_t = std::vector<cl::sycl::event>;
   using temp_usm_map_t = std::multimap<size_t, void*>;
   using temp_usm_size_map_t = std::map<void*, size_t>;
   using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<int8_t, 1>>;
@@ -67,8 +68,8 @@ class Temp_Mem_Pool {
   acquire_buff_mem(size_t size);
 
   template <typename container_t>
-  cl::sycl::event release_buff_mem(std::vector<cl::sycl::event> dependencies,
-                                   container_t mem);
+  cl::sycl::event release_buff_mem(const typename Temp_Mem_Pool::event_t&,
+                                   const container_t&);
 
 #ifdef SB_ENABLE_USM
   template <typename value_t>
@@ -76,8 +77,8 @@ class Temp_Mem_Pool {
   acquire_usm_mem(size_t size);
 
   template <typename container_t>
-  cl::sycl::event release_usm_mem(std::vector<cl::sycl::event> dependencies,
-                                  container_t mem);
+  cl::sycl::event release_usm_mem(const typename Temp_Mem_Pool::event_t&,
+                                  const container_t&);
 #endif
 
  private:
