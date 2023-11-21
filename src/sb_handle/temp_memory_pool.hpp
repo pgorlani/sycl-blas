@@ -83,9 +83,10 @@ Temp_Mem_Pool::acquire_usm_mem(size_t size) {
 template <typename container_t>
 cl::sycl::event Temp_Mem_Pool::release_usm_mem(
     std::vector<cl::sycl::event> dependencies, container_t mem) {
+  cl::sycl::context context = q_.get_context();
   return q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
-    cgh.host_task([&, mem]() {
+    cgh.host_task([&, mem, context]() {
       map_mutex_.lock();
       auto found = temp_usm_size_map_.find(
           reinterpret_cast<temp_usm_size_map_t::key_type>(mem));
@@ -93,7 +94,7 @@ cl::sycl::event Temp_Mem_Pool::release_usm_mem(
       if (tot_size_temp_mem_ + byteSize > max_size_temp_mem_) {
         temp_usm_size_map_.erase(found);
         map_mutex_.unlock();
-        cl::sycl::free(mem, q_);
+        cl::sycl::free(mem, context);
       } else {
         tot_size_temp_mem_ += byteSize;
         temp_usm_map_.emplace(
