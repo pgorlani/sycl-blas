@@ -111,6 +111,11 @@ inline cl::sycl::queue make_queue() {
   return queue;
 }
 
+inline Temp_Mem_Pool * make_mp() {
+  static Temp_Mem_Pool mem_pool(make_queue());
+  return &mem_pool;
+}
+
 /**
  * @brief Generates a random scalar in the specified range
  * @param rangeMin range minimum

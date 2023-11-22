@@ -42,6 +42,11 @@ void run_test(const combination_t<scalar_t> combi) {
   index_t lda_mul;
   std::tie(alloc, m, n, alpha, beta, trans, incX, incY, lda_mul) = combi;
 
+  auto q = make_queue();
+ 
+  for(int i=0; i<10; ++i){
+  std::cerr<<".";
+
   const char* t_str = trans ? "t" : "n";
 
   int a_size = m * n * lda_mul;
@@ -64,8 +69,8 @@ void run_test(const combination_t<scalar_t> combi) {
   reference_blas::gemv(t_str, m, n, alpha, a_m.data(), lda_mul * m, x_v.data(),
                        incX, beta, y_v_cpu.data(), incY);
 
-  auto q = make_queue();
-  blas::SB_Handle sb_handle(q);
+
+ blas::SB_Handle  sb_handle(make_mp());
   auto m_a_gpu = helper::allocate<mem_alloc, scalar_t>(a_size, q);
   auto v_x_gpu = helper::allocate<mem_alloc, scalar_t>(x_size, q);
   auto v_y_gpu = helper::allocate<mem_alloc, scalar_t>(y_size, q);
@@ -94,6 +99,8 @@ void run_test(const combination_t<scalar_t> combi) {
   helper::deallocate<mem_alloc>(m_a_gpu, q);
   helper::deallocate<mem_alloc>(v_x_gpu, q);
   helper::deallocate<mem_alloc>(v_y_gpu, q);
+}
+//  q.wait();
 }
 
 template <typename scalar_t>
