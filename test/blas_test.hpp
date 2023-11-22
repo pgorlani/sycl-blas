@@ -111,7 +111,7 @@ inline cl::sycl::queue make_queue() {
   return queue;
 }
 
-inline Temp_Mem_Pool * make_mp() {
+inline Temp_Mem_Pool *make_mp() {
   static Temp_Mem_Pool mem_pool(make_queue());
   return &mem_pool;
 }

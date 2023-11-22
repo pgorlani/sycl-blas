@@ -43,64 +43,63 @@ void run_test(const combination_t<scalar_t> combi) {
   std::tie(alloc, m, n, alpha, beta, trans, incX, incY, lda_mul) = combi;
 
   auto q = make_queue();
- 
-  for(int i=0; i<10; ++i){
-  std::cerr<<".";
 
-  const char* t_str = trans ? "t" : "n";
+  for (int i = 0; i < 10; ++i) {
+    std::cerr << ".";
 
-  int a_size = m * n * lda_mul;
-  int x_size = trans ? (1 + (m - 1) * incX) : (1 + (n - 1) * incX);
-  int y_size = trans ? (1 + (n - 1) * incY) : (1 + (m - 1) * incY);
+    const char* t_str = trans ? "t" : "n";
 
-  // Input matrix
-  std::vector<scalar_t> a_m(a_size, 1.0);
-  // Input Vector
-  std::vector<scalar_t> x_v(x_size, 1.0);
-  // output Vector
-  std::vector<scalar_t> y_v_gpu_result(y_size, scalar_t(10.0));
-  // output system vector
-  std::vector<scalar_t> y_v_cpu(y_size, scalar_t(10.0));
+    int a_size = m * n * lda_mul;
+    int x_size = trans ? (1 + (m - 1) * incX) : (1 + (n - 1) * incX);
+    int y_size = trans ? (1 + (n - 1) * incY) : (1 + (m - 1) * incY);
 
-  fill_random(a_m);
-  fill_random(x_v);
+    // Input matrix
+    std::vector<scalar_t> a_m(a_size, 1.0);
+    // Input Vector
+    std::vector<scalar_t> x_v(x_size, 1.0);
+    // output Vector
+    std::vector<scalar_t> y_v_gpu_result(y_size, scalar_t(10.0));
+    // output system vector
+    std::vector<scalar_t> y_v_cpu(y_size, scalar_t(10.0));
 
-  // SYSTEM GEMV
-  reference_blas::gemv(t_str, m, n, alpha, a_m.data(), lda_mul * m, x_v.data(),
-                       incX, beta, y_v_cpu.data(), incY);
+    fill_random(a_m);
+    fill_random(x_v);
 
+    // SYSTEM GEMV
+    reference_blas::gemv(t_str, m, n, alpha, a_m.data(), lda_mul * m,
+                         x_v.data(), incX, beta, y_v_cpu.data(), incY);
 
- blas::SB_Handle  sb_handle(make_mp());
-  auto m_a_gpu = helper::allocate<mem_alloc, scalar_t>(a_size, q);
-  auto v_x_gpu = helper::allocate<mem_alloc, scalar_t>(x_size, q);
-  auto v_y_gpu = helper::allocate<mem_alloc, scalar_t>(y_size, q);
+    blas::SB_Handle sb_handle(make_mp());
+    auto m_a_gpu = helper::allocate<mem_alloc, scalar_t>(a_size, q);
+    auto v_x_gpu = helper::allocate<mem_alloc, scalar_t>(x_size, q);
+    auto v_y_gpu = helper::allocate<mem_alloc, scalar_t>(y_size, q);
 
-  auto copy_m =
-      helper::copy_to_device<scalar_t>(q, a_m.data(), m_a_gpu, a_size);
-  auto copy_x =
-      helper::copy_to_device<scalar_t>(q, x_v.data(), v_x_gpu, x_size);
-  auto copy_y = helper::copy_to_device<scalar_t>(q, y_v_gpu_result.data(),
-                                                 v_y_gpu, y_size);
+    auto copy_m =
+        helper::copy_to_device<scalar_t>(q, a_m.data(), m_a_gpu, a_size);
+    auto copy_x =
+        helper::copy_to_device<scalar_t>(q, x_v.data(), v_x_gpu, x_size);
+    auto copy_y = helper::copy_to_device<scalar_t>(q, y_v_gpu_result.data(),
+                                                   v_y_gpu, y_size);
 
-  sb_handle.wait({copy_m, copy_x, copy_y});
+    sb_handle.wait({copy_m, copy_x, copy_y});
 
-  // SYCLGEMV
-  auto gemv_event = _gemv(sb_handle, *t_str, m, n, alpha, m_a_gpu, lda_mul * m,
-                          v_x_gpu, incX, beta, v_y_gpu, incY);
-  sb_handle.wait(gemv_event);
+    // SYCLGEMV
+    auto gemv_event = _gemv(sb_handle, *t_str, m, n, alpha, m_a_gpu,
+                            lda_mul * m, v_x_gpu, incX, beta, v_y_gpu, incY);
+    sb_handle.wait(gemv_event);
 
-  auto event =
-      blas::helper::copy_to_host(q, v_y_gpu, y_v_gpu_result.data(), y_size);
-  sb_handle.wait(event);
+    auto event =
+        blas::helper::copy_to_host(q, v_y_gpu, y_v_gpu_result.data(), y_size);
+    sb_handle.wait(event);
 
-  const bool isAlmostEqual = utils::compare_vectors(y_v_gpu_result, y_v_cpu);
-  ASSERT_TRUE(isAlmostEqual);
+    const bool isAlmostEqual = utils::compare_vectors(y_v_gpu_result, y_v_cpu);
+    ASSERT_TRUE(isAlmostEqual);
 
-  helper::deallocate<mem_alloc>(m_a_gpu, q);
-  helper::deallocate<mem_alloc>(v_x_gpu, q);
-  helper::deallocate<mem_alloc>(v_y_gpu, q);
-}
-//  q.wait();
+    helper::deallocate<mem_alloc>(m_a_gpu, q);
+    helper::deallocate<mem_alloc>(v_x_gpu, q);
+    helper::deallocate<mem_alloc>(v_y_gpu, q);
+  }
+  //  q.wait();
 }
 
 template <typename scalar_t>

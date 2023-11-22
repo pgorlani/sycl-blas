@@ -38,12 +38,13 @@ class Temp_Mem_Pool {
   using temp_usm_size_map_t = std::map<void*, size_t>;
   using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<int8_t, 1>>;
 
-  Temp_Mem_Pool(queue_t q) : q_(q), tot_size_temp_mem_(0) {}
+  Temp_Mem_Pool(queue_t q)
+      : q_(q), tot_size_buff_mem_(0), tot_size_usm_mem_(0) {}
   Temp_Mem_Pool(const Temp_Mem_Pool& h) = delete;
   Temp_Mem_Pool operator=(Temp_Mem_Pool) = delete;
 
   ~Temp_Mem_Pool() {
-    // wait for the completion of the host task 
+    // wait for the completion of the host task
     q_.wait();
 
 #ifdef VERBOSE
@@ -81,19 +82,31 @@ class Temp_Mem_Pool {
       const typename Temp_Mem_Pool::event_t&, const container_t&);
 #endif
 
+  temp_usm_map_t& temp_usm_map() { return temp_usm_map_; }
+  temp_usm_size_map_t& temp_usm_size_map() { return temp_usm_size_map_; }
+  temp_buffer_map_t& temp_buff_map() { return temp_buffer_map_; }
+
+  template <typename container_t>
+  void release_usm_mem_(const container_t& mem);
+
  private:
   static_assert(sizeof(temp_buffer_map_t::mapped_type::value_type) == 1);
 
   queue_t q_;
-  size_t tot_size_temp_mem_;
+  size_t tot_size_buff_mem_;
+  size_t tot_size_usm_mem_;
   static constexpr size_t max_size_temp_mem_ = 1e9;
 
   std::mutex map_mutex_;
+
+  std::mutex temp_buffer_map_mutex_;
+  temp_buffer_map_t temp_buffer_map_;
 #ifdef SB_ENABLE_USM
+  std::mutex temp_usm_map_mutex_;
   temp_usm_map_t temp_usm_map_;
+  std::mutex temp_usm_size_map_mutex_;
   temp_usm_size_map_t temp_usm_size_map_;
 #endif
-  temp_buffer_map_t temp_buffer_map_;
 };
 #undef VERBOSE
 
