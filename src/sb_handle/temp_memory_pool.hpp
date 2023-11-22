@@ -8,7 +8,7 @@ namespace blas {
 template <typename value_t>
 typename helper::AllocHelper<value_t, helper::AllocType::buffer>::type
 Temp_Mem_Pool::acquire_buff_mem(size_t size) {
-  const size_t byteSize = size * sizeof(value_t);
+  const size_t byteSize = (size  + size%2 ) * sizeof(value_t);
   map_mutex_.lock();
   auto found = temp_buffer_map_.lower_bound(byteSize);
   if (found != temp_buffer_map_.end()) {
@@ -18,7 +18,7 @@ Temp_Mem_Pool::acquire_buff_mem(size_t size) {
     tot_size_temp_mem_ -= found->first;
     map_mutex_.unlock();
     return blas::BufferIterator<value_t>{buff.reinterpret<value_t>(
-        cl::sycl::range<1>(found->first / sizeof(value_t)))};
+        cl::sycl::range<1>(buff.byte_size() / sizeof(value_t)))};
   } else {
     map_mutex_.unlock();
 #ifdef VERBOSE
