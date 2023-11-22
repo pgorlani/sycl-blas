@@ -43,6 +43,9 @@ class Temp_Mem_Pool {
   Temp_Mem_Pool operator=(Temp_Mem_Pool) = delete;
 
   ~Temp_Mem_Pool() {
+    // wait for the completion of the host task 
+    q_.wait();
+
 #ifdef VERBOSE
     std::cout << "Buffers destroyed on SB_Handle destruction: "
               << temp_buffer_map_.size() << std::endl;
@@ -53,9 +56,6 @@ class Temp_Mem_Pool {
     std::cout << "USM allocations freed on SB_Handle destruction: "
               << temp_usm_map_.size() << std::endl;
 #endif
-
-    if (temp_usm_map_.size() > 0) q_.wait();
-
     for (const temp_usm_map_t::value_type& p : temp_usm_map_)
       cl::sycl::free(p.second, q_);
 #endif
