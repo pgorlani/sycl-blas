@@ -82,13 +82,6 @@ class Temp_Mem_Pool {
       const typename Temp_Mem_Pool::event_t&, const container_t&);
 #endif
 
-  temp_usm_map_t& temp_usm_map() { return temp_usm_map_; }
-  temp_usm_size_map_t& temp_usm_size_map() { return temp_usm_size_map_; }
-  temp_buffer_map_t& temp_buff_map() { return temp_buffer_map_; }
-
-  template <typename container_t>
-  void release_usm_mem_(const container_t& mem);
-
  private:
   static_assert(sizeof(temp_buffer_map_t::mapped_type::value_type) == 1);
 
@@ -107,6 +100,10 @@ class Temp_Mem_Pool {
   std::mutex temp_usm_size_map_mutex_;
   temp_usm_size_map_t temp_usm_size_map_;
 #endif
+
+  template <typename container_t>
+  void release_usm_mem_(const container_t& mem);
+
 };
 #undef VERBOSE
 
