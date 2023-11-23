@@ -38,7 +38,6 @@ typename Temp_Mem_Pool::event_t Temp_Mem_Pool::release_buff_mem(
     cgh.host_task([&, mem]() {
       const size_t byteSize = mem.get_buffer().byte_size();
       if (tot_size_buff_mem_ + byteSize <= max_size_temp_mem_) {
-        tot_size_buff_mem_ += byteSize;
         auto reinter_buff =
             mem.get_buffer()
                 .template reinterpret<
@@ -47,6 +46,7 @@ typename Temp_Mem_Pool::event_t Temp_Mem_Pool::release_buff_mem(
                         byteSize /
                         sizeof(temp_buffer_map_t::mapped_type::value_type)));
         temp_buffer_map_mutex_.lock();
+        tot_size_buff_mem_ += byteSize;
         temp_buffer_map_.emplace(byteSize, reinter_buff);
         temp_buffer_map_mutex_.unlock();
       }
@@ -95,18 +95,16 @@ typename Temp_Mem_Pool::event_t Temp_Mem_Pool::release_usm_mem(
 
 template <typename container_t>
 void Temp_Mem_Pool::release_usm_mem_(const container_t& mem) {
-  temp_usm_size_map_mutex_.lock();
-  auto found = temp_usm_size_map().find(
+  temp_usm_map_mutex_.lock();
+  auto found = temp_usm_size_map_.find(
       reinterpret_cast<temp_usm_size_map_t::key_type>(mem));
   const size_t byteSize = found->second;
   if (tot_size_usm_mem_ + byteSize > max_size_temp_mem_) {
     temp_usm_size_map_.extract(found);
-    temp_usm_size_map_mutex_.unlock();
+    temp_usm_map_mutex_.unlock();
     cl::sycl::free(mem, q_);
   } else {
-    temp_usm_size_map_mutex_.unlock();
     tot_size_usm_mem_ += byteSize;
-    temp_usm_map_mutex_.lock();
     temp_usm_map_.emplace(byteSize,
                           reinterpret_cast<temp_usm_map_t::mapped_type>(mem));
     temp_usm_map_mutex_.unlock();
