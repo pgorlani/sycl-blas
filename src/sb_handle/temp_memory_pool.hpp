@@ -9,6 +9,7 @@ template <typename value_t>
 typename helper::AllocHelper<value_t, helper::AllocType::buffer>::type
 Temp_Mem_Pool::acquire_buff_mem(size_t size) {
   const size_t pad = sizeof(double) / sizeof(value_t);
+  // Adjust the requested size in order to reinterpret for double's
   size += (pad - size%pad);
   const size_t byteSize = size * sizeof(value_t);
   temp_buffer_map_mutex_.lock(); // lock
@@ -16,7 +17,7 @@ Temp_Mem_Pool::acquire_buff_mem(size_t size) {
   if (found != temp_buffer_map_.end()) {
     cl::sycl::buffer<temp_buffer_map_t::mapped_type::value_type, 1> buff =
         found->second;
-    tot_size_buff_mem_ -= found->first;
+    temp_buffer_map_tot_byte_size_ -= found->first;
     temp_buffer_map_.erase(found);
     temp_buffer_map_mutex_.unlock(); // unlock
     return blas::BufferIterator<value_t>{buff.reinterpret<value_t>(
@@ -34,7 +35,8 @@ Temp_Mem_Pool::acquire_buff_mem(size_t size) {
 template <typename container_t>
 void Temp_Mem_Pool::release_buff_mem_(const container_t& mem) {
   const size_t byteSize = mem.get_buffer().byte_size();
-  if (tot_size_buff_mem_ + byteSize <= max_size_temp_mem_) {
+  temp_buffer_map_mutex_.lock(); // lock
+  if (temp_buffer_map_tot_byte_size_ + byteSize <= max_size_temp_mem_) {
     auto rebuff =
         mem.get_buffer()
             .template reinterpret<
@@ -42,11 +44,10 @@ void Temp_Mem_Pool::release_buff_mem_(const container_t& mem) {
                 cl::sycl::range<1>(
                     byteSize /
                     sizeof(temp_buffer_map_t::mapped_type::value_type)));
-    temp_buffer_map_mutex_.lock(); // lock
-    tot_size_buff_mem_ += byteSize;
+    temp_buffer_map_tot_byte_size_ += byteSize;
     temp_buffer_map_.emplace(byteSize, rebuff);
-    temp_buffer_map_mutex_.unlock(); // unlock
   }
+  temp_buffer_map_mutex_.unlock(); // unlock
 }
 
 template <typename container_t>
@@ -67,7 +68,7 @@ Temp_Mem_Pool::acquire_usm_mem(size_t size) {
   temp_usm_map_mutex_.lock(); // lock
   auto found = temp_usm_map_.lower_bound(byteSize);
   if (found != temp_usm_map_.end()) {
-    tot_size_usm_mem_ -= found->first;
+    temp_usm_map_tot_byte_size_ -= found->first;
     value_t* tmp = reinterpret_cast<value_t*>(found->second);
     temp_usm_map_.erase(found);
     temp_usm_map_mutex_.unlock(); // unlock
@@ -93,12 +94,12 @@ void Temp_Mem_Pool::release_usm_mem_(const container_t& mem) {
   auto found = temp_usm_size_map_.find(
       reinterpret_cast<temp_usm_size_map_t::key_type>(mem));
   const size_t byteSize = found->second;
-  if (tot_size_usm_mem_ + byteSize > max_size_temp_mem_) {
+  if (temp_usm_map_tot_byte_size_ + byteSize > max_size_temp_mem_) {
     temp_usm_size_map_.erase(found);
     temp_usm_map_mutex_.unlock(); // unlock
     cl::sycl::free(mem, q_);
   } else {
-    tot_size_usm_mem_ += byteSize;
+    temp_usm_map_tot_byte_size_ += byteSize;
     temp_usm_map_.emplace(byteSize,
                           reinterpret_cast<temp_usm_map_t::mapped_type>(mem));
     temp_usm_map_mutex_.unlock(); // unlock

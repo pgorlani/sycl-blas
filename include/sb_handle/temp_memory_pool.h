@@ -31,31 +31,33 @@
 namespace blas {
 #define VERBOSE
 class Temp_Mem_Pool {
- public:
+
   using queue_t = cl::sycl::queue;
   using event_t = std::vector<cl::sycl::event>;
   using temp_usm_map_t = std::multimap<size_t, void*>;
   using temp_usm_size_map_t = std::map<void*, size_t>;
   using temp_buffer_map_t = std::multimap<size_t, cl::sycl::buffer<int8_t, 1>>;
 
+ public:
   Temp_Mem_Pool(queue_t q)
-      : q_(q), tot_size_buff_mem_(0), tot_size_usm_mem_(0) {}
+      : q_(q), temp_buffer_map_tot_byte_size_(0), temp_usm_map_tot_byte_size_(0) {}
   Temp_Mem_Pool(const Temp_Mem_Pool& h) = delete;
   Temp_Mem_Pool operator=(Temp_Mem_Pool) = delete;
 
   ~Temp_Mem_Pool() {
-    // wait for the completion of the host task
+
+    // Wait for the completion of all the host tasks
     q_.wait();
 
 #ifdef VERBOSE
-    std::cout << "Buffers destroyed on SB_Handle destruction: "
-              << temp_buffer_map_.size() << std::endl;
+    std::cout << "# buffers destroyed on memory pool destruction: "
+              << temp_buffer_map_.size() <<" ("<< temp_buffer_map_tot_byte_size_<<" bytes)"<< std::endl;
 #endif
 
 #ifdef SB_ENABLE_USM
 #ifdef VERBOSE
-    std::cout << "USM allocations freed on SB_Handle destruction: "
-              << temp_usm_map_.size() << std::endl;
+    std::cout << "# USM allocations freed on memory pool destruction: "
+              << temp_usm_map_.size() <<" ("<< temp_usm_map_tot_byte_size_<<" bytes)"<< std::endl;
 #endif
     for (const temp_usm_map_t::value_type& p : temp_usm_map_)
       cl::sycl::free(p.second, q_);
@@ -83,30 +85,30 @@ class Temp_Mem_Pool {
 #endif
 
  private:
+
   static_assert(sizeof(temp_buffer_map_t::mapped_type::value_type) == 1);
 
-  queue_t q_;
-  size_t tot_size_buff_mem_;
-  size_t tot_size_usm_mem_;
   static constexpr size_t max_size_temp_mem_ = 1e9;
-
-  std::mutex map_mutex_;
+  queue_t q_;
 
   std::mutex temp_buffer_map_mutex_;
+  size_t temp_buffer_map_tot_byte_size_;
   temp_buffer_map_t temp_buffer_map_;
-#ifdef SB_ENABLE_USM
-  std::mutex temp_usm_map_mutex_;
-  temp_usm_map_t temp_usm_map_;
-  std::mutex temp_usm_size_map_mutex_;
-  temp_usm_size_map_t temp_usm_size_map_;
-#endif
 
   template <typename container_t>
   void release_usm_mem_(const container_t& mem);
 
+#ifdef SB_ENABLE_USM
+  std::mutex temp_usm_map_mutex_;
+  size_t temp_usm_map_tot_byte_size_;
+  temp_usm_map_t temp_usm_map_;
+  temp_usm_size_map_t temp_usm_size_map_;
+
   template <typename container_t>
   void release_buff_mem_(const container_t& mem);
+#endif
  
+
 };
 #undef VERBOSE
 
