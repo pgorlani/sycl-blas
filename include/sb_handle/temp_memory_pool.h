@@ -104,6 +104,9 @@ class Temp_Mem_Pool {
   template <typename container_t>
   void release_usm_mem_(const container_t& mem);
 
+  template <typename container_t>
+  void release_buff_mem_(const container_t& mem);
+ 
 };
 #undef VERBOSE
 
