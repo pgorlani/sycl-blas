@@ -86,15 +86,15 @@ template <typename container_t>
 typename Temp_Mem_Pool::event_t Temp_Mem_Pool::release_usm_mem(
     const typename Temp_Mem_Pool::event_t& dependencies,
     const container_t& mem) {
-  cl::sycl::context context = q_.get_context();
   return {q_.submit([&](cl::sycl::handler& cgh) {
     cgh.depends_on(dependencies);
-    cgh.host_task([&, mem, context]() { release_usm_mem_(mem); });
+    cgh.host_task([&, mem]() { release_usm_mem_(mem); });
   })};
 }
 
 template <typename container_t>
 void Temp_Mem_Pool::release_usm_mem_(const container_t& mem) {
+
   temp_usm_map_mutex_.lock();
   auto found = temp_usm_size_map_.find(
       reinterpret_cast<temp_usm_size_map_t::key_type>(mem));
