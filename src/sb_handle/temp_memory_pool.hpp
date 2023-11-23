@@ -4,7 +4,6 @@
 #include "portblas_helper.h"
 
 namespace blas {
-#define VERBOSE
 template <typename value_t>
 typename helper::AllocHelper<value_t, helper::AllocType::buffer>::type
 Temp_Mem_Pool::acquire_buff_mem(size_t size) {
@@ -35,17 +34,17 @@ Temp_Mem_Pool::acquire_buff_mem(size_t size) {
 template <typename container_t>
 void Temp_Mem_Pool::release_buff_mem_(const container_t& mem) {
   const size_t byteSize = mem.get_buffer().byte_size();
+  auto rebuff =
+      mem.get_buffer()
+          .template reinterpret<
+              temp_buffer_map_t::mapped_type::value_type>(
+              cl::sycl::range<1>(
+                  byteSize /
+                  sizeof(temp_buffer_map_t::mapped_type::value_type)));
   temp_buffer_map_mutex_.lock(); // lock
   if (temp_buffer_map_tot_byte_size_ + byteSize <= max_size_temp_mem_) {
-    auto rebuff =
-        mem.get_buffer()
-            .template reinterpret<
-                temp_buffer_map_t::mapped_type::value_type>(
-                cl::sycl::range<1>(
-                    byteSize /
-                    sizeof(temp_buffer_map_t::mapped_type::value_type)));
-    temp_buffer_map_tot_byte_size_ += byteSize;
-    temp_buffer_map_.emplace(byteSize, rebuff);
+   temp_buffer_map_tot_byte_size_ += byteSize;
+   temp_buffer_map_.emplace(byteSize, rebuff);
   }
   temp_buffer_map_mutex_.unlock(); // unlock
 }
