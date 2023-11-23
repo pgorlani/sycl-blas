@@ -8,7 +8,9 @@ namespace blas {
 template <typename value_t>
 typename helper::AllocHelper<value_t, helper::AllocType::buffer>::type
 Temp_Mem_Pool::acquire_buff_mem(size_t size) {
-  const size_t byteSize = (size + size % 2) * sizeof(value_t);
+  const size_t pad = sizeof(double) / sizeof(value_t);
+  size += (pad - size%pad);
+  const size_t byteSize = size * sizeof(value_t);
   temp_buffer_map_mutex_.lock(); // lock
   auto found = temp_buffer_map_.lower_bound(byteSize);
   if (found != temp_buffer_map_.end()) {
@@ -77,10 +79,10 @@ Temp_Mem_Pool::acquire_usm_mem(size_t size) {
               << " bytes." << std::endl;
 #endif
     value_t* tmp = cl::sycl::malloc_device<value_t>(size, q_);
-    temp_usm_size_map_mutex_.lock(); // lock
+    temp_usm_map_mutex_.lock(); // lock
     temp_usm_size_map_.emplace(
         reinterpret_cast<temp_usm_size_map_t::key_type>(tmp), byteSize);
-    temp_usm_size_map_mutex_.unlock(); // unlock
+    temp_usm_map_mutex_.unlock(); // unlock
     return tmp;
   }
 }
