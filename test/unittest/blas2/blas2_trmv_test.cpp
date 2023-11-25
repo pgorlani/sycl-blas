@@ -45,6 +45,12 @@ void run_test(const combination_t<scalar_t> combi) {
   std::tie(alloc, uplo, trans, diag, n, incX, lda_mul) = combi;
   index_t lda = n * lda_mul;
 
+  auto q = make_queue();
+
+  for (int i = 0; i < 10; ++i) {
+    std::cerr << ".";
+
+
   // Input matrix
   std::vector<scalar_t> a_m(lda * n);
   fill_random(a_m);
@@ -65,8 +71,8 @@ void run_test(const combination_t<scalar_t> combi) {
   reference_blas::trmv(&uplo, &trans, &diag, n, a_m.data(), lda, x_cpu_v.data(),
                        incX);
 
-  auto q = make_queue();
-  blas::SB_Handle sb_handle(q);
+//  auto q = make_queue();
+  blas::SB_Handle sb_handle(make_mp());
   auto a_m_gpu = helper::allocate<mem_alloc, scalar_t>(lda * n, q);
   auto x_v_gpu = helper::allocate<mem_alloc, scalar_t>(n * incX, q);
 
@@ -91,6 +97,8 @@ void run_test(const combination_t<scalar_t> combi) {
 
   helper::deallocate<mem_alloc>(a_m_gpu, q);
   helper::deallocate<mem_alloc>(x_v_gpu, q);
+
+} 
 }
 
 template <typename scalar_t>

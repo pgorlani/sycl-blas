@@ -13,6 +13,12 @@ void run_test(const combination_t<scalar_t> combi) {
   generation_mode_t mode;
   std::tie(alloc, api, size, incX, mode) = combi;
 
+  auto q = make_queue();
+
+  for (int i = 0; i < 10; ++i) {
+    std::cerr << ".";
+
+
   // Input vector
   std::vector<scalar_t> x_v(size * incX);
   populate_data<scalar_t>(mode, 0.0, x_v);
@@ -29,8 +35,7 @@ void run_test(const combination_t<scalar_t> combi) {
   int out_cpu_s = reference_blas::iamax(size, x_v.data(), incX);
 
   // SYCL implementation
-  auto q = make_queue();
-  blas::SB_Handle sb_handle(q);
+  blas::SB_Handle sb_handle(make_mp());
 
   // Iterators
   auto gpu_x_v = helper::allocate<mem_alloc, scalar_t>(size * incX, q);
@@ -55,6 +60,7 @@ void run_test(const combination_t<scalar_t> combi) {
   ASSERT_EQ(out_cpu_s, out_s.ind);
 
   helper::deallocate<mem_alloc>(gpu_x_v, q);
+}
 }
 
 template <typename scalar_t>

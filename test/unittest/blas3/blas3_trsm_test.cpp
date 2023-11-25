@@ -43,6 +43,12 @@ void run_test(const combination_t<scalar_t> combi) {
   std::tie(alloc, m, n, trans, side, diag, uplo, alpha, ldaMul, ldbMul,
            unusedValue) = combi;
 
+  auto q = make_queue();
+
+  for (int i = 0; i < 10; ++i) {
+    std::cerr << ".";
+
+
   const index_t lda = (side == 'l' ? m : n) * ldaMul;
   const index_t ldb = m * ldbMul;
   const int k = side == 'l' ? m : n;
@@ -68,8 +74,8 @@ void run_test(const combination_t<scalar_t> combi) {
                        static_cast<scalar_t>(alpha), A.data(), lda,
                        cpu_B.data(), ldb);
 
-  auto q = make_queue();
-  blas::SB_Handle sb_handle(q);
+  //auto q = make_queue();
+  blas::SB_Handle sb_handle(make_mp());
   auto a_gpu = helper::allocate<mem_alloc, scalar_t>(A.size(), q);
   auto b_gpu = helper::allocate<mem_alloc, scalar_t>(B.size(), q);
 
@@ -90,6 +96,7 @@ void run_test(const combination_t<scalar_t> combi) {
 
   helper::deallocate<mem_alloc>(a_gpu, q);
   helper::deallocate<mem_alloc>(b_gpu, q);
+  }
 }
 
 template <typename scalar_t>

@@ -42,6 +42,12 @@ void run_test(const combination_t<scalar_t> combi) {
                       (https://github.com/intel/llvm/issues/7075) */
   std::tie(alloc, n, is_upper, trans, is_unit, incX, lda_mul, unused) = combi;
 
+  auto q = make_queue();
+
+  for (int i = 0; i < 10; ++i) {
+    std::cerr << ".";
+
+
   const char* t_str = trans ? "t" : "n";
   const char* uplo_str = is_upper ? "u" : "l";
   const char* diag_str = is_unit ? "u" : "n";
@@ -77,8 +83,8 @@ void run_test(const combination_t<scalar_t> combi) {
   reference_blas::trsv(uplo_str, t_str, diag_str, n, a_m.data(), n * lda_mul,
                        x_v_cpu.data(), incX);
 
-  auto q = make_queue();
-  blas::SB_Handle sb_handle(q);
+//  auto q = make_queue();
+  blas::SB_Handle sb_handle(make_mp());
   auto m_a_gpu = blas::helper::allocate<mem_alloc, scalar_t>(a_size, q);
   auto v_x_gpu = blas::helper::allocate<mem_alloc, scalar_t>(x_size, q);
 
@@ -101,6 +107,8 @@ void run_test(const combination_t<scalar_t> combi) {
 
   blas::helper::deallocate<mem_alloc>(m_a_gpu, q);
   blas::helper::deallocate<mem_alloc>(v_x_gpu, q);
+
+}
 }
 
 template <typename scalar_t>
