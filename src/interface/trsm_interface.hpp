@@ -382,12 +382,12 @@ typename sb_handle_t::event_t _trsm(
   }
 
   // Copy bufferX to bufferB as the TRSM result
+  typename sb_handle_t::event_t lastEvent;
   trsmEvents = concatenate_vectors(
       trsmEvents, lastEvent = internal::_copy<sb_handle_t, index_t, decltype(X),
                                               decltype(B), index_t>(
                       sb_handle, BSize, X, 1, B, 1, trsmEvents));
 
-  typename sb_handle_t::event_t lastEvent;
   sb_handle.template release_temp_mem(lastEvent, invA);
 
   sb_handle.template release_temp_mem(lastEvent, X);
