@@ -207,9 +207,9 @@ inline typename SB_Handle::event_t SB_Handle::execute(
     even = !even;
   } while (_N > 1);
 
-  release_temp_mem(event, shMem1);
+  release_temp_mem({*event.rbegin()}, shMem1);
 
-  release_temp_mem(event, shMem2);
+  release_temp_mem({*event.rbegin()}, shMem2);
 
   return event;
 }
