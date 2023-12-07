@@ -31,7 +31,6 @@
 namespace blas {
 #define VERBOSE
 class Temp_Mem_Pool {
-
   using queue_t = cl::sycl::queue;
   using event_t = std::vector<cl::sycl::event>;
   using temp_usm_map_t = std::multimap<size_t, void*>;
@@ -40,24 +39,27 @@ class Temp_Mem_Pool {
 
  public:
   Temp_Mem_Pool(queue_t q)
-      : q_(q), temp_buffer_map_tot_byte_size_(0), temp_usm_map_tot_byte_size_(0) {}
+      : q_(q),
+        temp_buffer_map_tot_byte_size_(0),
+        temp_usm_map_tot_byte_size_(0) {}
   Temp_Mem_Pool(const Temp_Mem_Pool& h) = delete;
   Temp_Mem_Pool operator=(Temp_Mem_Pool) = delete;
 
   ~Temp_Mem_Pool() {
-
     // Wait for the completion of all the host tasks
     q_.wait();
 
 #ifdef VERBOSE
     std::cout << "# buffers destroyed on memory pool destruction: "
-              << temp_buffer_map_.size() <<" ("<< temp_buffer_map_tot_byte_size_<<" bytes)"<< std::endl;
+              << temp_buffer_map_.size() << " ("
+              << temp_buffer_map_tot_byte_size_ << " bytes)" << std::endl;
 #endif
 
 #ifdef SB_ENABLE_USM
 #ifdef VERBOSE
     std::cout << "# USM allocations freed on memory pool destruction: "
-              << temp_usm_map_.size() <<" ("<< temp_usm_map_tot_byte_size_<<" bytes)"<< std::endl;
+              << temp_usm_map_.size() << " (" << temp_usm_map_tot_byte_size_
+              << " bytes)" << std::endl;
 #endif
     for (const temp_usm_map_t::value_type& p : temp_usm_map_)
       cl::sycl::free(p.second, q_);
@@ -85,7 +87,6 @@ class Temp_Mem_Pool {
 #endif
 
  private:
-
   static_assert(sizeof(temp_buffer_map_t::mapped_type::value_type) == 1);
 
   static constexpr size_t max_size_temp_mem_ = 1e9;
@@ -107,8 +108,6 @@ class Temp_Mem_Pool {
   template <typename container_t>
   void release_buff_mem_(const container_t& mem);
 #endif
- 
-
 };
 #undef VERBOSE
 

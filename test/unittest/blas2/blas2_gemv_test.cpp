@@ -42,7 +42,6 @@ void run_test(const combination_t<scalar_t> combi) {
   index_t lda_mul;
   std::tie(alloc, m, n, alpha, beta, trans, incX, incY, lda_mul) = combi;
 
-
   const int reps = 10;
   const char* t_str = trans ? "t" : "n";
 
@@ -50,25 +49,28 @@ void run_test(const combination_t<scalar_t> combi) {
   int x_size = trans ? (1 + (m - 1) * incX) : (1 + (n - 1) * incX);
   int y_size = trans ? (1 + (n - 1) * incY) : (1 + (m - 1) * incY);
 
-  std::vector< std::vector<scalar_t> > y_v_cpu(reps);
-  std::vector< std::vector<scalar_t> > a_m(reps);
-  std::vector< std::vector<scalar_t> > x_v(reps);
+  std::vector<std::vector<scalar_t>> y_v_cpu(reps);
+  std::vector<std::vector<scalar_t>> a_m(reps);
+  std::vector<std::vector<scalar_t>> x_v(reps);
 
-  std::vector<  typename blas::helper::AllocHelper<scalar_t, mem_alloc>::type > v_y_gpu(reps);
-  std::vector<  typename blas::helper::AllocHelper<scalar_t, mem_alloc>::type > v_x_gpu(reps);
-  std::vector<  typename blas::helper::AllocHelper<scalar_t, mem_alloc>::type > m_a_gpu(reps);
+  std::vector<typename blas::helper::AllocHelper<scalar_t, mem_alloc>::type>
+      v_y_gpu(reps);
+  std::vector<typename blas::helper::AllocHelper<scalar_t, mem_alloc>::type>
+      v_x_gpu(reps);
+  std::vector<typename blas::helper::AllocHelper<scalar_t, mem_alloc>::type>
+      m_a_gpu(reps);
 
   auto q = make_queue();
   blas::SB_Handle sb_handle(make_mp());
 
-  std::vector<cl::sycl::event > wait_list;
+  std::vector<cl::sycl::event> wait_list;
 
   for (int r = 0; r < reps; ++r) {
     // Input matrix
-    a_m[r] = std::vector<scalar_t> (a_size, 1.0);
+    a_m[r] = std::vector<scalar_t>(a_size, 1.0);
     // Input Vector
-    x_v[r] = std::vector<scalar_t> (x_size, 1.0);
-    y_v_cpu[r] =  std::vector<scalar_t>(y_size, scalar_t(10.0)); 
+    x_v[r] = std::vector<scalar_t>(x_size, 1.0);
+    y_v_cpu[r] = std::vector<scalar_t>(y_size, scalar_t(10.0));
 
     fill_random(a_m[r]);
     fill_random(x_v[r]);
@@ -76,17 +78,14 @@ void run_test(const combination_t<scalar_t> combi) {
     // SYSTEM GEMV
     reference_blas::gemv(t_str, m, n, alpha, a_m[r].data(), lda_mul * m,
                          x_v[r].data(), incX, beta, y_v_cpu[r].data(), incY);
-
   }
 
-
   for (int r = 0; r < reps; ++r) {
-
     v_y_gpu[r] = helper::allocate<mem_alloc, scalar_t>(y_size, q);
 
     std::cerr << ".";
 
-   // output Vector
+    // output Vector
     std::vector<scalar_t> y_v_gpu_result(y_size, scalar_t(10.0));
     // output system vector
 
@@ -104,21 +103,23 @@ void run_test(const combination_t<scalar_t> combi) {
 
     // SYCLGEMV
     auto gemv_event = _gemv(sb_handle, *t_str, m, n, alpha, m_a_gpu[r],
-                            lda_mul * m, v_x_gpu[r], incX, beta, v_y_gpu[r], incY, {copy_m, copy_x, copy_y});
-    //sb_handle.wait(gemv_event);
+                            lda_mul * m, v_x_gpu[r], incX, beta, v_y_gpu[r],
+                            incY, {copy_m, copy_x, copy_y});
+    // sb_handle.wait(gemv_event);
 
     wait_list = concatenate_vectors(wait_list, gemv_event);
   }
 
   sb_handle.wait(wait_list);
 
-  for (int r = reps-1; r > 0; --r) {
+  for (int r = reps - 1; r > 0; --r) {
     std::vector<scalar_t> y_v_gpu_result(y_size, scalar_t(10.0));
-    auto event =
-        blas::helper::copy_to_host(q, v_y_gpu[r], y_v_gpu_result.data(), y_size);
+    auto event = blas::helper::copy_to_host(q, v_y_gpu[r],
+                                            y_v_gpu_result.data(), y_size);
     sb_handle.wait({event});
 
-    const bool isAlmostEqual = utils::compare_vectors(y_v_gpu_result, y_v_cpu[r]);
+    const bool isAlmostEqual =
+        utils::compare_vectors(y_v_gpu_result, y_v_cpu[r]);
     ASSERT_TRUE(isAlmostEqual);
 
     helper::deallocate<mem_alloc>(m_a_gpu[r], q);
@@ -170,8 +171,8 @@ const auto combi =
 template <typename scalar_t>
 const auto combi =
     ::testing::Combine(::testing::Values("usm", "buf"),   // allocation type
-                       ::testing::Values(2048),       // m
-                       ::testing::Values(2048),       // n
+                       ::testing::Values(2048),           // m
+                       ::testing::Values(2048),           // n
                        ::testing::Values<scalar_t>(1.5),  // alpha
                        ::testing::Values<scalar_t>(0.0, 1.5),  // beta
                        ::testing::Values(false, true),         // trans

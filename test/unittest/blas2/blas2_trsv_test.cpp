@@ -47,68 +47,66 @@ void run_test(const combination_t<scalar_t> combi) {
   for (int i = 0; i < 10; ++i) {
     std::cerr << ".";
 
+    const char* t_str = trans ? "t" : "n";
+    const char* uplo_str = is_upper ? "u" : "l";
+    const char* diag_str = is_unit ? "u" : "n";
 
-  const char* t_str = trans ? "t" : "n";
-  const char* uplo_str = is_upper ? "u" : "l";
-  const char* diag_str = is_unit ? "u" : "n";
+    index_t a_size = n * n * lda_mul;
+    index_t x_size = 1 + (n - 1) * incX;
 
-  index_t a_size = n * n * lda_mul;
-  index_t x_size = 1 + (n - 1) * incX;
+    // Input matrix
+    std::vector<scalar_t> a_m(a_size);
+    // Input/output vector
+    std::vector<scalar_t> x_v(x_size);
+    // Input/output system vector
+    std::vector<scalar_t> x_v_cpu(x_size);
 
-  // Input matrix
-  std::vector<scalar_t> a_m(a_size);
-  // Input/output vector
-  std::vector<scalar_t> x_v(x_size);
-  // Input/output system vector
-  std::vector<scalar_t> x_v_cpu(x_size);
-
-  // Control the magnitude of extra-diagonal elements
-  for (index_t i = 0; i < n; ++i)
-    for (index_t j = 0; j < n; ++j)
-      a_m[(j * n * lda_mul) + i] =
-          ((!is_upper && (i > j)) || (is_upper && (i < j)))
-              ? random_scalar(scalar_t(-10), scalar_t(10)) / scalar_t(n)
-              : NAN;
-
-  if (!is_unit) {
-    // Populate main diagonal with dominant elements
+    // Control the magnitude of extra-diagonal elements
     for (index_t i = 0; i < n; ++i)
-      a_m[(i * n * lda_mul) + i] = random_scalar(scalar_t(9), scalar_t(11));
+      for (index_t j = 0; j < n; ++j)
+        a_m[(j * n * lda_mul) + i] =
+            ((!is_upper && (i > j)) || (is_upper && (i < j)))
+                ? random_scalar(scalar_t(-10), scalar_t(10)) / scalar_t(n)
+                : NAN;
+
+    if (!is_unit) {
+      // Populate main diagonal with dominant elements
+      for (index_t i = 0; i < n; ++i)
+        a_m[(i * n * lda_mul) + i] = random_scalar(scalar_t(9), scalar_t(11));
+    }
+
+    fill_random(x_v);
+    x_v_cpu = x_v;
+
+    // SYSTEM TRSV
+    reference_blas::trsv(uplo_str, t_str, diag_str, n, a_m.data(), n * lda_mul,
+                         x_v_cpu.data(), incX);
+
+    //  auto q = make_queue();
+    blas::SB_Handle sb_handle(make_mp());
+    auto m_a_gpu = blas::helper::allocate<mem_alloc, scalar_t>(a_size, q);
+    auto v_x_gpu = blas::helper::allocate<mem_alloc, scalar_t>(x_size, q);
+
+    auto copy_m =
+        blas::helper::copy_to_device<scalar_t>(q, a_m.data(), m_a_gpu, a_size);
+    auto copy_v =
+        blas::helper::copy_to_device<scalar_t>(q, x_v.data(), v_x_gpu, x_size);
+
+    // SYCL TRSV
+    auto trsv_event = _trsv(sb_handle, *uplo_str, *t_str, *diag_str, n, m_a_gpu,
+                            n * lda_mul, v_x_gpu, incX, {copy_m, copy_v});
+    sb_handle.wait(trsv_event);
+
+    auto event = blas::helper::copy_to_host(sb_handle.get_queue(), v_x_gpu,
+                                            x_v.data(), x_size);
+    sb_handle.wait(event);
+
+    const bool isAlmostEqual = utils::compare_vectors(x_v, x_v_cpu);
+    ASSERT_TRUE(isAlmostEqual);
+
+    blas::helper::deallocate<mem_alloc>(m_a_gpu, q);
+    blas::helper::deallocate<mem_alloc>(v_x_gpu, q);
   }
-
-  fill_random(x_v);
-  x_v_cpu = x_v;
-
-  // SYSTEM TRSV
-  reference_blas::trsv(uplo_str, t_str, diag_str, n, a_m.data(), n * lda_mul,
-                       x_v_cpu.data(), incX);
-
-//  auto q = make_queue();
-  blas::SB_Handle sb_handle(make_mp());
-  auto m_a_gpu = blas::helper::allocate<mem_alloc, scalar_t>(a_size, q);
-  auto v_x_gpu = blas::helper::allocate<mem_alloc, scalar_t>(x_size, q);
-
-  auto copy_m =
-      blas::helper::copy_to_device<scalar_t>(q, a_m.data(), m_a_gpu, a_size);
-  auto copy_v =
-      blas::helper::copy_to_device<scalar_t>(q, x_v.data(), v_x_gpu, x_size);
-
-  // SYCL TRSV
-  auto trsv_event = _trsv(sb_handle, *uplo_str, *t_str, *diag_str, n, m_a_gpu,
-                          n * lda_mul, v_x_gpu, incX, {copy_m, copy_v});
-  sb_handle.wait(trsv_event);
-
-  auto event = blas::helper::copy_to_host(sb_handle.get_queue(), v_x_gpu,
-                                          x_v.data(), x_size);
-  sb_handle.wait(event);
-
-  const bool isAlmostEqual = utils::compare_vectors(x_v, x_v_cpu);
-  ASSERT_TRUE(isAlmostEqual);
-
-  blas::helper::deallocate<mem_alloc>(m_a_gpu, q);
-  blas::helper::deallocate<mem_alloc>(v_x_gpu, q);
-
-}
 }
 
 template <typename scalar_t>

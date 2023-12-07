@@ -47,53 +47,51 @@ void run_test(const combination_t<scalar_t> combi) {
   for (int i = 0; i < 10; ++i) {
     std::cerr << ".";
 
+    // Input matrix
+    std::vector<scalar_t> a_m(lda * n);
+    fill_random(a_m);
 
-  // Input matrix
-  std::vector<scalar_t> a_m(lda * n);
-  fill_random(a_m);
+    // Input vector
+    std::vector<scalar_t> x_v(n * incX);
+    fill_random(x_v);
 
-  // Input vector
-  std::vector<scalar_t> x_v(n * incX);
-  fill_random(x_v);
+    // Output Vector
+    std::vector<scalar_t> y_v(n * incY, 1.0);
+    std::vector<scalar_t> y_cpu_v(n * incY, 1.0);
 
-  // Output Vector
-  std::vector<scalar_t> y_v(n * incY, 1.0);
-  std::vector<scalar_t> y_cpu_v(n * incY, 1.0);
+    // SYSTEM symv
+    reference_blas::symv(&uplo, n, alpha, a_m.data(), lda, x_v.data(), incX,
+                         beta, y_cpu_v.data(), incY);
 
-  // SYSTEM symv
-  reference_blas::symv(&uplo, n, alpha, a_m.data(), lda, x_v.data(), incX, beta,
-                       y_cpu_v.data(), incY);
+    blas::SB_Handle sb_handle(make_mp());
+    auto a_m_gpu = helper::allocate<mem_alloc, scalar_t>(lda * n, q);
+    auto x_v_gpu = helper::allocate<mem_alloc, scalar_t>(n * incX, q);
+    auto y_v_gpu = helper::allocate<mem_alloc, scalar_t>(n * incY, q);
 
-  blas::SB_Handle sb_handle(make_mp());
-  auto a_m_gpu = helper::allocate<mem_alloc, scalar_t>(lda * n, q);
-  auto x_v_gpu = helper::allocate<mem_alloc, scalar_t>(n * incX, q);
-  auto y_v_gpu = helper::allocate<mem_alloc, scalar_t>(n * incY, q);
+    auto copy_a =
+        helper::copy_to_device<scalar_t>(q, a_m.data(), a_m_gpu, lda * n);
+    auto copy_x =
+        helper::copy_to_device<scalar_t>(q, x_v.data(), x_v_gpu, n * incX);
+    auto copy_y =
+        helper::copy_to_device<scalar_t>(q, y_v.data(), y_v_gpu, n * incY);
 
-  auto copy_a =
-      helper::copy_to_device<scalar_t>(q, a_m.data(), a_m_gpu, lda * n);
-  auto copy_x =
-      helper::copy_to_device<scalar_t>(q, x_v.data(), x_v_gpu, n * incX);
-  auto copy_y =
-      helper::copy_to_device<scalar_t>(q, y_v.data(), y_v_gpu, n * incY);
+    sb_handle.wait({copy_a, copy_x, copy_y});
 
-  sb_handle.wait({copy_a, copy_x, copy_y});
+    // SYCLsymv
+    auto symv_event = _symv(sb_handle, uplo, n, alpha, a_m_gpu, lda, x_v_gpu,
+                            incX, beta, y_v_gpu, incY);
 
-  // SYCLsymv
-  auto symv_event = _symv(sb_handle, uplo, n, alpha, a_m_gpu, lda, x_v_gpu,
-                          incX, beta, y_v_gpu, incY);
+    sb_handle.wait(symv_event);
 
-  sb_handle.wait(symv_event);
+    auto event = blas::helper::copy_to_host(q, y_v_gpu, y_v.data(), n * incY);
+    sb_handle.wait(event);
 
-  auto event = blas::helper::copy_to_host(q, y_v_gpu, y_v.data(), n * incY);
-  sb_handle.wait(event);
+    const bool isAlmostEqual = utils::compare_vectors(y_v, y_cpu_v);
+    ASSERT_TRUE(isAlmostEqual);
 
-  const bool isAlmostEqual = utils::compare_vectors(y_v, y_cpu_v);
-  ASSERT_TRUE(isAlmostEqual);
-
-  helper::deallocate<mem_alloc>(a_m_gpu, q);
-  helper::deallocate<mem_alloc>(x_v_gpu, q);
-  helper::deallocate<mem_alloc>(y_v_gpu, q);
- 
+    helper::deallocate<mem_alloc>(a_m_gpu, q);
+    helper::deallocate<mem_alloc>(x_v_gpu, q);
+    helper::deallocate<mem_alloc>(y_v_gpu, q);
   }
 }
 

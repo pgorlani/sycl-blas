@@ -18,49 +18,48 @@ void run_test(const combination_t<scalar_t> combi) {
   for (int i = 0; i < 10; ++i) {
     std::cerr << ".";
 
+    // Input vector
+    std::vector<scalar_t> x_v(size * incX);
+    populate_data<scalar_t>(mode, 0.0, x_v);
 
-  // Input vector
-  std::vector<scalar_t> x_v(size * incX);
-  populate_data<scalar_t>(mode, 0.0, x_v);
+    // This will remove infs from the vector
+    std::transform(
+        std::begin(x_v), std::end(x_v), std::begin(x_v),
+        [](scalar_t v) { return utils::clamp_to_limits<scalar_t>(v); });
 
-  // This will remove infs from the vector
-  std::transform(
-      std::begin(x_v), std::end(x_v), std::begin(x_v),
-      [](scalar_t v) { return utils::clamp_to_limits<scalar_t>(v); });
+    // Output scalar
+    tuple_t out_s{0, 0.0};
 
-  // Output scalar
-  tuple_t out_s{0, 0.0};
+    // Reference implementation
+    int out_cpu_s = reference_blas::iamax(size, x_v.data(), incX);
 
-  // Reference implementation
-  int out_cpu_s = reference_blas::iamax(size, x_v.data(), incX);
+    // SYCL implementation
+    blas::SB_Handle sb_handle(make_mp());
 
-  // SYCL implementation
-  blas::SB_Handle sb_handle(make_mp());
+    // Iterators
+    auto gpu_x_v = helper::allocate<mem_alloc, scalar_t>(size * incX, q);
 
-  // Iterators
-  auto gpu_x_v = helper::allocate<mem_alloc, scalar_t>(size * incX, q);
+    auto copy_x = helper::copy_to_device(q, x_v.data(), gpu_x_v, size * incX);
 
-  auto copy_x = helper::copy_to_device(q, x_v.data(), gpu_x_v, size * incX);
+    if (api == api_type::async) {
+      auto gpu_out_s = helper::allocate<mem_alloc, tuple_t>(1, q);
+      auto copy_out = helper::copy_to_device<tuple_t>(q, &out_s, gpu_out_s, 1);
+      auto iamax_event =
+          _iamax(sb_handle, size, gpu_x_v, incX, gpu_out_s, {copy_x, copy_out});
+      sb_handle.wait(iamax_event);
+      auto event = helper::copy_to_host<tuple_t>(sb_handle.get_queue(),
+                                                 gpu_out_s, &out_s, 1);
+      sb_handle.wait(event);
+      helper::deallocate<mem_alloc>(gpu_out_s, q);
+    } else {
+      out_s.ind = _iamax(sb_handle, size, gpu_x_v, incX, {copy_x});
+    }
 
-  if (api == api_type::async) {
-    auto gpu_out_s = helper::allocate<mem_alloc, tuple_t>(1, q);
-    auto copy_out = helper::copy_to_device<tuple_t>(q, &out_s, gpu_out_s, 1);
-    auto iamax_event =
-        _iamax(sb_handle, size, gpu_x_v, incX, gpu_out_s, {copy_x, copy_out});
-    sb_handle.wait(iamax_event);
-    auto event = helper::copy_to_host<tuple_t>(sb_handle.get_queue(), gpu_out_s,
-                                               &out_s, 1);
-    sb_handle.wait(event);
-    helper::deallocate<mem_alloc>(gpu_out_s, q);
-  } else {
-    out_s.ind = _iamax(sb_handle, size, gpu_x_v, incX, {copy_x});
+    // Validate the result
+    ASSERT_EQ(out_cpu_s, out_s.ind);
+
+    helper::deallocate<mem_alloc>(gpu_x_v, q);
   }
-
-  // Validate the result
-  ASSERT_EQ(out_cpu_s, out_s.ind);
-
-  helper::deallocate<mem_alloc>(gpu_x_v, q);
-}
 }
 
 template <typename scalar_t>

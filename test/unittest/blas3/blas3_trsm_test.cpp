@@ -48,54 +48,55 @@ void run_test(const combination_t<scalar_t> combi) {
   for (int i = 0; i < 10; ++i) {
     std::cerr << ".";
 
+    const index_t lda = (side == 'l' ? m : n) * ldaMul;
+    const index_t ldb = m * ldbMul;
+    const int k = side == 'l' ? m : n;
 
-  const index_t lda = (side == 'l' ? m : n) * ldaMul;
-  const index_t ldb = m * ldbMul;
-  const int k = side == 'l' ? m : n;
+    const int sizeA = k * lda;
+    const int sizeB = n * ldb;
 
-  const int sizeA = k * lda;
-  const int sizeB = n * ldb;
+    std::vector<scalar_t> A(sizeA);
+    std::vector<scalar_t> B(sizeB);
+    std::vector<scalar_t> cpu_B(sizeB);
 
-  std::vector<scalar_t> A(sizeA);
-  std::vector<scalar_t> B(sizeB);
-  std::vector<scalar_t> cpu_B(sizeB);
+    // If the matrix is unit-diagonal, the diagonal value should be assumed = 1
+    // by trsm.
+    const scalar_t diagValue = random_scalar(scalar_t{1}, scalar_t{10});
 
-  // If the matrix is unit-diagonal, the diagonal value should be assumed = 1
-  // by trsm.
-  const scalar_t diagValue = random_scalar(scalar_t{1}, scalar_t{10});
+    fill_trsm_matrix(A, k, lda, uplo, diag, diagValue,
+                     static_cast<scalar_t>(unusedValue));
+    fill_random(B);
 
-  fill_trsm_matrix(A, k, lda, uplo, diag, diagValue,
-                   static_cast<scalar_t>(unusedValue));
-  fill_random(B);
+    // Create a copy of B to calculate the reference outputs
+    cpu_B = B;
+    reference_blas::trsm(&side, &uplo, &trans, &diag, m, n,
+                         static_cast<scalar_t>(alpha), A.data(), lda,
+                         cpu_B.data(), ldb);
 
-  // Create a copy of B to calculate the reference outputs
-  cpu_B = B;
-  reference_blas::trsm(&side, &uplo, &trans, &diag, m, n,
-                       static_cast<scalar_t>(alpha), A.data(), lda,
-                       cpu_B.data(), ldb);
+    // auto q = make_queue();
+    blas::SB_Handle sb_handle(make_mp());
+    auto a_gpu = helper::allocate<mem_alloc, scalar_t>(A.size(), q);
+    auto b_gpu = helper::allocate<mem_alloc, scalar_t>(B.size(), q);
 
-  //auto q = make_queue();
-  blas::SB_Handle sb_handle(make_mp());
-  auto a_gpu = helper::allocate<mem_alloc, scalar_t>(A.size(), q);
-  auto b_gpu = helper::allocate<mem_alloc, scalar_t>(B.size(), q);
+    auto copy_a =
+        helper::copy_to_device<scalar_t>(q, A.data(), a_gpu, A.size());
+    auto copy_b =
+        helper::copy_to_device<scalar_t>(q, B.data(), b_gpu, B.size());
 
-  auto copy_a = helper::copy_to_device<scalar_t>(q, A.data(), a_gpu, A.size());
-  auto copy_b = helper::copy_to_device<scalar_t>(q, B.data(), b_gpu, B.size());
+    auto trsm_event = _trsm(sb_handle, side, uplo, trans, diag, m, n, alpha,
+                            a_gpu, lda, b_gpu, ldb, {copy_a, copy_b});
+    sb_handle.wait({trsm_event});
 
-  auto trsm_event = _trsm(sb_handle, side, uplo, trans, diag, m, n, alpha,
-                          a_gpu, lda, b_gpu, ldb, {copy_a, copy_b});
-  sb_handle.wait({trsm_event});
+    auto event =
+        blas::helper::copy_to_host<scalar_t>(q, b_gpu, B.data(), B.size());
+    sb_handle.wait(event);
 
-  auto event =
-      blas::helper::copy_to_host<scalar_t>(q, b_gpu, B.data(), B.size());
-  sb_handle.wait(event);
+    bool isAlmostEqual = utils::compare_vectors(cpu_B, B);
 
-  bool isAlmostEqual = utils::compare_vectors(cpu_B, B);
+    ASSERT_TRUE(isAlmostEqual);
 
-  ASSERT_TRUE(isAlmostEqual);
-
-  helper::deallocate<mem_alloc>(a_gpu, q);
-  helper::deallocate<mem_alloc>(b_gpu, q);
+    helper::deallocate<mem_alloc>(a_gpu, q);
+    helper::deallocate<mem_alloc>(b_gpu, q);
   }
 }
 

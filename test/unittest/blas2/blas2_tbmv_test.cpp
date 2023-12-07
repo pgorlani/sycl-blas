@@ -46,56 +46,55 @@ void run_test(const combination_t<scalar_t> combi) {
   for (int i = 0; i < 10; ++i) {
     std::cerr << ".";
 
- 
-  const char* t_str = trans ? "t" : "n";
-  const char* uplo_str = is_upper ? "u" : "l";
-  const char* diag_str = is_unit ? "u" : "n";
+    const char* t_str = trans ? "t" : "n";
+    const char* uplo_str = is_upper ? "u" : "l";
+    const char* diag_str = is_unit ? "u" : "n";
 
-  int a_size = (k + 1) * n * lda_mul;
-  int x_size = 1 + (n - 1) * incX;
+    int a_size = (k + 1) * n * lda_mul;
+    int x_size = 1 + (n - 1) * incX;
 
-  // Input matrix
-  std::vector<scalar_t> a_m(a_size, 10.0);
-  // Input/output vector
-  std::vector<scalar_t> x_v(x_size, 10.0);
-  // Input/output system vector
-  std::vector<scalar_t> x_v_cpu(x_size, scalar_t(10.0));
+    // Input matrix
+    std::vector<scalar_t> a_m(a_size, 10.0);
+    // Input/output vector
+    std::vector<scalar_t> x_v(x_size, 10.0);
+    // Input/output system vector
+    std::vector<scalar_t> x_v_cpu(x_size, scalar_t(10.0));
 
-  fill_random(a_m);
-  fill_random(x_v);
+    fill_random(a_m);
+    fill_random(x_v);
 
-  x_v_cpu = x_v;
+    x_v_cpu = x_v;
 
-  // SYSTEM TBMV
-  reference_blas::tbmv(uplo_str, t_str, diag_str, n, k, a_m.data(),
-                       (k + 1) * lda_mul, x_v_cpu.data(), incX);
+    // SYSTEM TBMV
+    reference_blas::tbmv(uplo_str, t_str, diag_str, n, k, a_m.data(),
+                         (k + 1) * lda_mul, x_v_cpu.data(), incX);
 
-  blas::SB_Handle sb_handle(make_mp());
-  auto m_a_gpu = helper::allocate<mem_alloc, scalar_t>(a_size, q);
-  auto v_x_gpu = helper::allocate<mem_alloc, scalar_t>(x_size, q);
+    blas::SB_Handle sb_handle(make_mp());
+    auto m_a_gpu = helper::allocate<mem_alloc, scalar_t>(a_size, q);
+    auto v_x_gpu = helper::allocate<mem_alloc, scalar_t>(x_size, q);
 
-  auto copy_a =
-      helper::copy_to_device<scalar_t>(q, a_m.data(), m_a_gpu, a_size);
-  auto copy_x =
-      helper::copy_to_device<scalar_t>(q, x_v.data(), v_x_gpu, x_size);
+    auto copy_a =
+        helper::copy_to_device<scalar_t>(q, a_m.data(), m_a_gpu, a_size);
+    auto copy_x =
+        helper::copy_to_device<scalar_t>(q, x_v.data(), v_x_gpu, x_size);
 
-  sb_handle.wait({copy_a, copy_x});
+    sb_handle.wait({copy_a, copy_x});
 
-  // SYCL TBMV
-  auto tbmv_event = _tbmv(sb_handle, *uplo_str, *t_str, *diag_str, n, k,
-                          m_a_gpu, (k + 1) * lda_mul, v_x_gpu, incX);
+    // SYCL TBMV
+    auto tbmv_event = _tbmv(sb_handle, *uplo_str, *t_str, *diag_str, n, k,
+                            m_a_gpu, (k + 1) * lda_mul, v_x_gpu, incX);
 
-  sb_handle.wait(tbmv_event);
+    sb_handle.wait(tbmv_event);
 
-  auto event = blas::helper::copy_to_host(q, v_x_gpu, x_v.data(), x_size);
-  sb_handle.wait(event);
+    auto event = blas::helper::copy_to_host(q, v_x_gpu, x_v.data(), x_size);
+    sb_handle.wait(event);
 
-  const bool isAlmostEqual = utils::compare_vectors(x_v, x_v_cpu);
-  ASSERT_TRUE(isAlmostEqual);
+    const bool isAlmostEqual = utils::compare_vectors(x_v, x_v_cpu);
+    ASSERT_TRUE(isAlmostEqual);
 
-  helper::deallocate<mem_alloc>(m_a_gpu, q);
-  helper::deallocate<mem_alloc>(v_x_gpu, q);
-}
+    helper::deallocate<mem_alloc>(m_a_gpu, q);
+    helper::deallocate<mem_alloc>(v_x_gpu, q);
+  }
 }
 
 template <typename scalar_t>
