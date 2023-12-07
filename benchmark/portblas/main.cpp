@@ -72,7 +72,7 @@ int main(int argc, char** argv) {
   blas::SB_Handle sb_handle(&mp);
 #else
   // Create a portBLAS sb_handle from the queue
-  blas::SB_Handle sb_handle();
+  blas::SB_Handle sb_handle(q);
 #endif
 
   // This will be set to false by a failing benchmark
