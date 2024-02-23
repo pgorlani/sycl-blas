@@ -359,16 +359,21 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
 
+  value_t * l_rhs_2 = shrMem.localAcc.get_pointer();
+  value_t * lhs_ptr = lhs_.get_pointer() + (frs_row + localid) + (dimR*frs_col); 
+
   const value_t scal_rhs_1 = scalar_ * rhs_1_.eval(frs_row + localid); 
-  shrMem[localid] = (frs_col + localid < dimC) ? rhs_2_.eval(frs_col + localid) : 0;
+  l_rhs_2[localid] = (frs_col + localid < dimC) ? rhs_2_.eval(frs_col + localid) : 0;
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
  
-  #pragma unroll
+  #pragma unroll 
   for (index_t id_col = 0; id_col < localSz; id_col++)
   {
-    const value_t v = scal_rhs_1 * shrMem[id_col];
+    const value_t v = scal_rhs_1 * l_rhs_2[id_col];
     if(frs_row + localid < dimR && frs_col + id_col < dimC)
-      lhs_.eval(frs_row + localid, frs_col + id_col) += v;
+//      lhs_.eval(frs_row + localid, frs_col + id_col) += v;
+      *lhs_ptr += v;
+      lhs_ptr += dimR;
   }
 
   return 0;
