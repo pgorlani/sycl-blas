@@ -305,22 +305,6 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::valid_thread(
     cl::sycl::nd_item<1> ndItem) const {
   return true;
 }
-template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
-          typename rhs_1_t, typename rhs_2_t>
-PORTBLAS_INLINE typename GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
-                                 rhs_2_t>::value_t
-GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
-    typename GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
-                    rhs_2_t>::index_t i) {
-  auto size =
-      (lhs_.is_row_access()) ? lhs_.get_size_col() : lhs_.get_size_row();
-  auto row = (lhs_.is_row_access()) ? (i / size) : (i % size);
-  auto col = (lhs_.is_row_access()) ? (i % size) : (i / size);
-
-  auto val = scalar_ * rhs_1_.eval(row) * rhs_2_.eval(col);
-
-  return lhs_.eval(i) += val;
-}
 
 template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
           typename rhs_1_t, typename rhs_2_t>
@@ -334,55 +318,25 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   index_t localSz = ndItem.get_local_range(0);
   index_t groupid = ndItem.get_group(0);
 
-  index_t dimR = lhs_.get_size_row();
-  index_t dimC = lhs_.get_size_col();
+  index_t idWFR = groupid % nWG_row_;
+  index_t idWFC = groupid / nWG_row_;
+  index_t frs_row = idWFR * localSz; 
+  index_t frs_col = idWFC * localSz;
 
-  index_t colSz = (dimR < localSz) ? localSz : (dimC + nWG_col_ - 1) / nWG_col_;
+  const index_t dimR = lhs_.get_size_row();
+  const index_t dimC = lhs_.get_size_col();
 
-  index_t idWFR = groupid % nWG_row_;  // row bloq id of the current workgroup
-  index_t idWFC = groupid / nWG_row_;  // col blq id of the current workgroup
-  index_t dimWFR =
-      (dimR + (localSz * nWG_row_) - 1) / (localSz * nWG_row_) * localSz;
+  const value_t scal_rhs_1 = scalar_ * rhs_1_.eval(frs_row + localid); 
+ 
+  #pragma unroll
+  for (index_t id_col = 0; id_col < localSz; id_col++)
+    if(frs_row + localid < dimR && frs_col + id_col < dimC)
+      lhs_.eval(frs_row + localid, frs_col + id_col) += scal_rhs_1* rhs_2_.eval(frs_col + id_col);
 
-  index_t frs_row = idWFR * dimWFR + localid;
-  index_t lst_row = std::min(dimR, frs_row + dimWFR);
-
-  index_t frs_col = idWFC * colSz;
-  index_t lst_col = std::min(dimC, frs_col + colSz);
-  if ((!Upper &&
-       ((frs_col + ((!Diag) ? 1 : 0)) > ((idWFR * dimWFR + dimWFR) - 1))) ||
-      (!Lower && ((idWFR * dimWFR + ((!Diag) ? 1 : 0)) > (lst_col - 1)))) {
-    ;
-  } else if (Single) {
-    for (index_t id_row = frs_row; id_row < lst_row; id_row += localSz) {
-      auto val = scalar_ * rhs_1_.eval(id_row);
-      for (index_t id_col =
-               ((Lower) ? frs_col
-                        : std::max(id_row + ((!Diag) ? 1 : 0), frs_col));
-           id_col <
-           ((Upper) ? lst_col : std::min(id_row + ((!Diag) ? 0 : 1), lst_col));
-           id_col++) {
-        lhs_.eval(id_row, id_col) += val * rhs_2_.eval(id_col);
-      }
-    }
-  } else {
-    for (index_t id_row = frs_row; id_row < lst_row; id_row += localSz) {
-      auto val1 = scalar_ * rhs_1_.eval(id_row);
-      auto val2 = scalar_ * rhs_2_.eval(id_row);
-      for (index_t id_col =
-               ((Lower) ? frs_col
-                        : std::max(id_row + ((!Diag) ? 1 : 0), frs_col));
-           id_col <
-           ((Upper) ? lst_col : std::min(id_row + ((!Diag) ? 0 : 1), lst_col));
-           id_col++) {
-        lhs_.eval(id_row, id_col) +=
-            val1 * rhs_2_.eval(id_col) + val2 * rhs_1_.eval(id_col);
-      }
-    }
-  }
-
-  return lhs_.eval(frs_row, frs_col);
+  return 0; 
 }
+
+
 template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
           typename rhs_1_t, typename rhs_2_t>
 template <typename sharedT>
@@ -390,103 +344,31 @@ PORTBLAS_INLINE typename GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
                                  rhs_2_t>::value_t
 GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
     sharedT shrMem, cl::sycl::nd_item<1> ndItem) {
+
   using index_t = typename GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
                                   rhs_2_t>::index_t;
   index_t localid = ndItem.get_local_id(0);
   index_t localSz = ndItem.get_local_range(0);
   index_t groupid = ndItem.get_group(0);
 
-  index_t dimR = lhs_.get_size_row();
-  index_t dimC = lhs_.get_size_col();
+  index_t idWFR = groupid % nWG_row_;
+  index_t idWFC = groupid / nWG_row_;
+  index_t frs_row = idWFR * localSz; 
+  index_t frs_col = idWFC * localSz;
 
-  index_t colSz = (dimR < localSz) ? localSz : (dimC + nWG_col_ - 1) / nWG_col_;
+  const index_t dimR = lhs_.get_size_row();
+  const index_t dimC = lhs_.get_size_col();
 
-  index_t idWFR = groupid % nWG_row_;  // row bloq id of the current workgroup
-  index_t dimWFR =
-      (dimR + (localSz * nWG_row_) - 1) / (localSz * nWG_row_) * localSz;
+  const value_t scal_rhs_1 = scalar_ * rhs_1_.eval(frs_row + localid); 
+  shrMem[localid] = (frs_col + localid < dimC) ? rhs_2_.eval(frs_col + localid) : 0;
+  ndItem.barrier(cl::sycl::access::fence_space::local_space);
+ 
+  #pragma unroll
+  for (index_t id_col = 0; id_col < localSz; id_col++)
+    if(frs_row + localid < dimR && frs_col + id_col < dimC)
+      lhs_.eval(frs_row + localid, frs_col + id_col) += scal_rhs_1 * rhs_2_.eval(frs_col + id_col);
 
-  index_t frs_row = idWFR * dimWFR + localid;
-  index_t lst_row = std::min(dimR, frs_row + dimWFR);
-
-  index_t frs_col = (groupid / nWG_row_) * colSz;
-  index_t lst_col = std::min(dimC, frs_col + colSz);
-  // PROBLEM IF ONLY SOME THREADS OF A WORKGROUP ARE CANCELED
-  // TO SOLVE IT, USE GLOBAL VALUES OF frs_row AND lst_row
-  if ((!Upper &&
-       ((frs_col + ((!Diag) ? 1 : 0)) > ((idWFR * dimWFR + dimWFR) - 1))) ||
-      (!Lower && ((idWFR * dimWFR + ((!Diag) ? 1 : 0)) > (lst_col - 1)))) {
-    ;
-  } else if (Single) {
-    // The computation are made in blocks of local_memory_size_ elements
-    for (index_t colid = frs_col; colid < lst_col;
-         colid += local_memory_size_) {
-      if (colid > frs_col) {
-        // This barrier is mandatory to be sure the data is on the shared
-        // memory
-        ndItem.barrier(cl::sycl::access::fence_space::local_space);
-      }
-      auto blqSz = std::min(local_memory_size_, lst_col - colid);
-
-      for (index_t col = localid; (col < blqSz); col += localSz) {
-        shrMem[col] = scalar_ * rhs_2_.eval(colid + col);
-      }
-
-      // This barrier is mandatory to be sure the data is on the shared memory
-      ndItem.barrier(cl::sycl::access::fence_space::local_space);
-
-      for (index_t id_row = frs_row; id_row < lst_row; id_row += localSz) {
-        auto val = rhs_1_.eval(id_row);
-        for (index_t id_col = colid, col = 0; col < blqSz; id_col++, col++) {
-          if (Lower && Upper && Diag) {
-            lhs_.eval(id_row, id_col) += val * shrMem[col];
-          } else {
-            if ((Lower && ((id_col + ((!Diag) ? 1 : 0)) <= id_row)) ||
-                (Upper && (id_col >= (id_row + ((!Diag) ? 1 : 0))))) {
-              lhs_.eval(id_row, id_col) += val * shrMem[col];
-            }
-          }
-        }
-      }
-    }
-  } else {
-    auto shrSz1 = (local_memory_size_ >> 1);
-    // The computation are made in blocks of local_memory_size_/shrSz1 elements
-    for (index_t colid = frs_col; colid < lst_col; colid += shrSz1) {
-      if (colid > frs_col) {
-        // This barrier is mandatory to be sure the data is on the shared
-        // memory
-        ndItem.barrier(cl::sycl::access::fence_space::local_space);
-      }
-      auto blqSz = std::min(shrSz1, lst_col - colid);
-
-      for (index_t col = localid; (col < blqSz); col += localSz) {
-        shrMem[col] = scalar_ * rhs_1_.eval(colid + col);
-        shrMem[shrSz1 + col] = scalar_ * rhs_2_.eval(colid + col);
-      }
-
-      // This barrier is mandatory to be sure the data is on the shared memory
-      ndItem.barrier(cl::sycl::access::fence_space::local_space);
-
-      for (index_t id_row = frs_row; id_row < lst_row; id_row += localSz) {
-        auto val1 = rhs_1_.eval(id_row);
-        auto val2 = rhs_2_.eval(id_row);
-        for (index_t id_col = colid, col = 0; col < blqSz; id_col++, col++) {
-          if (Lower && Upper && Diag) {
-            lhs_.eval(id_row, id_col) +=
-                val1 * shrMem[shrSz1 + col] + val2 * shrMem[col];
-          } else {
-            if ((Lower && ((id_col + ((!Diag) ? 1 : 0)) <= id_row)) ||
-                (Upper && (id_col >= (id_row + ((!Diag) ? 1 : 0))))) {
-              lhs_.eval(id_row, id_col) +=
-                  val1 * shrMem[shrSz1 + col] + val2 * shrMem[col];
-            }
-          }
-        }
-      }
-    }
-  }
-
-  return shrMem[0];
+  return 0;
 }
 template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
           typename rhs_1_t, typename rhs_2_t>

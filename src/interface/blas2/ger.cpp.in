@@ -22,10 +22,10 @@
  *  @filename ger.cpp.in
  *
  **************************************************************************/
-#include "container/sycl_iterator.hpp"
 #include "interface/blas2_interface.hpp"
 #include "sb_handle/kernel_constructor.hpp"
 #include "sb_handle/portblas_handle.hpp"
+
 
 namespace blas {
 namespace internal {
