@@ -365,8 +365,11 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
  
   #pragma unroll
   for (index_t id_col = 0; id_col < localSz; id_col++)
+  {
+    const value_t v = scal_rhs_1 * shrMem[id_col];
     if(frs_row + localid < dimR && frs_col + id_col < dimC)
-      lhs_.eval(frs_row + localid, frs_col + id_col) += scal_rhs_1 * rhs_2_.eval(frs_col + id_col);
+      lhs_.eval(frs_row + localid, frs_col + id_col) += v;
+  }
 
   return 0;
 }
