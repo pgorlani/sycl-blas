@@ -353,27 +353,37 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
 
   index_t idWFR = groupid % nWG_row_;
   index_t idWFC = groupid / nWG_row_;
-  index_t frs_row = idWFR * localSz; 
-  index_t frs_col = idWFC * localSz;
+  index_t frs_row = idWFR * 32;//localSz; 
+  index_t frs_col = idWFC * 32;//localSz;
 
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
 
-  value_t * l_rhs_2 = shrMem.localAcc.get_pointer();
-  value_t * lhs_ptr = lhs_.get_pointer() + (frs_row + localid) + (dimR*frs_col); 
+  value_t * l_rhs_1 = shrMem.localAcc.get_pointer();
+  value_t * l_rhs_2 = shrMem.localAcc.get_pointer() + 32;
 
-  const value_t scal_rhs_1 = scalar_ * rhs_1_.eval(frs_row + localid); 
-  l_rhs_2[localid] = (frs_col + localid < dimC) ? rhs_2_.eval(frs_col + localid) : 0;
+  if (localid < 32){
+    l_rhs_1[localid] = (frs_row + localid < dimR) ? scalar_ * rhs_1_.eval(frs_row + localid) : 0; 
+    l_rhs_2[localid] = (frs_col + localid < dimC) ? rhs_2_.eval(frs_col + localid) : 0;
+  }
+
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
+
+  const index_t chk_size = 32;
+  const index_t chk_num = localSz/chk_size;
+  const index_t chk_id = localid/chk_size;
+
+  const index_t id_row0 = localid%32;
+  const index_t id_row = frs_row + id_row0;
+  const index_t id_col0 = chk_id*(32/chk_num); 
+  const index_t id_col1 = frs_col + id_col0; 
  
   #pragma unroll 
-  for (index_t id_col = 0; id_col < localSz; id_col++)
+  for (index_t id_col = 0; id_col < 32/chk_num; id_col++)
   {
-    const value_t v = scal_rhs_1 * l_rhs_2[id_col];
-    if(frs_row + localid < dimR && frs_col + id_col < dimC)
-//      lhs_.eval(frs_row + localid, frs_col + id_col) += v;
-      *lhs_ptr += v;
-      lhs_ptr += dimR;
+    const value_t v = l_rhs_1[id_row0] * l_rhs_2[id_col0 + id_col];
+    if(id_row < dimR && id_col1 + id_col < dimC)
+      lhs_.eval(id_row, id_col1 + id_col) += v;
   }
 
   return 0;
