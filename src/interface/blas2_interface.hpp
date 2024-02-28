@@ -877,7 +877,7 @@ typename sb_handle_t::event_t _ger_impl(
     sb_handle_t& sb_handle, index_t _M, index_t _N, element_t _alpha,
     container_t0 _vx, increment_t _incx, container_t1 _vy, increment_t _incy,
     container_t2 _mA, index_t _lda,
-    const typename sb_handle_t::event_t& _dependencies, index_t _localSize = 256,
+    const typename sb_handle_t::event_t& _dependencies, index_t _localSize = 0,
     index_t _scratchPadSize = 0, index_t _nRowsWG = 0, index_t _nColsWG = 0) {
   index_t M = _M;
   index_t N = _N;
@@ -896,8 +896,8 @@ typename sb_handle_t::event_t _ger_impl(
   const index_t scratchPadSize =
       (_localSize == 0) ? localSize : _scratchPadSize;
 
-  const index_t nWGPerCol = (N - 1) / /*nColsWG*/32 + 1;
-  const index_t nWGPerRow = (M - 1) / /*nRowsWG*/32 + 1;
+  const index_t nWGPerCol = (N - 1) / nColsWG + 1;
+  const index_t nWGPerRow = (M - 1) / nRowsWG + 1;
   const index_t globalSize = localSize * nWGPerRow * nWGPerCol;
 
   typename sb_handle_t::event_t ret;
