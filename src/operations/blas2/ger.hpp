@@ -326,24 +326,24 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   index_t idWFR = groupid % nWG_row_;
   index_t idWFC = groupid / nWG_row_;
 
-  index_t frs_row = idWFR * localSz + subSz * subgid; 
+  index_t frs_row = idWFR * localSz; //+ subSz * subgid; 
   index_t frs_col = idWFC * localSz;
 
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
 
-  const index_t id_row0 = frs_row + sublid;
+  const index_t id_row0 = frs_row + localid;//sublid;
   const value_t scal_rhs_1 = (id_row0 < dimR) ? scalar_ * rhs_1_.eval(id_row0) : 0; 
- 
-  #pragma unroll
-  for (index_t id_col = 0; id_col < localSz/subSz; id_col++) {
-    const index_t id_col0 = frs_col + id_col * subSz; 
-    const value_t rhs_2 = (id_col0 + sublid < dimC) ? rhs_2_.eval(id_col0 + sublid) : 0;
-    #pragma unroll
-    for (index_t sub_id_col = 0; sub_id_col < subSz; sub_id_col++) {
-      if(id_row0 < dimR && id_col0 + sub_id_col < dimC)
-        lhs_.eval(id_row0, id_col0 + sub_id_col) += scal_rhs_1 * cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
-    }
+
+  for (index_t id_col = 0; id_col < localSz/*subSz*/; id_col++) {
+//    const index_t id_col0 = frs_col + id_col * subSz; 
+//    const value_t rhs_2 = (id_col0 + sublid < dimC) ? rhs_2_.eval(id_col0 + sublid) : 0;
+//    #pragma unroll
+//    for (index_t sub_id_col = 0; sub_id_col < subSz; sub_id_col++) {
+      if(id_row0 < dimR && id_col/*0 + sub_id_col*/ < dimC)
+        lhs_.eval(id_row0, frs_col + id_col/*0 + sub_id_col*/) += scal_rhs_1 * //cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
+rhs_2_.eval(frs_col + id_col/*0 + sub_id_col*/);
+//    }
   }
 
   return 0; 
