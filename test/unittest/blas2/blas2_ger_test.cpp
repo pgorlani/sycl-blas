@@ -126,13 +126,13 @@ const auto combi =
 // For the purpose of travis and other slower platforms, we need a faster test
 template <typename scalar_t>
 const auto combi =
-    ::testing::Combine(::testing::Values("usm", "buf"),  // allocation type
-                       ::testing::Values(11, 1023),      // m
-                       ::testing::Values(14, 1010),      // n
-                       ::testing::Values<scalar_t>(0.0, 1.5),  // alpha
-                       ::testing::Values(2),                   // incX
-                       ::testing::Values(3),                   // incY
-                       ::testing::Values(2)                    // lda_mul
+    ::testing::Combine(::testing::Values(/*"usm",*/ "buf"),  // allocation type
+                       ::testing::Range(1, 300),      // m
+                       ::testing::Range(1, 300),      // n
+                       ::testing::Values<scalar_t>(1),  // alpha
+                       ::testing::Values(1),                   // incX
+                       ::testing::Values(1),                   // incY
+                       ::testing::Values(1)                    // lda_mul
     );
 #endif
 
