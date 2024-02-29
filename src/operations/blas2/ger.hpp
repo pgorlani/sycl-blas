@@ -314,15 +314,17 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
     cl::sycl::nd_item<1> ndItem) {
   using index_t = typename GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
                                   rhs_2_t>::index_t;
+
+
   index_t localid = ndItem.get_local_id(0);
 
   index_t localSz = ndItem.get_local_range(0);
   index_t groupid = ndItem.get_group(0);
 
-  index_t subSz = ndItem.get_sub_group().get_local_linear_range();
-  index_t subNum = ndItem.get_sub_group().get_group_linear_range();
-  index_t subgid = ndItem.get_sub_group().get_group_linear_id();
-  index_t sublid = ndItem.get_sub_group().get_local_linear_id();
+  index_t subSz = ndItem.get_sub_group().get_local_range().get(0);
+  index_t subNum = ndItem.get_sub_group().get_group_range().get(0);
+  index_t subgid = ndItem.get_sub_group().get_group_id().get(0);
+  index_t sublid = ndItem.get_sub_group().get_local_id().get(0);
 
   index_t idWFR = groupid % nWG_row_;
   index_t idWFC = groupid / nWG_row_;
@@ -336,13 +338,18 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   const index_t id_row0 = frs_row + sublid;
   const value_t scal_rhs_1 = (id_row0 < dimR) ? scalar_ * rhs_1_.eval(id_row0) : 0; 
 
+  #pragma no unroll
   for (index_t id_col = 0; id_col < (localSz/subSz)/subNum; id_col++) {
     const index_t id_col0 = frs_col + (localSz/subNum) * subgid  + id_col * subSz; 
     const value_t rhs_2 = (id_col0 + sublid < dimC) ? rhs_2_.eval(id_col0 + sublid) : 0;
+    value_t _lhs_ = (id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
+    #pragma unroll 2
     for (index_t sub_id_col = 0; sub_id_col < subSz; sub_id_col++) {
       const value_t rhs_2_sub_id_col = cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
-      if(id_row0 < dimR && id_col0 + sub_id_col < dimC)
-        lhs_.eval(id_row0, id_col0 + sub_id_col) += scal_rhs_1 * rhs_2_sub_id_col;
+      if(id_row0 < dimR && id_col0 + sub_id_col < dimC) {
+        lhs_.eval(id_row0, id_col0 + sub_id_col) = _lhs_ + scal_rhs_1 * rhs_2_sub_id_col;
+        _lhs_ = (id_col0 + sub_id_col + 1 < dimC) ? lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
+      }
     }
   }
 
