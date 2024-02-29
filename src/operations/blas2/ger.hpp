@@ -330,7 +330,7 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   index_t idWFC = groupid / nWG_row_;
 
   index_t frs_row = idWFR * /*localSz*/32; //+ subSz * subgid; 
-  index_t frs_col = idWFC * localSz;
+  index_t frs_col = idWFC * /*localSz*/32;
 
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
@@ -338,17 +338,19 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   const index_t id_row0 = frs_row + sublid;
   const value_t scal_rhs_1 = (id_row0 < dimR) ? scalar_ * rhs_1_.eval(id_row0) : 0; 
 
+  const index_t col_chunck_size = subSz/subNum;
+
   #pragma no unroll
-  for (index_t id_col = 0; id_col < (localSz/subSz)/subNum; id_col++) {
-    const index_t id_col0 = frs_col + (localSz/subNum) * subgid  + id_col * subSz; 
-    const value_t rhs_2 = (id_col0 + sublid < dimC) ? rhs_2_.eval(id_col0 + sublid) : 0;
-    value_t _lhs_ = (id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
-    #pragma unroll 2
-    for (index_t sub_id_col = 0; sub_id_col < subSz; sub_id_col++) {
+  for (index_t id_col = 0; id_col < (32/col_chunck_size)/subNum; id_col++) {
+    const index_t id_col0 = frs_col + (32/subNum) * subgid  + id_col * col_chunck_size; 
+    const value_t rhs_2 = (sublid < col_chunck_size && id_col0 + sublid < dimC) ? rhs_2_.eval(id_col0 + sublid) : 0;
+    //value_t _lhs_ = (id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
+    //#pragma unroll 2
+    for (index_t sub_id_col = 0; sub_id_col < col_chunck_size; sub_id_col++) {
       const value_t rhs_2_sub_id_col = cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
       if(id_row0 < dimR && id_col0 + sub_id_col < dimC) {
-        lhs_.eval(id_row0, id_col0 + sub_id_col) = _lhs_ + scal_rhs_1 * rhs_2_sub_id_col;
-        _lhs_ = (id_col0 + sub_id_col + 1 < dimC) ? lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
+        lhs_.eval(id_row0, id_col0 + sub_id_col) += /*_lhs_ +*/ scal_rhs_1 * rhs_2_sub_id_col;
+        //_lhs_ = (id_col0 + sub_id_col + 1 < dimC) ? lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
       }
     }
   }

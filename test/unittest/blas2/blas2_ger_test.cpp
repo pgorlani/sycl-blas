@@ -127,8 +127,8 @@ const auto combi =
 template <typename scalar_t>
 const auto combi =
     ::testing::Combine(::testing::Values(/*"usm",*/ "buf"),  // allocation type
-                       ::testing::Range(1, 300),      // m
-                       ::testing::Range(1, 300),      // n
+                       ::testing::Range(1, 2000, 13),      // m
+                       ::testing::Range(1, 2000, 11),      // n
                        ::testing::Values<scalar_t>(1),  // alpha
                        ::testing::Values(1),                   // incX
                        ::testing::Values(1),                   // incY
