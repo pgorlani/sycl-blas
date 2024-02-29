@@ -877,7 +877,7 @@ typename sb_handle_t::event_t _ger_impl(
     sb_handle_t& sb_handle, index_t _M, index_t _N, element_t _alpha,
     container_t0 _vx, increment_t _incx, container_t1 _vy, increment_t _incy,
     container_t2 _mA, index_t _lda,
-    const typename sb_handle_t::event_t& _dependencies, index_t _localSize = 0,
+    const typename sb_handle_t::event_t& _dependencies, index_t _localSize = 64,
     index_t _scratchPadSize = 0, index_t _nRowsWG = 0, index_t _nColsWG = 0) {
   index_t M = _M;
   index_t N = _N;
@@ -889,7 +889,7 @@ typename sb_handle_t::event_t _ger_impl(
 
   const index_t localSize =
       (_localSize == 0) ? sb_handle.get_work_group_size() : _localSize;
-  const index_t nRowsWG = (_nRowsWG == 0) ? localSize : std::min(M, _nRowsWG);
+  const index_t nRowsWG = (_nRowsWG == 0) ? /*localSize*/ 32 : std::min(M, _nRowsWG);
 
   const index_t nColsWG = (_nColsWG == 0) ? localSize : std::min(N, _nColsWG);
 
@@ -903,7 +903,7 @@ typename sb_handle_t::event_t _ger_impl(
   typename sb_handle_t::event_t ret;
   auto assignOp =
       make_ger_col(mA, _alpha, vx, vy, nWGPerRow, nWGPerCol, scratchPadSize);
-  return sb_handle.execute(assignOp, localSize, globalSize, scratchPadSize,
+  return sb_handle.execute(assignOp, localSize, globalSize, //scratchPadSize,
                            _dependencies);
 }
 
