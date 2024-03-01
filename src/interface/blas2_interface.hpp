@@ -877,7 +877,7 @@ typename sb_handle_t::event_t _ger_impl(
     sb_handle_t& sb_handle, index_t _M, index_t _N, element_t _alpha,
     container_t0 _vx, increment_t _incx, container_t1 _vy, increment_t _incy,
     container_t2 _mA, index_t _lda,
-    const typename sb_handle_t::event_t& _dependencies, index_t _localSize = 256,
+    const typename sb_handle_t::event_t& _dependencies, index_t _localSize = 0,
     index_t _scratchPadSize = 0, index_t _nRowsWG = 0, index_t _nColsWG = 0) {
   index_t M = _M;
   index_t N = _N;
@@ -887,14 +887,24 @@ typename sb_handle_t::event_t _ger_impl(
   typename VectorViewType<container_t1, index_t, increment_t>::type vy =
       make_vector_view(_vy, _incy, N);
 
+  // checks
+  _localSize = 512;
+  const index_t subgroup_size = 32;
+  const index_t subgroups_per_group= _localSize/subgroup_size;
+  const index_t block_rsize = subgroup_size;
+  const index_t block_csize = subgroup_size*16;
+  const index_t col_chunck_size = block_csize/subgroups_per_group;
+  assert(col_chunck_size <= subgroup_size && block_csize%subgroups_per_group == 0);
+ 
   const index_t localSize =
       (_localSize == 0) ? sb_handle.get_work_group_size() : _localSize;
-  const index_t nRowsWG = (_nRowsWG == 0) ? /*localSize*/ 32 : std::min(M, _nRowsWG);
+  const index_t nRowsWG = (_nRowsWG == 0) ? /*localSize*/ block_rsize : std::min(M, _nRowsWG);
 
-  const index_t nColsWG = (_nColsWG == 0) ? /*localSize*/ 32*4 : std::min(N, _nColsWG);
-
+  const index_t nColsWG = (_nColsWG == 0) ? /*localSize*/ block_csize : std::min(N, _nColsWG);
   const index_t scratchPadSize =
       (_localSize == 0) ? localSize : _scratchPadSize;
+
+  
 
   const index_t nWGPerCol = (N - 1) / nColsWG + 1;
   const index_t nWGPerRow = (M - 1) / nRowsWG + 1;

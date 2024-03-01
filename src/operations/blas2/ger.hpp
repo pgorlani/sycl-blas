@@ -325,10 +325,11 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
 
-  // Size of the block computed by a workgroup
+  // Size of the block computed by a workgroup -- PARAMETERS
   const index_t block_rsize = 32; // this must be equal to the sub-group size 
-  const index_t block_csize = 32*4;
-  const index_t col_chunck_size = block_csize/subgroups_per_group; // this must be less than subgroup_size
+  const index_t block_csize = 32*16;
+  // CONSTRAIN col_chunck_size subgroup_size
+  const index_t col_chunck_size = block_csize/subgroups_per_group;
 
   // Block id's of the current workgroup
   const index_t idWFR = group_id % nWG_row_;
