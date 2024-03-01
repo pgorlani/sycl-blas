@@ -318,7 +318,7 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   const index_t group_id = ndItem.get_group(0);
   const index_t subgroup_id = ndItem.get_sub_group().get_group_id().get(0);
   const index_t subgroups_per_group= ndItem.get_sub_group().get_group_range().get(0);
-  //const index_t subgroup_size = ndItem.get_sub_group().get_local_range().get(0);
+  const index_t subgroup_size = ndItem.get_sub_group().get_local_range().get(0);
   const index_t subgroup_local_id = ndItem.get_sub_group().get_local_id().get(0);
 
   // Total size of the problem
@@ -326,8 +326,8 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   const index_t dimC = lhs_.get_size_col();
 
   // Size of the block computed by a workgroup -- PARAMETERS
-  const index_t block_rsize = 32; // this must be equal to the sub-group size 
-  const index_t block_csize = 32*16;
+  const index_t block_rsize = subgroup_size; // this must be equal to the sub-group size 
+  const index_t block_csize = subgroup_size*16;
   // CONSTRAIN col_chunck_size subgroup_size
   const index_t col_chunck_size = block_csize/subgroups_per_group;
 
