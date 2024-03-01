@@ -343,7 +343,7 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   //  
   const value_t rhs_2 = (subgroup_local_id < col_chunck_size && id_col0 + subgroup_local_id < dimC) ? rhs_2_.eval(id_col0 + subgroup_local_id) : 0;
   const value_t scal_rhs_1 = id_row_active ? scalar_ * rhs_1_.eval(id_row0) : 0; 
-  value_t _lhs_ = id_row_active ? lhs_.eval(id_row0, id_col0) : 0;
+  value_t _lhs_ = (id_row_active && id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
 
   for (index_t sub_id_col = 0; sub_id_col < col_chunck_size; sub_id_col++) {
     const value_t rhs_2_sub_id_col = cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
