@@ -888,7 +888,7 @@ typename sb_handle_t::event_t _ger_impl(
       make_vector_view(_vy, _incy, N);
 
   // checks
-  _localSize = 256;
+  _localSize = 64;
   const index_t subgroup_size = 32;
   const index_t subgroups_per_group= _localSize/subgroup_size;
   const index_t block_rsize = subgroup_size;
