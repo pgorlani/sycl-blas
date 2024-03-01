@@ -315,43 +315,40 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   using index_t = typename GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
                                   rhs_2_t>::index_t;
 
+  const index_t group_id = ndItem.get_group(0);
+  const index_t subgroup_id = ndItem.get_sub_group().get_group_id().get(0);
+  const index_t subgroups_per_group= ndItem.get_sub_group().get_group_range().get(0);
+  //const index_t subgroup_size = ndItem.get_sub_group().get_local_range().get(0);
+  const index_t subgroup_local_id = ndItem.get_sub_group().get_local_id().get(0);
 
-  index_t localid = ndItem.get_local_id(0);
-
-  index_t localSz = ndItem.get_local_range(0);
-  index_t groupid = ndItem.get_group(0);
-
-  index_t subSz = ndItem.get_sub_group().get_local_range().get(0);
-  index_t subNum = ndItem.get_sub_group().get_group_range().get(0);
-  index_t subgid = ndItem.get_sub_group().get_group_id().get(0);
-  index_t sublid = ndItem.get_sub_group().get_local_id().get(0);
-
-  index_t idWFR = groupid % nWG_row_;
-  index_t idWFC = groupid / nWG_row_;
-
-  index_t frs_row = idWFR * /*localSz*/32; //+ subSz * subgid; 
-  index_t frs_col = idWFC * /*localSz*/32;
-
+  // Total size of the problem
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
 
-  const index_t id_row0 = frs_row + sublid;
-  const value_t scal_rhs_1 = (id_row0 < dimR) ? scalar_ * rhs_1_.eval(id_row0) : 0; 
+  // Size of the block computed by a workgroup
+  const index_t block_rsize = 32; // this must be equal to the sub-group size 
+  const index_t block_csize = 32*4;
+  const index_t col_chunck_size = block_csize/subgroups_per_group; // this must be less than subgroup_size
 
-  const index_t col_chunck_size = subSz/subNum;
+  // Block id's of the current workgroup
+  const index_t idWFR = group_id % nWG_row_;
+  const index_t idWFC = group_id / nWG_row_;
 
-  #pragma no unroll
-  for (index_t id_col = 0; id_col < (32/col_chunck_size)/subNum; id_col++) {
-    const index_t id_col0 = frs_col + (32/subNum) * subgid  + id_col * col_chunck_size; 
-    const value_t rhs_2 = (sublid < col_chunck_size && id_col0 + sublid < dimC) ? rhs_2_.eval(id_col0 + sublid) : 0;
-    //value_t _lhs_ = (id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
-    //#pragma unroll 2
-    for (index_t sub_id_col = 0; sub_id_col < col_chunck_size; sub_id_col++) {
-      const value_t rhs_2_sub_id_col = cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
-      if(id_row0 < dimR && id_col0 + sub_id_col < dimC) {
-        lhs_.eval(id_row0, id_col0 + sub_id_col) += /*_lhs_ +*/ scal_rhs_1 * rhs_2_sub_id_col;
-        //_lhs_ = (id_col0 + sub_id_col + 1 < dimC) ? lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
-      }
+  // Compute the index offset for accessing data
+  const index_t id_row0 = idWFR * block_rsize + subgroup_local_id;
+  const index_t id_col0 = idWFC * block_csize + col_chunck_size * subgroup_id;
+  const bool id_row_active = id_row0 < dimR;
+
+  //  
+  const value_t rhs_2 = (subgroup_local_id < col_chunck_size && id_col0 + subgroup_local_id < dimC) ? rhs_2_.eval(id_col0 + subgroup_local_id) : 0;
+  const value_t scal_rhs_1 = id_row_active ? scalar_ * rhs_1_.eval(id_row0) : 0; 
+  value_t _lhs_ = id_row_active ? lhs_.eval(id_row0, id_col0) : 0;
+
+  for (index_t sub_id_col = 0; sub_id_col < col_chunck_size; sub_id_col++) {
+    const value_t rhs_2_sub_id_col = cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
+    if(id_row_active && id_col0 + sub_id_col < dimC) {
+      lhs_.eval(id_row0, id_col0 + sub_id_col) = _lhs_ + scal_rhs_1 * rhs_2_sub_id_col;
+      _lhs_ = (id_col0 + sub_id_col + 1 < dimC) ? lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
     }
   }
 
@@ -371,10 +368,10 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
                                   rhs_2_t>::index_t;
   index_t localid = ndItem.get_local_id(0);
   index_t localSz = ndItem.get_local_range(0);
-  index_t groupid = ndItem.get_group(0);
+  index_t group_id = ndItem.get_group(0);
 
-  index_t idWFR = groupid % nWG_row_;
-  index_t idWFC = groupid / nWG_row_;
+  index_t idWFR = group_id % nWG_row_;
+  index_t idWFC = group_id / nWG_row_;
   index_t frs_row = idWFR * 32;//localSz; 
   index_t frs_col = idWFC * 32;//localSz;
 

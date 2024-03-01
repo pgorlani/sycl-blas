@@ -891,7 +891,7 @@ typename sb_handle_t::event_t _ger_impl(
       (_localSize == 0) ? sb_handle.get_work_group_size() : _localSize;
   const index_t nRowsWG = (_nRowsWG == 0) ? /*localSize*/ 32 : std::min(M, _nRowsWG);
 
-  const index_t nColsWG = (_nColsWG == 0) ? /*localSize*/ 32 : std::min(N, _nColsWG);
+  const index_t nColsWG = (_nColsWG == 0) ? /*localSize*/ 32*4 : std::min(N, _nColsWG);
 
   const index_t scratchPadSize =
       (_localSize == 0) ? localSize : _scratchPadSize;
