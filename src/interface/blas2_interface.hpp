@@ -889,12 +889,14 @@ typename sb_handle_t::event_t _ger_impl(
 
   // checks
   _localSize = 64;
-  const index_t subgroup_size = 32;
+  const index_t subgroup_size = 16;
+  const index_t block_rsize = 32;
+  const index_t block_csize = 32;
+
   const index_t subgroups_per_group= _localSize/subgroup_size;
-  const index_t block_rsize = subgroup_size;
-  const index_t block_csize = subgroup_size;
-  const index_t col_chunck_size = block_csize/subgroups_per_group;
-  assert(col_chunck_size <= subgroup_size && block_csize%subgroups_per_group == 0);
+  const index_t subgroups_per_row = block_rsize/subgroup_size;
+  const index_t col_chunck_size = block_csize/(subgroups_per_group/subgroups_per_row);
+  assert(col_chunck_size <= subgroup_size && block_csize%(subgroups_per_group/subgroups_per_row) == 0 && block_rsize%subgroup_size==0);
  
   const index_t localSize =
       (_localSize == 0) ? sb_handle.get_work_group_size() : _localSize;
