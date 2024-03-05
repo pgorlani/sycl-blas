@@ -368,43 +368,48 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
 
   using index_t = typename GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
                                   rhs_2_t>::index_t;
-  index_t localid = ndItem.get_local_id(0);
-  index_t localSz = ndItem.get_local_range(0);
-  index_t group_id = ndItem.get_group(0);
 
+  index_t group_id = ndItem.get_group(0);
+  index_t group_size = ndItem.get_local_range(0);
+  index_t group_local_id = ndItem.get_local_id(0);
+
+  // Size of the block computed by a workgroup -- PARAMETERS
+  const index_t block_rsize = 32;                // this must be equal to the sub-group size 
+  const index_t block_csize = 32;                // 
+ 
   index_t idWFR = group_id % nWG_row_;
   index_t idWFC = group_id / nWG_row_;
-  index_t frs_row = idWFR * 32;//localSz; 
-  index_t frs_col = idWFC * 32;//localSz;
+  index_t frs_row = idWFR * block_rsize;
+  const index_t id_row0 = group_local_id%block_rsize;  // CONSTRAIN group_size%block_rsize == 0
+  const index_t id_row1 = frs_row + id_row0;
+ 
+  index_t frs_col = idWFC * block_csize;
 
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
 
   value_t * l_rhs_1 = shrMem.localAcc.get_pointer();
-  value_t * l_rhs_2 = shrMem.localAcc.get_pointer() + 32;
+  value_t * l_rhs_2 = shrMem.localAcc.get_pointer() + block_rsize;
 
-  if (localid < 32){
-    l_rhs_1[localid] = (frs_row + localid < dimR) ? scalar_ * rhs_1_.eval(frs_row + localid) : 0; 
-    l_rhs_2[localid] = (frs_col + localid < dimC) ? rhs_2_.eval(frs_col + localid) : 0;
-  }
+  if (group_local_id < block_rsize)
+    l_rhs_1[group_local_id] = (frs_row + group_local_id < dimR) ? scalar_ * rhs_1_.eval(frs_row + group_local_id) : 0; 
 
-  ndItem.barrier(cl::sycl::access::fence_space::local_space);
+  if (group_local_id < block_csize)
+    l_rhs_2[group_local_id] = (frs_col + group_local_id < dimC) ? rhs_2_.eval(frs_col + group_local_id) : 0;
 
-  const index_t chk_size = 32;
-  const index_t chk_num = localSz/chk_size;
-  const index_t chk_id = localid/chk_size;
+  const index_t col_per_workitem = block_rsize * block_csize / group_size; // CONSTRAIN block_rsize * block_csize % group_size == 0
+  const index_t chk_id = group_local_id/block_rsize;
 
-  const index_t id_row0 = localid%32;
-  const index_t id_row = frs_row + id_row0;
-  const index_t id_col0 = chk_id*(32/chk_num); 
+  const index_t id_col0 = chk_id * col_per_workitem;
   const index_t id_col1 = frs_col + id_col0; 
  
-  #pragma unroll 
-  for (index_t id_col = 0; id_col < 32/chk_num; id_col++)
+  ndItem.barrier(cl::sycl::access::fence_space::local_space);
+
+  for (index_t id_col = 0; id_col < col_per_workitem; id_col++)
   {
-    const value_t v = l_rhs_1[id_row0] * l_rhs_2[id_col0 + id_col];
-    if(id_row < dimR && id_col1 + id_col < dimC)
-      lhs_.eval(id_row, id_col1 + id_col) += v;
+    const value_t val = l_rhs_1[id_row0] * l_rhs_2[id_col0 + id_col];
+    if(id_row1 < dimR && id_col1 + id_col < dimC)
+      lhs_.eval(id_row1, id_col1 + id_col) += val;
   }
 
   return 0;
