@@ -344,13 +344,13 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   //  
   const value_t rhs_2 = (subgroup_local_id < col_chunck_size && id_col0 + subgroup_local_id < dimC) ? rhs_2_.eval(id_col0 + subgroup_local_id) : 0;
   const value_t scal_rhs_1 = id_row_active ? scalar_ * rhs_1_.eval(id_row0) : 0; 
-  value_t _lhs_ = (id_row_active && id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
+  value_t prefetch_lhs_ = (id_row_active && id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
 
   for (index_t sub_id_col = 0; sub_id_col < col_chunck_size; sub_id_col++) {
     const value_t rhs_2_sub_id_col = cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
     if(id_row_active && id_col0 + sub_id_col < dimC) {
-      lhs_.eval(id_row0, id_col0 + sub_id_col) = _lhs_ + scal_rhs_1 * rhs_2_sub_id_col;
-      _lhs_ = (id_col0 + sub_id_col + 1 < dimC) ? lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
+      lhs_.eval(id_row0, id_col0 + sub_id_col) = prefetch_lhs_ + scal_rhs_1 * rhs_2_sub_id_col;
+      prefetch_lhs_ = (id_col0 + sub_id_col + 1 < dimC) ? lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
     }
   }
 
@@ -403,13 +403,17 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   const index_t id_col0 = chk_id * col_per_workitem;
   const index_t id_col1 = frs_col + id_col0; 
  
+  value_t prefetch_lhs_ = (id_row1 < dimR && id_col1 < dimC) ? lhs_.eval(id_row1, id_col1) : 0;
+
   ndItem.barrier(cl::sycl::access::fence_space::local_space);
 
   for (index_t id_col = 0; id_col < col_per_workitem; id_col++)
   {
     const value_t val = l_rhs_1[id_row0] * l_rhs_2[id_col0 + id_col];
-    if(id_row1 < dimR && id_col1 + id_col < dimC)
-      lhs_.eval(id_row1, id_col1 + id_col) += val;
+    if(id_row1 < dimR && id_col1 + id_col < dimC) {
+      lhs_.eval(id_row1, id_col1 + id_col) = prefetch_lhs_ + val;
+      prefetch_lhs_ = (id_col1 + id_col + 1 < dimC) ? lhs_.eval(id_row1, id_col1 + id_col + 1) : 0;
+    }
   }
 
   return 0;
