@@ -326,7 +326,7 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   const index_t dimC = lhs_.get_size_col();
 
   // Size of the block computed by a workgroup -- PARAMETERS
-  const index_t block_rsize = 32;                // this must be equal to the sub-group size 
+  const index_t block_rsize = 32;                // CONSTRAIN block_rsize >= subgroup_size && block_rsize%subgroup_size==0 
   const index_t block_csize = 32;                // 
   // CONSTRAIN col_chunck_size < subgroup_size
   const index_t subgroups_per_row = block_rsize/subgroup_size;
@@ -391,10 +391,10 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   value_t * l_rhs_1 = shrMem.localAcc.get_pointer();
   value_t * l_rhs_2 = shrMem.localAcc.get_pointer() + block_rsize;
 
-  if (group_local_id < block_rsize)
+  if (group_local_id < block_rsize)  // CONSTRAIN group_size >= block_rsize
     l_rhs_1[group_local_id] = (frs_row + group_local_id < dimR) ? scalar_ * rhs_1_.eval(frs_row + group_local_id) : 0; 
 
-  if (group_local_id < block_csize)
+  if (group_local_id < block_csize)  // CONSTRAIN group_size >= block_csize
     l_rhs_2[group_local_id] = (frs_col + group_local_id < dimC) ? rhs_2_.eval(frs_col + group_local_id) : 0;
 
   const index_t col_per_workitem = block_rsize * block_csize / group_size; // CONSTRAIN block_rsize * block_csize % group_size == 0
