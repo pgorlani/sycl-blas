@@ -315,42 +315,43 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   using index_t = typename GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
                                   rhs_2_t>::index_t;
 
-  const index_t group_id = ndItem.get_group(0);
-  const index_t subgroup_id = ndItem.get_sub_group().get_group_id().get(0);
-  const index_t subgroups_per_group= ndItem.get_sub_group().get_group_range().get(0);
+  // Size of the block computed by a workgroup -- PARAMETERS
+  const index_t block_rsize = 32;                // CONSTRAIN block_rsize >= subgroup_size && block_rsize%subgroup_size==0 
+  const index_t block_csize = 32;                // 
+
   const index_t subgroup_size = ndItem.get_sub_group().get_local_range().get(0);
+  const index_t subgroups_per_row = block_rsize/subgroup_size;
+  const index_t subgroups_per_group= ndItem.get_sub_group().get_group_range().get(0);
+  // CONSTRAIN col_chunck_size < subgroup_size
+  const index_t col_chunck_size = block_csize/(subgroups_per_group/subgroups_per_row);
+
+
+  const index_t group_id = ndItem.get_group(0);
+ // Block id's of the current workgroup
+  const index_t idWFR = group_id % nWG_row_;
+  const index_t idWFC = group_id / nWG_row_;
+
+  const index_t subgroup_id = ndItem.get_sub_group().get_group_id().get(0);
   const index_t subgroup_local_id = ndItem.get_sub_group().get_local_id().get(0);
+  // Compute the index offset for accessing data
+  const index_t id_row0 = idWFR * block_rsize + subgroup_size * (subgroup_id%subgroups_per_row) +  subgroup_local_id;   //
+  const index_t id_col0 = idWFC * block_csize + col_chunck_size * (subgroup_id/subgroups_per_row); //
 
   // Total size of the problem
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
-
-  // Size of the block computed by a workgroup -- PARAMETERS
-  const index_t block_rsize = 32;                // CONSTRAIN block_rsize >= subgroup_size && block_rsize%subgroup_size==0 
-  const index_t block_csize = 32;                // 
-  // CONSTRAIN col_chunck_size < subgroup_size
-  const index_t subgroups_per_row = block_rsize/subgroup_size;
-  const index_t col_chunck_size = block_csize/(subgroups_per_group/subgroups_per_row);
-
-  // Block id's of the current workgroup
-  const index_t idWFR = group_id % nWG_row_;
-  const index_t idWFC = group_id / nWG_row_;
-
-  // Compute the index offset for accessing data
-  const index_t id_row0 = idWFR * block_rsize + subgroup_size * (subgroup_id%subgroups_per_row) +  subgroup_local_id;   //
-  const index_t id_col0 = idWFC * block_csize + col_chunck_size * (subgroup_id/subgroups_per_row); //
   const bool id_row_active = id_row0 < dimR;
 
   //  
   const value_t rhs_2 = (subgroup_local_id < col_chunck_size && id_col0 + subgroup_local_id < dimC) ? rhs_2_.eval(id_col0 + subgroup_local_id) : 0;
   const value_t scal_rhs_1 = id_row_active ? scalar_ * rhs_1_.eval(id_row0) : 0; 
-  value_t prefetch_lhs_ = (id_row_active && id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
+//  value_t prefetch_lhs_ = (id_row_active && id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
 
   for (index_t sub_id_col = 0; sub_id_col < col_chunck_size; sub_id_col++) {
     const value_t rhs_2_sub_id_col = cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
     if(id_row_active && id_col0 + sub_id_col < dimC) {
-      lhs_.eval(id_row0, id_col0 + sub_id_col) = prefetch_lhs_ + scal_rhs_1 * rhs_2_sub_id_col;
-      prefetch_lhs_ = (id_col0 + sub_id_col + 1 < dimC) ? lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
+      lhs_.eval(id_row0, id_col0 + sub_id_col) += /*prefetch_lhs_ +*/ scal_rhs_1 * rhs_2_sub_id_col;
+//      prefetch_lhs_ = (id_col0 + sub_id_col + 1 < dimC) ? lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
     }
   }
 
@@ -369,17 +370,15 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   using index_t = typename GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
                                   rhs_2_t>::index_t;
 
-  index_t group_id = ndItem.get_group(0);
-  index_t group_size = ndItem.get_local_range(0);
-  index_t group_local_id = ndItem.get_local_id(0);
-
   // Size of the block computed by a workgroup -- PARAMETERS
   const index_t block_rsize = 32;                // this must be equal to the sub-group size 
   const index_t block_csize = 32;                // 
  
-  index_t idWFR = group_id % nWG_row_;
-  index_t idWFC = group_id / nWG_row_;
-  index_t frs_row = idWFR * block_rsize;
+  const index_t group_id = ndItem.get_group(0);
+  const index_t idWFR = group_id % nWG_row_;
+  const index_t idWFC = group_id / nWG_row_;
+  const index_t frs_row = idWFR * block_rsize;
+  const index_t group_local_id = ndItem.get_local_id(0);
   const index_t id_row0 = group_local_id%block_rsize;  // CONSTRAIN group_size%block_rsize == 0
   const index_t id_row1 = frs_row + id_row0;
  
@@ -397,6 +396,7 @@ GerCol<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
   if (group_local_id < block_csize)  // CONSTRAIN group_size >= block_csize
     l_rhs_2[group_local_id] = (frs_col + group_local_id < dimC) ? rhs_2_.eval(frs_col + group_local_id) : 0;
 
+  const index_t group_size = ndItem.get_local_range(0);
   const index_t col_per_workitem = block_rsize * block_csize / group_size; // CONSTRAIN block_rsize * block_csize % group_size == 0
   const index_t chk_id = group_local_id/block_rsize;
 
