@@ -914,7 +914,7 @@ typename sb_handle_t::event_t _ger_impl(
 
   typename sb_handle_t::event_t ret;
   auto assignOp =
-      make_ger_col(mA, _alpha, vx, vy, nWGPerRow, nWGPerCol, scratchPadSize);
+      make_ger(mA, _alpha, vx, vy, nWGPerRow, nWGPerCol, scratchPadSize);
   return sb_handle.execute(assignOp, localSize, globalSize, block_rsize+block_csize, //scratchPadSize,
                            _dependencies);
 }
