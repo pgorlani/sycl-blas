@@ -888,16 +888,16 @@ typename sb_handle_t::event_t _ger_impl(
       make_vector_view(_vy, _incy, N);
 
   // checks
-  _localSize = 256;
-  const index_t subgroup_size = 16;
-  const index_t block_rsize = 32;
-  const index_t block_csize = 32;
+  _localSize = 64;
+  const index_t subgroup_size = 32;
+  const index_t block_rsize = 64;
+  const index_t block_csize = 16;
 
   const index_t subgroups_per_group= _localSize/subgroup_size;
   const index_t subgroups_per_row = block_rsize/subgroup_size;
   const index_t col_chunck_size = block_csize/(subgroups_per_group/subgroups_per_row);
-  //  assert(col_chunck_size <= subgroup_size && block_csize%(subgroups_per_group/subgroups_per_row) == 0 && block_rsize%subgroup_size==0); //no shared mem
-
+  assert((col_chunck_size <= subgroup_size) && (block_rsize%subgroup_size==0)); //no shared mem
+  assert( block_csize%(subgroups_per_group/subgroups_per_row) == 0); 
 
   // shared mem
   assert((block_rsize <= _localSize) && (block_csize <= _localSize)); // shared mem version
@@ -915,7 +915,7 @@ typename sb_handle_t::event_t _ger_impl(
   typename sb_handle_t::event_t ret;
   auto assignOp =
       make_ger(mA, _alpha, vx, vy, block_rsize, block_csize, nWGPerRow, nWGPerCol, block_rsize+block_csize);
-  return sb_handle.execute(assignOp, _localSize, globalSize, block_rsize+block_csize, _dependencies);
+  return sb_handle.execute(assignOp, _localSize, globalSize, /*block_rsize+block_csize,*/ _dependencies);
 }
 
 /*! _SYR.
