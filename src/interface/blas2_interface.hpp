@@ -893,29 +893,33 @@ typename sb_handle_t::event_t _ger_impl(
   const index_t block_rsize = 64;
   const index_t block_csize = 16;
 
-  const index_t subgroups_per_group= _localSize/subgroup_size;
-  const index_t subgroups_per_row = block_rsize/subgroup_size;
-  const index_t col_chunck_size = block_csize/(subgroups_per_group/subgroups_per_row);
-  assert((col_chunck_size <= subgroup_size) && (block_rsize%subgroup_size==0)); //no shared mem
-  assert( block_csize%(subgroups_per_group/subgroups_per_row) == 0); 
+  const index_t subgroups_per_group = _localSize / subgroup_size;
+  const index_t subgroups_per_row = block_rsize / subgroup_size;
+  const index_t col_chunck_size =
+      block_csize / (subgroups_per_group / subgroups_per_row);
+
+  // no shared mem
+  assert((col_chunck_size <= subgroup_size) && (block_rsize % subgroup_size == 0));
+  assert(block_csize % (subgroups_per_group / subgroups_per_row) == 0);
 
   // shared mem
-  assert((block_rsize <= _localSize) && (block_csize <= _localSize)); // shared mem version
+  assert((block_rsize <= _localSize) && (block_csize <= _localSize));
   assert((_localSize % block_rsize) == 0);
-  assert(((block_rsize*block_csize) % _localSize) == 0);
- 
+  assert(((block_rsize * block_csize) % _localSize) == 0);
+
   const index_t nRowsWG = block_rsize;
   const index_t nColsWG = block_csize;
   const index_t nWGPerCol = (N - 1) / nColsWG + 1;
   const index_t nWGPerRow = (M - 1) / nRowsWG + 1;
   const index_t globalSize = _localSize * nWGPerRow * nWGPerCol;
 
-  //std::cerr<<nWGPerRow<<" "<<nWGPerCol<<std::endl; 
+  // std::cerr<<nWGPerRow<<" "<<nWGPerCol<<std::endl;
 
   typename sb_handle_t::event_t ret;
-  auto assignOp =
-      make_ger(mA, _alpha, vx, vy, block_rsize, block_csize, nWGPerRow, nWGPerCol, block_rsize+block_csize);
-  return sb_handle.execute(assignOp, _localSize, globalSize, /*block_rsize+block_csize,*/ _dependencies);
+  auto assignOp = make_ger(mA, _alpha, vx, vy, block_rsize, block_csize,
+                           nWGPerRow, nWGPerCol, block_rsize + block_csize);
+  return sb_handle.execute(assignOp, _localSize, globalSize,
+                           /*block_rsize+block_csize,*/ _dependencies);
 }
 
 /*! _SYR.

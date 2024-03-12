@@ -214,7 +214,7 @@ struct ExpressionTreeFunctor {
   PORTBLAS_INLINE ExpressionTreeFunctor(local_memory_t scratch,
                                          expression_tree_t t)
       : scratch_(scratch), t_(t) {}
-//  [[intel::reqd_sub_group_size(32)]]
+  //  [[intel::reqd_sub_group_size(32)]]
   PORTBLAS_INLINE void operator()(cl::sycl::nd_item<1> i) const {
     expression_tree_t &non_const_t = *const_cast<expression_tree_t *>(&t_);
     non_const_t.adjust_access_displacement();

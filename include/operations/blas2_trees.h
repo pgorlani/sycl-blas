@@ -519,10 +519,9 @@ struct Ger {
   index_t block_rsize;
   index_t block_csize;
 
-
   Ger(lhs_t &_l, value_t _scl, rhs_1_t &_r1, rhs_2_t &_r2,
-         index_t &_block_rsize, index_t &_block_csize,
-         index_t &_nWG_row, index_t &_nWG_col, index_t &_shrMemSize);
+      index_t &_block_rsize, index_t &_block_csize, index_t &_nWG_row,
+      index_t &_nWG_col, index_t &_shrMemSize);
 
   index_t get_size() const;
   bool valid_thread(cl::sycl::nd_item<1> ndItem) const;
@@ -538,14 +537,13 @@ template <bool Single = true, bool Lower = true, bool Diag = true,
           bool Upper = true, typename lhs_t, typename rhs_1_t, typename rhs_2_t>
 Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t> make_ger(
     lhs_t &lhs_, typename lhs_t::value_t scalar_, rhs_1_t &rhs_1_,
-    rhs_2_t &rhs_2_,
-    typename rhs_2_t::index_t block_rsize_,
-    typename rhs_2_t::index_t block_csize_,
-    typename rhs_2_t::index_t nWG_row_,
+    rhs_2_t &rhs_2_, typename rhs_2_t::index_t block_rsize_,
+    typename rhs_2_t::index_t block_csize_, typename rhs_2_t::index_t nWG_row_,
     typename rhs_2_t::index_t nWG_col_,
     typename rhs_2_t::index_t local_memory_size_) {
   return Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>(
-      lhs_, scalar_, rhs_1_, rhs_2_, block_rsize_, block_csize_, nWG_row_, nWG_col_, local_memory_size_);
+      lhs_, scalar_, rhs_1_, rhs_2_, block_rsize_, block_csize_, nWG_row_,
+      nWG_col_, local_memory_size_);
 }
 
 /**** GER BY ROWS M ROWS x N BLOCK USING PROPERLY THE SHARED MEMORY ****/
