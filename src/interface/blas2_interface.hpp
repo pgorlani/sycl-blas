@@ -888,7 +888,7 @@ typename sb_handle_t::event_t _ger_impl(
       make_vector_view(_vy, _incy, N);
 
   // checks
-  _localSize = 64;
+  _localSize = 32;
   const index_t subgroup_size = 16;
   const index_t block_rsize = 32;
   const index_t block_csize = 32;
@@ -896,27 +896,21 @@ typename sb_handle_t::event_t _ger_impl(
   const index_t subgroups_per_group= _localSize/subgroup_size;
   const index_t subgroups_per_row = block_rsize/subgroup_size;
   const index_t col_chunck_size = block_csize/(subgroups_per_group/subgroups_per_row);
-  assert(col_chunck_size <= subgroup_size && block_csize%(subgroups_per_group/subgroups_per_row) == 0 && block_rsize%subgroup_size==0);
+//  assert(col_chunck_size <= subgroup_size && block_csize%(subgroups_per_group/subgroups_per_row) == 0 && block_rsize%subgroup_size==0);
  
-  const index_t localSize =
-      (_localSize == 0) ? sb_handle.get_work_group_size() : _localSize;
-  const index_t nRowsWG = (_nRowsWG == 0) ? /*localSize*/ block_rsize : std::min(M, _nRowsWG);
-
-  const index_t nColsWG = (_nColsWG == 0) ? /*localSize*/ block_csize : std::min(N, _nColsWG);
-  const index_t scratchPadSize =
-      (_localSize == 0) ? localSize : _scratchPadSize;
-
+  const index_t nRowsWG = block_rsize;
+  const index_t nColsWG = block_csize;
   
-
   const index_t nWGPerCol = (N - 1) / nColsWG + 1;
   const index_t nWGPerRow = (M - 1) / nRowsWG + 1;
-  const index_t globalSize = localSize * nWGPerRow * nWGPerCol;
+  const index_t globalSize = _localSize * nWGPerRow * nWGPerCol;
+
+  std::cerr<<nWGPerRow<<" "<<nWGPerCol<<std::endl; 
 
   typename sb_handle_t::event_t ret;
   auto assignOp =
-      make_ger(mA, _alpha, vx, vy, nWGPerRow, nWGPerCol, scratchPadSize);
-  return sb_handle.execute(assignOp, localSize, globalSize, block_rsize+block_csize, //scratchPadSize,
-                           _dependencies);
+      make_ger(mA, _alpha, vx, vy, block_rsize, block_csize, nWGPerRow, nWGPerCol, block_rsize+block_csize);
+  return sb_handle.execute(assignOp, _localSize, globalSize, block_rsize+block_csize, _dependencies);
 }
 
 /*! _SYR.

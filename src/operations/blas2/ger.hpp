@@ -38,21 +38,21 @@ template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
           typename rhs_1_t, typename rhs_2_t>
 PORTBLAS_INLINE Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
                         rhs_2_t>::Ger(lhs_t &_l, value_t _scl, rhs_1_t &_r1,
-                                         rhs_2_t &_r2, index_t &_nWG_row,
+                                         rhs_2_t &_r2,
+                                         index_t &_block_rsize,
+                                         index_t &_block_csize,
+                                         index_t &_nWG_row,
                                          index_t &_nWG_col,
                                          index_t &_shrMemSize)
     : lhs_(_l),
       scalar_(_scl),
       rhs_1_(_r1),
       rhs_2_(_r2),
+      block_rsize(_block_rsize),
+      block_csize(_block_csize),
       nWG_row_(_nWG_row),
       nWG_col_(_nWG_col),
-      local_memory_size_(_shrMemSize) {
-
-  block_rsize = 32;
-  block_csize = 32;
-
-}
+      local_memory_size_(_shrMemSize) {}
 
 template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
           typename rhs_1_t, typename rhs_2_t>
