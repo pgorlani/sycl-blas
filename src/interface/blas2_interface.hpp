@@ -888,9 +888,9 @@ typename sb_handle_t::event_t _ger_impl(
       make_vector_view(_vy, _incy, N);
 
   // checks
-  _localSize = 128;
+  _localSize = 256;
   const index_t subgroup_size = 16;
-  const index_t block_rsize = 64;
+  const index_t block_rsize = 32;
   const index_t block_csize = 32;
 
   const index_t subgroups_per_group= _localSize/subgroup_size;
@@ -898,13 +898,14 @@ typename sb_handle_t::event_t _ger_impl(
   const index_t col_chunck_size = block_csize/(subgroups_per_group/subgroups_per_row);
   //  assert(col_chunck_size <= subgroup_size && block_csize%(subgroups_per_group/subgroups_per_row) == 0 && block_rsize%subgroup_size==0); //no shared mem
 
+
+  // shared mem
   assert((block_rsize <= _localSize) && (block_csize <= _localSize)); // shared mem version
   assert((_localSize % block_rsize) == 0);
-
+  assert(((block_rsize*block_csize) % _localSize) == 0);
  
   const index_t nRowsWG = block_rsize;
   const index_t nColsWG = block_csize;
-  
   const index_t nWGPerCol = (N - 1) / nColsWG + 1;
   const index_t nWGPerRow = (M - 1) / nRowsWG + 1;
   const index_t globalSize = _localSize * nWGPerRow * nWGPerCol;
