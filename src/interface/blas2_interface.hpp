@@ -888,9 +888,9 @@ typename sb_handle_t::event_t _ger_impl(
       make_vector_view(_vy, _incy, N);
 
   _localSize = (_localSize == 0) ? sb_handle.get_work_group_size() : _localSize;
-  nRowsWG = (nRowsWG ==0) ? _localSize : nRowsWG;
-  nColsWG = (nColsWG ==0) ? _localSize : nColsWG;
- 
+  nRowsWG = (nRowsWG == 0) ? _localSize : nRowsWG;
+  nColsWG = (nColsWG == 0) ? _localSize : nColsWG;
+
   if (_useLocalMem) {
     assert((nRowsWG <= _localSize) && (nColsWG <= _localSize));
     assert((_localSize % nRowsWG) == 0);
