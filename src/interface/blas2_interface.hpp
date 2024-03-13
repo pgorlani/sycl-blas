@@ -887,6 +887,10 @@ typename sb_handle_t::event_t _ger_impl(
   typename VectorViewType<container_t1, index_t, increment_t>::type vy =
       make_vector_view(_vy, _incy, N);
 
+  _localSize = (_localSize == 0) ? sb_handle.get_work_group_size() : _localSize;
+  nRowsWG = (nRowsWG ==0) ? _localSize : nRowsWG;
+  nColsWG = (nColsWG ==0) ? _localSize : nColsWG;
+ 
   if (_useLocalMem) {
     assert((nRowsWG <= _localSize) && (nColsWG <= _localSize));
     assert((_localSize % nRowsWG) == 0);
@@ -1292,8 +1296,28 @@ typename sb_handle_t::event_t inline _ger(
     const typename sb_handle_t::event_t& _dependencies) {
   // TODO: Here we can use some heuristics to select localn global, local, and
   // scratch size per device
+
+  index_t _localSize = 0;
+  bool _useLocalMem = true;
+  index_t nRowsWG = 0;
+  index_t nColsWG = 0;
+
+#if defined(INTEL_GPU)
+
+#elif defined(NVIDIA_GPU)
+  _localSize = (_N < 8192) ? 64 : 256;
+  _useLocalMem = (_N < 8192) ? false : true;
+  nRowsWG = 32;
+  nColsWG = 32;
+#elif defined(AMD_GPU)
+  _localSize = (_N < 8192) ? 512 : 256;
+  _useLocalMem = (_N < 8192) ? false : true;
+  nRowsWG = (_N < 8192) ? 64 : 128;
+  nColsWG = (_N < 8192) ? 64 : 256;
+#endif
+
   return _ger_impl(sb_handle, _M, _N, _alpha, _vx, _incx, _vy, _incy, _mA, _lda,
-                   _dependencies, 64, true, 64, 16);
+                   _dependencies, _localSize, _useLocalMem, nRowsWG, nColsWG);
 }
 
 template <typename sb_handle_t, typename index_t, typename element_t,
