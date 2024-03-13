@@ -878,7 +878,7 @@ typename sb_handle_t::event_t _ger_impl(
     container_t0 _vx, increment_t _incx, container_t1 _vy, increment_t _incy,
     container_t2 _mA, index_t _lda,
     const typename sb_handle_t::event_t& _dependencies, index_t _localSize = 0,
-    index_t _scratchPadSize = 0, index_t _nRowsWG = 0, index_t _nColsWG = 0) {
+    bool _useLocalMem = true, index_t nRowsWG = 0, index_t nColsWG = 0) {
   index_t M = _M;
   index_t N = _N;
   auto mA = make_matrix_view<col_major>(_mA, M, N, _lda);
@@ -887,39 +887,34 @@ typename sb_handle_t::event_t _ger_impl(
   typename VectorViewType<container_t1, index_t, increment_t>::type vy =
       make_vector_view(_vy, _incy, N);
 
-  // checks
-  _localSize = 64;
-  const index_t subgroup_size = 32;
-  const index_t block_rsize = 64;
-  const index_t block_csize = 16;
+  if (_useLocalMem) {
+    assert((nRowsWG <= _localSize) && (nColsWG <= _localSize));
+    assert((_localSize % nRowsWG) == 0);
+    assert(((nRowsWG * nColsWG) % _localSize) == 0);
+  } else {
+    const index_t subgroup_size = 32;
+    const index_t subgroups_per_group = _localSize / subgroup_size;
+    const index_t subgroups_per_row = nRowsWG / subgroup_size;
+    const index_t col_chunck_size =
+        nColsWG / (subgroups_per_group / subgroups_per_row);
 
-  const index_t subgroups_per_group = _localSize / subgroup_size;
-  const index_t subgroups_per_row = block_rsize / subgroup_size;
-  const index_t col_chunck_size =
-      block_csize / (subgroups_per_group / subgroups_per_row);
+    assert((col_chunck_size <= subgroup_size) &&
+           (nRowsWG % subgroup_size == 0));
+    assert(nColsWG % (subgroups_per_group / subgroups_per_row) == 0);
+  }
 
-  // no shared mem
-  assert((col_chunck_size <= subgroup_size) && (block_rsize % subgroup_size == 0));
-  assert(block_csize % (subgroups_per_group / subgroups_per_row) == 0);
-
-  // shared mem
-  assert((block_rsize <= _localSize) && (block_csize <= _localSize));
-  assert((_localSize % block_rsize) == 0);
-  assert(((block_rsize * block_csize) % _localSize) == 0);
-
-  const index_t nRowsWG = block_rsize;
-  const index_t nColsWG = block_csize;
   const index_t nWGPerCol = (N - 1) / nColsWG + 1;
   const index_t nWGPerRow = (M - 1) / nRowsWG + 1;
   const index_t globalSize = _localSize * nWGPerRow * nWGPerCol;
 
-  // std::cerr<<nWGPerRow<<" "<<nWGPerCol<<std::endl;
-
   typename sb_handle_t::event_t ret;
-  auto assignOp = make_ger(mA, _alpha, vx, vy, block_rsize, block_csize,
-                           nWGPerRow, nWGPerCol, block_rsize + block_csize);
-  return sb_handle.execute(assignOp, _localSize, globalSize,
-                           /*block_rsize+block_csize,*/ _dependencies);
+  auto assignOp =
+      make_ger(mA, _alpha, vx, vy, nRowsWG, nColsWG, nWGPerRow, nWGPerCol);
+
+  return _useLocalMem ? sb_handle.execute(assignOp, _localSize, globalSize,
+                                          nRowsWG + nColsWG, _dependencies)
+                      : sb_handle.execute(assignOp, _localSize, globalSize,
+                                          _dependencies);
 }
 
 /*! _SYR.
@@ -1298,7 +1293,7 @@ typename sb_handle_t::event_t inline _ger(
   // TODO: Here we can use some heuristics to select localn global, local, and
   // scratch size per device
   return _ger_impl(sb_handle, _M, _N, _alpha, _vx, _incx, _vy, _incy, _mA, _lda,
-                   _dependencies);
+                   _dependencies, 64, true, 64, 16);
 }
 
 template <typename sb_handle_t, typename index_t, typename element_t,

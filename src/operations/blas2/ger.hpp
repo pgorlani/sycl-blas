@@ -38,8 +38,7 @@ template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
           typename rhs_1_t, typename rhs_2_t>
 PORTBLAS_INLINE Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::Ger(
     lhs_t &_l, value_t _scl, rhs_1_t &_r1, rhs_2_t &_r2, index_t &_block_rsize,
-    index_t &_block_csize, index_t &_nWG_row, index_t &_nWG_col,
-    index_t &_shrMemSize)
+    index_t &_block_csize, index_t &_nWG_row, index_t &_nWG_col)
     : lhs_(_l),
       scalar_(_scl),
       rhs_1_(_r1),
@@ -47,8 +46,7 @@ PORTBLAS_INLINE Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::Ger(
       block_rsize(_block_rsize),
       block_csize(_block_csize),
       nWG_row_(_nWG_row),
-      nWG_col_(_nWG_col),
-      local_memory_size_(_shrMemSize) {}
+      nWG_col_(_nWG_col) {}
 
 template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
           typename rhs_1_t, typename rhs_2_t>
@@ -113,7 +111,8 @@ PORTBLAS_INLINE
                             : 0;
   const value_t scal_rhs_1 = id_row_active ? scalar_ * rhs_1_.eval(id_row0) : 0;
 
-  //value_t prefetch_lhs_ = (id_row_active && id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
+  // value_t prefetch_lhs_ = (id_row_active && id_col0 < dimC) ?
+  // lhs_.eval(id_row0, id_col0) : 0;
 
   for (index_t sub_id_col = 0; sub_id_col < col_chunck_size; sub_id_col++) {
     const value_t rhs_2_sub_id_col =
@@ -121,7 +120,8 @@ PORTBLAS_INLINE
     if (id_row_active && id_col0 + sub_id_col < dimC) {
       lhs_.eval(id_row0, id_col0 + sub_id_col) +=
           /*prefetch_lhs_ +*/ scal_rhs_1 * rhs_2_sub_id_col;
-//prefetch_lhs_ = (id_col0 + sub_id_col + 1 < dimC) ?  lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
+      // prefetch_lhs_ = (id_col0 + sub_id_col + 1 < dimC) ?  lhs_.eval(id_row0,
+      // id_col0 + sub_id_col + 1) : 0;
     }
   }
 
@@ -143,6 +143,7 @@ PORTBLAS_INLINE
   const index_t idWFC = group_id / nWG_row_;
   const index_t frs_row = idWFR * block_rsize;
   const index_t group_local_id = ndItem.get_local_id(0);
+
   // CONSTRAIN group_size%block_rsize == 0
   const index_t id_row0 = group_local_id % block_rsize;
   const index_t id_row1 = frs_row + id_row0;
@@ -171,9 +172,7 @@ PORTBLAS_INLINE
   const index_t group_size = ndItem.get_local_range(0);
 
   // CONSTRAIN block_rsize * block_csize % group_size == 0
-  const index_t col_per_workitem =
-      block_rsize * block_csize /
-      group_size;
+  const index_t col_per_workitem = block_rsize * block_csize / group_size;
   const index_t chk_id = group_local_id / block_rsize;
 
   const index_t id_col0 = chk_id * col_per_workitem;
