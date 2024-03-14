@@ -1305,7 +1305,7 @@ typename sb_handle_t::event_t inline _ger(
 #if defined(INTEL_GPU)
 
 #elif defined(NVIDIA_GPU)
-  _localSize = (_N < 8192) ? 64 : 256;
+  _localSize = 256;
   _useLocalMem = (_N < 8192) ? false : true;
   nRowsWG = 32;
   nColsWG = 32;
