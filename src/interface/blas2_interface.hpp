@@ -891,20 +891,18 @@ typename sb_handle_t::event_t _ger_impl(
   nRowsWG = (nRowsWG == 0) ? _localSize : nRowsWG;
   nColsWG = (nColsWG == 0) ? _localSize : nColsWG;
 
+  assert(((nRowsWG * nColsWG) % _localSize) == 0);
+
   if (_useLocalMem) {
     assert((nRowsWG <= _localSize) && (nColsWG <= _localSize));
     assert((_localSize % nRowsWG) == 0);
-    assert(((nRowsWG * nColsWG) % _localSize) == 0);
   } else {
-    const index_t subgroup_size = 32;
-    const index_t subgroups_per_group = _localSize / subgroup_size;
-    const index_t subgroups_per_row = nRowsWG / subgroup_size;
-    const index_t col_chunck_size =
-        nColsWG / (subgroups_per_group / subgroups_per_row);
-
-    assert((col_chunck_size <= subgroup_size) &&
-           (nRowsWG % subgroup_size == 0));
-    assert(nColsWG % (subgroups_per_group / subgroups_per_row) == 0);
+    std::vector<size_t> subgroup_sizes = sb_handle.get_queue().get_device().template get_info<sycl::info::device::sub_group_sizes>();
+    size_t min_subgroup_size = *subgroup_sizes.begin();
+    size_t max_subgroup_size = *subgroup_sizes.rbegin();
+    assert(((nRowsWG * nColsWG) / _localSize) <= min_subgroup_size);
+    assert(nRowsWG % max_subgroup_size == 0);
+    assert(nColsWG % (_localSize / nRowsWG) == 0);
   }
 
   const index_t nWGPerCol = (N - 1) / nColsWG + 1;

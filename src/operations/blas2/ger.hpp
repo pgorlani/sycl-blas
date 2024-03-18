@@ -77,9 +77,10 @@ PORTBLAS_INLINE
   const index_t subgroups_per_group =
       ndItem.get_sub_group().get_group_range().get(0);
 
-  // CONSTRAIN col_chunck_size < subgroup_size
-  const index_t col_chunck_size =
-      nColsWG_ / (subgroups_per_group / subgroups_per_col);
+  const index_t group_size = ndItem.get_local_range(0);
+
+  // CONSTRAIN col_per_workitem <= subgroup_size
+  const index_t col_per_workitem = nColsWG_ * nRowsWG_ / group_size;
 
   const index_t group_id = ndItem.get_group(0);
 
@@ -97,7 +98,7 @@ PORTBLAS_INLINE
                           subgroup_local_id;  //
   const index_t id_col0 =
       idWFC * nColsWG_ +
-      col_chunck_size * (subgroup_id / subgroups_per_col);  //
+      col_per_workitem * (subgroup_id / subgroups_per_col);  //
 
   // Total size of the problem
   const index_t dimR = lhs_.get_size_row();
@@ -105,7 +106,7 @@ PORTBLAS_INLINE
   const bool id_row_active = id_row0 < dimR;
 
   //
-  const value_t rhs_2 = (subgroup_local_id < col_chunck_size &&
+  const value_t rhs_2 = (subgroup_local_id < col_per_workitem &&
                          id_col0 + subgroup_local_id < dimC)
                             ? rhs_2_.eval(id_col0 + subgroup_local_id)
                             : 0;
@@ -113,7 +114,7 @@ PORTBLAS_INLINE
 
   value_t prefetch_lhs_ = (id_row_active && id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
 
-  for (index_t sub_id_col = 0; sub_id_col < col_chunck_size; sub_id_col++) {
+  for (index_t sub_id_col = 0; sub_id_col < col_per_workitem; sub_id_col++) {
     const value_t rhs_2_sub_id_col =
         cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
     if (id_row_active && id_col0 + sub_id_col < dimC) {
