@@ -1294,30 +1294,31 @@ typename sb_handle_t::event_t inline _ger(
     container_t0 _vx, increment_t _incx, container_t1 _vy, increment_t _incy,
     container_t2 _mA, index_t _lda,
     const typename sb_handle_t::event_t& _dependencies) {
-  // TODO: Here we can use some heuristics to select localn global, local, and
-  // scratch size per device
 
-  index_t _localSize = 0;
-  bool _useLocalMem = true;
+  index_t localSize = 0;
+  bool useLocalMem = true;
   index_t nRowsWG = 0;
   index_t nColsWG = 0;
 
 #if defined(INTEL_GPU)
-
+  localSize = 32;
+  useLocalMem = false;
+  nRowsWG = 32;
+  nColsWG = 8;
 #elif defined(NVIDIA_GPU)
-  _localSize = 256;
-  _useLocalMem = (_N < 8192) ? false : true;
+  localSize = 256;
+  useLocalMem = (_N < 8192) ? false : true;
   nRowsWG = 32;
   nColsWG = 32;
 #elif defined(AMD_GPU)
-  _localSize = (_N < 8192) ? 512 : 256;
-  _useLocalMem = (_N < 8192) ? false : true;
+  localSize = (_N < 8192) ? 512 : 256;
+  useLocalMem = (_N < 8192) ? false : true;
   nRowsWG = (_N < 8192) ? 64 : 128;
   nColsWG = (_N < 8192) ? 64 : 256;
 #endif
 
   return _ger_impl(sb_handle, _M, _N, _alpha, _vx, _incx, _vy, _incy, _mA, _lda,
-                   _dependencies, _localSize, _useLocalMem, nRowsWG, nColsWG);
+                   _dependencies, localSize, useLocalMem, nRowsWG, nColsWG);
 }
 
 template <typename sb_handle_t, typename index_t, typename element_t,
