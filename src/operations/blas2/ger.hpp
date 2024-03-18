@@ -37,14 +37,14 @@ namespace blas {
 template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
           typename rhs_1_t, typename rhs_2_t>
 PORTBLAS_INLINE Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::Ger(
-    lhs_t &_l, value_t _scl, rhs_1_t &_r1, rhs_2_t &_r2, index_t &_block_rsize,
-    index_t &_block_csize, index_t &_nWG_row, index_t &_nWG_col)
+    lhs_t &_l, value_t _scl, rhs_1_t &_r1, rhs_2_t &_r2, index_t &_nRowsWG,
+    index_t &_nColsWG, index_t &_nWG_row, index_t &_nWG_col)
     : lhs_(_l),
       scalar_(_scl),
       rhs_1_(_r1),
       rhs_2_(_r2),
-      block_rsize(_block_rsize),
-      block_csize(_block_csize),
+      nRowsWG_(_nRowsWG),
+      nColsWG_(_nColsWG),
       nWG_row_(_nWG_row),
       nWG_col_(_nWG_col) {}
 
@@ -73,13 +73,13 @@ PORTBLAS_INLINE
                                rhs_2_t>::index_t;
 
   const index_t subgroup_size = ndItem.get_sub_group().get_local_range().get(0);
-  const index_t subgroups_per_row = block_rsize / subgroup_size;
+  const index_t subgroups_per_row = nRowsWG_ / subgroup_size;
   const index_t subgroups_per_group =
       ndItem.get_sub_group().get_group_range().get(0);
 
   // CONSTRAIN col_chunck_size < subgroup_size
   const index_t col_chunck_size =
-      block_csize / (subgroups_per_group / subgroups_per_row);
+      nColsWG_ / (subgroups_per_group / subgroups_per_row);
 
   const index_t group_id = ndItem.get_group(0);
 
@@ -92,11 +92,11 @@ PORTBLAS_INLINE
       ndItem.get_sub_group().get_local_id().get(0);
 
   // Compute the index offset for accessing data
-  const index_t id_row0 = idWFR * block_rsize +
+  const index_t id_row0 = idWFR * nRowsWG_ +
                           subgroup_size * (subgroup_id % subgroups_per_row) +
                           subgroup_local_id;  //
   const index_t id_col0 =
-      idWFC * block_csize +
+      idWFC * nColsWG_ +
       col_chunck_size * (subgroup_id / subgroups_per_row);  //
 
   // Total size of the problem
@@ -138,39 +138,39 @@ PORTBLAS_INLINE
   const index_t group_id = ndItem.get_group(0);
   const index_t idWFR = group_id % nWG_row_;
   const index_t idWFC = group_id / nWG_row_;
-  const index_t frs_row = idWFR * block_rsize;
+  const index_t frs_row = idWFR * nRowsWG_;
   const index_t group_local_id = ndItem.get_local_id(0);
 
-  // CONSTRAIN group_size%block_rsize == 0
-  const index_t id_row0 = group_local_id % block_rsize;
+  // CONSTRAIN group_size%nRowsWG_ == 0
+  const index_t id_row0 = group_local_id % nRowsWG_;
   const index_t id_row1 = frs_row + id_row0;
 
-  index_t frs_col = idWFC * block_csize;
+  index_t frs_col = idWFC * nColsWG_;
 
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
 
   value_t *l_rhs_1 = shrMem.localAcc.get_pointer();
-  value_t *l_rhs_2 = shrMem.localAcc.get_pointer() + block_rsize;
+  value_t *l_rhs_2 = shrMem.localAcc.get_pointer() + nRowsWG_;
 
-  // CONSTRAIN group_size >= block_rsize
-  if (group_local_id < block_rsize)
+  // CONSTRAIN group_size >= nRowsWG_
+  if (group_local_id < nRowsWG_)
     l_rhs_1[group_local_id] =
         (frs_row + group_local_id < dimR)
             ? scalar_ * rhs_1_.eval(frs_row + group_local_id)
             : 0;
 
-  // CONSTRAIN group_size >= block_csize
-  if (group_local_id < block_csize)
+  // CONSTRAIN group_size >= nColsWG_
+  if (group_local_id < nColsWG_)
     l_rhs_2[group_local_id] = (frs_col + group_local_id < dimC)
                                   ? rhs_2_.eval(frs_col + group_local_id)
                                   : 0;
 
   const index_t group_size = ndItem.get_local_range(0);
 
-  // CONSTRAIN block_rsize * block_csize % group_size == 0
-  const index_t col_per_workitem = block_rsize * block_csize / group_size;
-  const index_t chk_id = group_local_id / block_rsize;
+  // CONSTRAIN nRowsWG_ * nColsWG_ % group_size == 0
+  const index_t col_per_workitem = nRowsWG_ * nColsWG_ / group_size;
+  const index_t chk_id = group_local_id / nRowsWG_;
 
   const index_t id_col0 = chk_id * col_per_workitem;
   const index_t id_col1 = frs_col + id_col0;
