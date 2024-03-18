@@ -892,6 +892,7 @@ typename sb_handle_t::event_t _ger_impl(
   nColsWG = (nColsWG == 0) ? _localSize : nColsWG;
 
   assert(((nRowsWG * nColsWG) % _localSize) == 0);
+  assert(nColsWG % (_localSize / nRowsWG) == 0);
 
   if (_useLocalMem) {
     assert((nRowsWG <= _localSize) && (nColsWG <= _localSize));
@@ -905,7 +906,6 @@ typename sb_handle_t::event_t _ger_impl(
     size_t max_subgroup_size = *subgroup_sizes.rbegin();
     assert(((nRowsWG * nColsWG) / _localSize) <= min_subgroup_size);
     assert(nRowsWG % max_subgroup_size == 0);
-    assert(nColsWG % (_localSize / nRowsWG) == 0);
   }
 
   const index_t nWGPerCol = (N - 1) / nColsWG + 1;
