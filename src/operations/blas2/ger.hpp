@@ -73,13 +73,13 @@ PORTBLAS_INLINE
                                rhs_2_t>::index_t;
 
   const index_t subgroup_size = ndItem.get_sub_group().get_local_range().get(0);
-  const index_t subgroups_per_row = nRowsWG_ / subgroup_size;
+  const index_t subgroups_per_col = nRowsWG_ / subgroup_size;
   const index_t subgroups_per_group =
       ndItem.get_sub_group().get_group_range().get(0);
 
   // CONSTRAIN col_chunck_size < subgroup_size
   const index_t col_chunck_size =
-      nColsWG_ / (subgroups_per_group / subgroups_per_row);
+      nColsWG_ / (subgroups_per_group / subgroups_per_col);
 
   const index_t group_id = ndItem.get_group(0);
 
@@ -93,11 +93,11 @@ PORTBLAS_INLINE
 
   // Compute the index offset for accessing data
   const index_t id_row0 = idWFR * nRowsWG_ +
-                          subgroup_size * (subgroup_id % subgroups_per_row) +
+                          subgroup_size * (subgroup_id % subgroups_per_col) +
                           subgroup_local_id;  //
   const index_t id_col0 =
       idWFC * nColsWG_ +
-      col_chunck_size * (subgroup_id / subgroups_per_row);  //
+      col_chunck_size * (subgroup_id / subgroups_per_col);  //
 
   // Total size of the problem
   const index_t dimR = lhs_.get_size_row();
