@@ -519,9 +519,8 @@ struct Ger {
   index_t nRowsWG_;
   index_t nColsWG_;
 
-  Ger(lhs_t &_l, value_t _scl, rhs_1_t &_r1, rhs_2_t &_r2,
-      index_t &_nRowsWG, index_t &_nColsWG, index_t &_nWG_row,
-      index_t &_nWG_col);
+  Ger(lhs_t &_l, value_t _scl, rhs_1_t &_r1, rhs_2_t &_r2, index_t &_nRowsWG,
+      index_t &_nColsWG, index_t &_nWG_row, index_t &_nWG_col);
 
   index_t get_size() const;
   bool valid_thread(cl::sycl::nd_item<1> ndItem) const;
@@ -541,8 +540,7 @@ Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t> make_ger(
     typename rhs_2_t::index_t nColsWG_, typename rhs_2_t::index_t nWG_row_,
     typename rhs_2_t::index_t nWG_col_) {
   return Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>(
-      lhs_, scalar_, rhs_1_, rhs_2_, nRowsWG_, nColsWG_, nWG_row_,
-      nWG_col_);
+      lhs_, scalar_, rhs_1_, rhs_2_, nRowsWG_, nColsWG_, nWG_row_, nWG_col_);
 }
 
 /**** GER BY ROWS M ROWS x N BLOCK USING PROPERLY THE SHARED MEMORY ****/

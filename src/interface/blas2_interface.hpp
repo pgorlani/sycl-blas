@@ -897,7 +897,10 @@ typename sb_handle_t::event_t _ger_impl(
     assert((nRowsWG <= _localSize) && (nColsWG <= _localSize));
     assert((_localSize % nRowsWG) == 0);
   } else {
-    std::vector<size_t> subgroup_sizes = sb_handle.get_queue().get_device().template get_info<sycl::info::device::sub_group_sizes>();
+    std::vector<size_t> subgroup_sizes =
+        sb_handle.get_queue()
+            .get_device()
+            .template get_info<sycl::info::device::sub_group_sizes>();
     size_t min_subgroup_size = *subgroup_sizes.begin();
     size_t max_subgroup_size = *subgroup_sizes.rbegin();
     assert(((nRowsWG * nColsWG) / _localSize) <= min_subgroup_size);
@@ -1292,7 +1295,6 @@ typename sb_handle_t::event_t inline _ger(
     container_t0 _vx, increment_t _incx, container_t1 _vy, increment_t _incy,
     container_t2 _mA, index_t _lda,
     const typename sb_handle_t::event_t& _dependencies) {
-
   index_t localSize = 0;
   bool useLocalMem = true;
   index_t nRowsWG = 0;

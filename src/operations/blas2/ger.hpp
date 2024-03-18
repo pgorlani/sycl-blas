@@ -112,14 +112,18 @@ PORTBLAS_INLINE
                             : 0;
   const value_t scal_rhs_1 = id_row_active ? scalar_ * rhs_1_.eval(id_row0) : 0;
 
-  value_t prefetch_lhs_ = (id_row_active && id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
+  value_t prefetch_lhs_ =
+      (id_row_active && id_col0 < dimC) ? lhs_.eval(id_row0, id_col0) : 0;
 
   for (index_t sub_id_col = 0; sub_id_col < col_per_workitem; sub_id_col++) {
     const value_t rhs_2_sub_id_col =
         cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
     if (id_row_active && id_col0 + sub_id_col < dimC) {
-      lhs_.eval(id_row0, id_col0 + sub_id_col) = prefetch_lhs_ + scal_rhs_1 * rhs_2_sub_id_col;
-      prefetch_lhs_ = (id_col0 + sub_id_col + 1 < dimC) ?  lhs_.eval(id_row0, id_col0 + sub_id_col + 1) : 0;
+      lhs_.eval(id_row0, id_col0 + sub_id_col) =
+          prefetch_lhs_ + scal_rhs_1 * rhs_2_sub_id_col;
+      prefetch_lhs_ = (id_col0 + sub_id_col + 1 < dimC)
+                          ? lhs_.eval(id_row0, id_col0 + sub_id_col + 1)
+                          : 0;
     }
   }
 
