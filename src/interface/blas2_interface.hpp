@@ -1307,14 +1307,14 @@ typename sb_handle_t::event_t inline _ger(
   nColsWG = 8;
 #elif defined(NVIDIA_GPU)
   localSize = 256;
-  useLocalMem = (_N < 8192) ? false : true;
+  useLocalMem = (_N < 8192 && _M < 8192) ? false : true;
   nRowsWG = 32;
   nColsWG = 32;
 #elif defined(AMD_GPU)
-  localSize = (_N < 8192) ? 512 : 256;
-  useLocalMem = (_N < 8192) ? false : true;
-  nRowsWG = (_N < 8192) ? 64 : 128;
-  nColsWG = (_N < 8192) ? 64 : 256;
+  localSize = (_N < 8192 && _M < 8192) ? 512 : 256;
+  useLocalMem = (_N < 8192 && _M < 8192) ? false : true;
+  nRowsWG = (_N < 8192 && _M < 8192) ? 64 : 128;
+  nColsWG = (_N < 8192 && _M < 8192) ? 64 : 256;
 #endif
 
   return _ger_impl(sb_handle, _M, _N, _alpha, _vx, _incx, _vy, _incy, _mA, _lda,
