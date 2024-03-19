@@ -878,7 +878,7 @@ typename sb_handle_t::event_t _ger_impl(
     container_t0 _vx, increment_t _incx, container_t1 _vy, increment_t _incy,
     container_t2 _mA, index_t _lda,
     const typename sb_handle_t::event_t& _dependencies, index_t _localSize = 0,
-    bool _useLocalMem = true, index_t nRowsWG = 0, index_t nColsWG = 0) {
+    bool _useLocalMem = true, index_t _nRowsWG = 0, index_t _nColsWG = 0) {
   index_t M = _M;
   index_t N = _N;
   auto mA = make_matrix_view<col_major>(_mA, M, N, _lda);
@@ -888,15 +888,15 @@ typename sb_handle_t::event_t _ger_impl(
       make_vector_view(_vy, _incy, N);
 
   _localSize = (_localSize == 0) ? sb_handle.get_work_group_size() : _localSize;
-  nRowsWG = (nRowsWG == 0) ? _localSize : nRowsWG;
-  nColsWG = (nColsWG == 0) ? _localSize : nColsWG;
+  _nRowsWG = (_nRowsWG == 0) ? _localSize : _nRowsWG;
+  _nColsWG = (_nColsWG == 0) ? _localSize : _nColsWG;
 
-  assert(((nRowsWG * nColsWG) % _localSize) == 0);
-  assert(nColsWG % (_localSize / nRowsWG) == 0);
+  assert(((_nRowsWG * _nColsWG) % _localSize) == 0);
+  assert(_nColsWG % (_localSize / _nRowsWG) == 0);
 
   if (_useLocalMem) {
-    assert((nRowsWG <= _localSize) && (nColsWG <= _localSize));
-    assert((_localSize % nRowsWG) == 0);
+    assert((_nRowsWG <= _localSize) && (_nColsWG <= _localSize));
+    assert((_localSize % _nRowsWG) == 0);
   } else {
     std::vector<size_t> subgroup_sizes =
         sb_handle.get_queue()
@@ -904,20 +904,20 @@ typename sb_handle_t::event_t _ger_impl(
             .template get_info<sycl::info::device::sub_group_sizes>();
     size_t min_subgroup_size = *subgroup_sizes.begin();
     size_t max_subgroup_size = *subgroup_sizes.rbegin();
-    assert(((nRowsWG * nColsWG) / _localSize) <= min_subgroup_size);
-    assert(nRowsWG % max_subgroup_size == 0);
+    assert(((_nRowsWG * _nColsWG) / _localSize) <= min_subgroup_size);
+    assert(_nRowsWG % max_subgroup_size == 0);
   }
 
-  const index_t nWGPerCol = (N - 1) / nColsWG + 1;
-  const index_t nWGPerRow = (M - 1) / nRowsWG + 1;
+  const index_t nWGPerCol = (N - 1) / _nColsWG + 1;
+  const index_t nWGPerRow = (M - 1) / _nRowsWG + 1;
   const index_t globalSize = _localSize * nWGPerRow * nWGPerCol;
 
   typename sb_handle_t::event_t ret;
   auto assignOp =
-      make_ger(mA, _alpha, vx, vy, nRowsWG, nColsWG, nWGPerRow, nWGPerCol);
+      make_ger(mA, _alpha, vx, vy, _nRowsWG, _nColsWG, nWGPerRow, nWGPerCol);
 
   return _useLocalMem ? sb_handle.execute(assignOp, _localSize, globalSize,
-                                          nRowsWG + nColsWG, _dependencies)
+                                          _nRowsWG + _nColsWG, _dependencies)
                       : sb_handle.execute(assignOp, _localSize, globalSize,
                                           _dependencies);
 }
