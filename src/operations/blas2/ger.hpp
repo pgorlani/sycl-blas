@@ -79,12 +79,10 @@ PORTBLAS_INLINE
 
   const index_t group_size = ndItem.get_local_range(0);
 
-  // CONSTRAIN col_per_workitem <= subgroup_size
+  // col_per_workitem <= subgroup_size
   const index_t col_per_workitem = nColsWG_ * nRowsWG_ / group_size;
 
   const index_t group_id = ndItem.get_group(0);
-
-  // Block id's of the current workgroup
   const index_t idWFR = group_id % nWG_row_;
   const index_t idWFC = group_id / nWG_row_;
 
@@ -100,12 +98,10 @@ PORTBLAS_INLINE
       idWFC * nColsWG_ +
       col_per_workitem * (subgroup_id / subgroups_per_col);  //
 
-  // Total size of the problem
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
   const bool id_row_active = id_row0 < dimR;
 
-  //
   const value_t rhs_2 = (subgroup_local_id < col_per_workitem &&
                          id_col0 + subgroup_local_id < dimC)
                             ? rhs_2_.eval(id_col0 + subgroup_local_id)
@@ -117,7 +113,11 @@ PORTBLAS_INLINE
 
   for (index_t sub_id_col = 0; sub_id_col < col_per_workitem; sub_id_col++) {
     const value_t rhs_2_sub_id_col =
+#ifndef __ADAPTIVECPP__
         cl::sycl::group_broadcast(ndItem.get_sub_group(), rhs_2, sub_id_col);
+#else
+        rhs_2_.eval(id_col0 + sub_id_col);
+#endif
     if (id_row_active && id_col0 + sub_id_col < dimC) {
       lhs_.eval(id_row0, id_col0 + sub_id_col) =
           prefetch_lhs_ + scal_rhs_1 * rhs_2_sub_id_col;
