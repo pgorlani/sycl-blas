@@ -48,25 +48,20 @@ PORTBLAS_INLINE Ger<lhs_t, rhs_1_t, rhs_2_t>::Ger(
       nWG_col_(_nWG_col) {}
 
 template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
-PORTBLAS_INLINE
-    typename Ger<lhs_t, rhs_1_t, rhs_2_t>::index_t
-    Ger<lhs_t, rhs_1_t, rhs_2_t>::get_size() const {
+PORTBLAS_INLINE typename Ger<lhs_t, rhs_1_t, rhs_2_t>::index_t
+Ger<lhs_t, rhs_1_t, rhs_2_t>::get_size() const {
   return rhs_1_.get_size();
 }
 template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
-PORTBLAS_INLINE bool
-Ger<lhs_t, rhs_1_t, rhs_2_t>::valid_thread(
+PORTBLAS_INLINE bool Ger<lhs_t, rhs_1_t, rhs_2_t>::valid_thread(
     cl::sycl::nd_item<1> ndItem) const {
   return true;
 }
 
 template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
-PORTBLAS_INLINE
-    typename Ger<lhs_t, rhs_1_t, rhs_2_t>::value_t
-    Ger<lhs_t, rhs_1_t, rhs_2_t>::eval(
-        cl::sycl::nd_item<1> ndItem) {
-  using index_t = typename Ger<lhs_t, rhs_1_t,
-                               rhs_2_t>::index_t;
+PORTBLAS_INLINE typename Ger<lhs_t, rhs_1_t, rhs_2_t>::value_t
+Ger<lhs_t, rhs_1_t, rhs_2_t>::eval(cl::sycl::nd_item<1> ndItem) {
+  using index_t = typename Ger<lhs_t, rhs_1_t, rhs_2_t>::index_t;
 
   const index_t subgroup_size = ndItem.get_sub_group().get_local_range().get(0);
   const index_t subgroups_per_col = nRowsWG_ / subgroup_size;
@@ -129,12 +124,10 @@ PORTBLAS_INLINE
 
 template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
 template <typename sharedT>
-PORTBLAS_INLINE
-    typename Ger<lhs_t, rhs_1_t, rhs_2_t>::value_t
-    Ger<lhs_t, rhs_1_t, rhs_2_t>::eval(
-        sharedT shrMem, cl::sycl::nd_item<1> ndItem) {
-  using index_t = typename Ger<lhs_t, rhs_1_t,
-                               rhs_2_t>::index_t;
+PORTBLAS_INLINE typename Ger<lhs_t, rhs_1_t, rhs_2_t>::value_t
+Ger<lhs_t, rhs_1_t, rhs_2_t>::eval(sharedT shrMem,
+                                   cl::sycl::nd_item<1> ndItem) {
+  using index_t = typename Ger<lhs_t, rhs_1_t, rhs_2_t>::index_t;
 
   const index_t group_id = ndItem.get_group(0);
   const index_t idWFR = group_id % nWG_row_;
@@ -194,15 +187,14 @@ PORTBLAS_INLINE
 }
 
 template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
-PORTBLAS_INLINE void Ger<lhs_t, rhs_1_t,
-                         rhs_2_t>::bind(cl::sycl::handler &h) {
+PORTBLAS_INLINE void Ger<lhs_t, rhs_1_t, rhs_2_t>::bind(cl::sycl::handler &h) {
   lhs_.bind(h);
   rhs_1_.bind(h);
   rhs_2_.bind(h);
 }
 template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
-PORTBLAS_INLINE void Ger<lhs_t, rhs_1_t,
-                         rhs_2_t>::adjust_access_displacement() {
+PORTBLAS_INLINE void
+Ger<lhs_t, rhs_1_t, rhs_2_t>::adjust_access_displacement() {
   lhs_.adjust_access_displacement();
   rhs_1_.adjust_access_displacement();
   rhs_2_.adjust_access_displacement();
