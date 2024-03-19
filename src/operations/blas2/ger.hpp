@@ -90,22 +90,24 @@ PORTBLAS_INLINE
   const index_t subgroup_local_id =
       ndItem.get_sub_group().get_local_id().get(0);
 
-  // Compute the index offset for accessing data
   const index_t id_row0 = idWFR * nRowsWG_ +
                           subgroup_size * (subgroup_id % subgroups_per_col) +
-                          subgroup_local_id;  //
+                          subgroup_local_id;
   const index_t id_col0 =
       idWFC * nColsWG_ +
-      col_per_workitem * (subgroup_id / subgroups_per_col);  //
+      col_per_workitem * (subgroup_id / subgroups_per_col);
 
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
   const bool id_row_active = id_row0 < dimR;
 
+#ifndef __ADAPTIVECPP__
   const value_t rhs_2 = (subgroup_local_id < col_per_workitem &&
                          id_col0 + subgroup_local_id < dimC)
                             ? rhs_2_.eval(id_col0 + subgroup_local_id)
                             : 0;
+#endif
+
   const value_t scal_rhs_1 = id_row_active ? scalar_ * rhs_1_.eval(id_row0) : 0;
 
   value_t prefetch_lhs_ =
@@ -146,7 +148,7 @@ PORTBLAS_INLINE
   const index_t frs_row = idWFR * nRowsWG_;
   const index_t group_local_id = ndItem.get_local_id(0);
 
-  // CONSTRAIN group_size%nRowsWG_ == 0
+  // group_size%nRowsWG_ == 0
   const index_t id_row0 = group_local_id % nRowsWG_;
   const index_t id_row1 = frs_row + id_row0;
 
@@ -158,14 +160,14 @@ PORTBLAS_INLINE
   value_t *l_rhs_1 = shrMem.localAcc.get_pointer();
   value_t *l_rhs_2 = shrMem.localAcc.get_pointer() + nRowsWG_;
 
-  // CONSTRAIN group_size >= nRowsWG_
+  // nRowsWG_ <= group_size 
   if (group_local_id < nRowsWG_)
     l_rhs_1[group_local_id] =
         (frs_row + group_local_id < dimR)
             ? scalar_ * rhs_1_.eval(frs_row + group_local_id)
             : 0;
 
-  // CONSTRAIN group_size >= nColsWG_
+  // nColsWG_ <= group_size 
   if (group_local_id < nColsWG_)
     l_rhs_2[group_local_id] = (frs_col + group_local_id < dimC)
                                   ? rhs_2_.eval(frs_col + group_local_id)
@@ -173,7 +175,7 @@ PORTBLAS_INLINE
 
   const index_t group_size = ndItem.get_local_range(0);
 
-  // CONSTRAIN nRowsWG_ * nColsWG_ % group_size == 0
+  // nRowsWG_ * nColsWG_ % group_size == 0
   const index_t col_per_workitem = nRowsWG_ * nColsWG_ / group_size;
   const index_t chk_id = group_local_id / nRowsWG_;
 
