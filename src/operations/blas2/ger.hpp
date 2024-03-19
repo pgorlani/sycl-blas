@@ -34,9 +34,8 @@
 
 namespace blas {
 
-template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
-          typename rhs_1_t, typename rhs_2_t>
-PORTBLAS_INLINE Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::Ger(
+template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
+PORTBLAS_INLINE Ger<lhs_t, rhs_1_t, rhs_2_t>::Ger(
     lhs_t &_l, value_t _scl, rhs_1_t &_r1, rhs_2_t &_r2, index_t &_nRowsWG,
     index_t &_nColsWG, index_t &_nWG_row, index_t &_nWG_col)
     : lhs_(_l),
@@ -48,28 +47,25 @@ PORTBLAS_INLINE Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::Ger(
       nWG_row_(_nWG_row),
       nWG_col_(_nWG_col) {}
 
-template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
-          typename rhs_1_t, typename rhs_2_t>
+template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
 PORTBLAS_INLINE
-    typename Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::index_t
-    Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::get_size() const {
+    typename Ger<lhs_t, rhs_1_t, rhs_2_t>::index_t
+    Ger<lhs_t, rhs_1_t, rhs_2_t>::get_size() const {
   return rhs_1_.get_size();
 }
-template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
-          typename rhs_1_t, typename rhs_2_t>
+template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
 PORTBLAS_INLINE bool
-Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::valid_thread(
+Ger<lhs_t, rhs_1_t, rhs_2_t>::valid_thread(
     cl::sycl::nd_item<1> ndItem) const {
   return true;
 }
 
-template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
-          typename rhs_1_t, typename rhs_2_t>
+template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
 PORTBLAS_INLINE
-    typename Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::value_t
-    Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
+    typename Ger<lhs_t, rhs_1_t, rhs_2_t>::value_t
+    Ger<lhs_t, rhs_1_t, rhs_2_t>::eval(
         cl::sycl::nd_item<1> ndItem) {
-  using index_t = typename Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
+  using index_t = typename Ger<lhs_t, rhs_1_t,
                                rhs_2_t>::index_t;
 
   const index_t subgroup_size = ndItem.get_sub_group().get_local_range().get(0);
@@ -131,14 +127,13 @@ PORTBLAS_INLINE
   return 0;
 }
 
-template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
-          typename rhs_1_t, typename rhs_2_t>
+template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
 template <typename sharedT>
 PORTBLAS_INLINE
-    typename Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::value_t
-    Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>::eval(
+    typename Ger<lhs_t, rhs_1_t, rhs_2_t>::value_t
+    Ger<lhs_t, rhs_1_t, rhs_2_t>::eval(
         sharedT shrMem, cl::sycl::nd_item<1> ndItem) {
-  using index_t = typename Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
+  using index_t = typename Ger<lhs_t, rhs_1_t,
                                rhs_2_t>::index_t;
 
   const index_t group_id = ndItem.get_group(0);
@@ -195,21 +190,18 @@ PORTBLAS_INLINE
                           : 0;
     }
   }
-
   return 0;
 }
-template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
-          typename rhs_1_t, typename rhs_2_t>
-PORTBLAS_INLINE void Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
+
+template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
+PORTBLAS_INLINE void Ger<lhs_t, rhs_1_t,
                          rhs_2_t>::bind(cl::sycl::handler &h) {
   lhs_.bind(h);
   rhs_1_.bind(h);
   rhs_2_.bind(h);
 }
-
-template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
-          typename rhs_1_t, typename rhs_2_t>
-PORTBLAS_INLINE void Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t,
+template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
+PORTBLAS_INLINE void Ger<lhs_t, rhs_1_t,
                          rhs_2_t>::adjust_access_displacement() {
   lhs_.adjust_access_displacement();
   rhs_1_.adjust_access_displacement();

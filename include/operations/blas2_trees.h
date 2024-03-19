@@ -503,8 +503,7 @@ make_trsv(vector_t &lhs_, matrix_t &matrix_, sync_t &sync_) {
                                                            sync_);
 }
 
-template <bool Single, bool Lower, bool Diag, bool Upper, typename lhs_t,
-          typename rhs_1_t, typename rhs_2_t>
+template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
 struct Ger {
   using value_t = typename rhs_2_t::value_t;
   using index_t = typename rhs_2_t::index_t;
@@ -532,14 +531,16 @@ struct Ger {
   void adjust_access_displacement();
 };
 
-template <bool Single = true, bool Lower = true, bool Diag = true,
-          bool Upper = true, typename lhs_t, typename rhs_1_t, typename rhs_2_t>
-Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t> make_ger(
+/*!
+ @brief Generator/factory for GER trees.
+ */
+template <typename lhs_t, typename rhs_1_t, typename rhs_2_t>
+Ger<lhs_t, rhs_1_t, rhs_2_t> make_ger(
     lhs_t &lhs_, typename lhs_t::value_t scalar_, rhs_1_t &rhs_1_,
     rhs_2_t &rhs_2_, typename rhs_2_t::index_t nRowsWG_,
     typename rhs_2_t::index_t nColsWG_, typename rhs_2_t::index_t nWG_row_,
     typename rhs_2_t::index_t nWG_col_) {
-  return Ger<Single, Lower, Diag, Upper, lhs_t, rhs_1_t, rhs_2_t>(
+  return Ger<lhs_t, rhs_1_t, rhs_2_t>(
       lhs_, scalar_, rhs_1_, rhs_2_, nRowsWG_, nColsWG_, nWG_row_, nWG_col_);
 }
 
