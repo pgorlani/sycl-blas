@@ -176,9 +176,9 @@ PORTBLAS_INLINE
 
   // nRowsWG_ * nColsWG_ % group_size == 0
   const index_t col_per_workitem = nRowsWG_ * nColsWG_ / group_size;
-  const index_t chk_id = group_local_id / nRowsWG_;
+  const index_t subgroup_col_id = group_local_id / nRowsWG_;
 
-  const index_t id_col0 = chk_id * col_per_workitem;
+  const index_t id_col0 = subgroup_col_id * col_per_workitem;
   const index_t id_col1 = frs_col + id_col0;
 
   value_t prefetch_lhs_ =
