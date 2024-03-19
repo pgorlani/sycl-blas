@@ -616,7 +616,6 @@ struct GerCol {
 
   GerCol(lhs_t &_l, value_t _scl, rhs_1_t &_r1, rhs_2_t &_r2, index_t &_nWG_row,
          index_t &_nWG_col, index_t &_shrMemSize);
-
   index_t get_size() const;
   bool valid_thread(cl::sycl::nd_item<1> ndItem) const;
   value_t eval(index_t i);
