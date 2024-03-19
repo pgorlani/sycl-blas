@@ -94,8 +94,7 @@ PORTBLAS_INLINE
                           subgroup_size * (subgroup_id % subgroups_per_col) +
                           subgroup_local_id;
   const index_t id_col0 =
-      idWFC * nColsWG_ +
-      col_per_workitem * (subgroup_id / subgroups_per_col);
+      idWFC * nColsWG_ + col_per_workitem * (subgroup_id / subgroups_per_col);
 
   const index_t dimR = lhs_.get_size_row();
   const index_t dimC = lhs_.get_size_col();
@@ -160,14 +159,14 @@ PORTBLAS_INLINE
   value_t *l_rhs_1 = shrMem.localAcc.get_pointer();
   value_t *l_rhs_2 = shrMem.localAcc.get_pointer() + nRowsWG_;
 
-  // nRowsWG_ <= group_size 
+  // nRowsWG_ <= group_size
   if (group_local_id < nRowsWG_)
     l_rhs_1[group_local_id] =
         (frs_row + group_local_id < dimR)
             ? scalar_ * rhs_1_.eval(frs_row + group_local_id)
             : 0;
 
-  // nColsWG_ <= group_size 
+  // nColsWG_ <= group_size
   if (group_local_id < nColsWG_)
     l_rhs_2[group_local_id] = (frs_col + group_local_id < dimC)
                                   ? rhs_2_.eval(frs_col + group_local_id)
